@@ -1,0 +1,19 @@
+{
+  "watch_reasons": [
+    {
+      "value": "recent_rise",
+      "label": "近期上涨",
+      "description": "股票近期表现出上涨趋势"
+    },
+    {
+      "value": "continuous_watch",
+      "label": "持续观察",
+      "description": "需要持续跟踪观察的股票"
+    },
+    {
+      "value": "upcoming_rise",
+      "label": "即将上涨",
+      "description": "预期即将出现上涨机会"
+    }
+  ]
+}

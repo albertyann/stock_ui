@@ -1,0 +1,51 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List, Optional
+from pydantic import BaseModel
+
+from app.database import get_db
+from app.services.stock_service import StockService
+
+
+router = APIRouter(prefix="/stocks", tags=["stocks"])
+
+
+class KlineParams(BaseModel):
+    period: str = "daily"
+    limit: int = 60
+
+
+@router.get("/search", response_model=dict)
+async def search_stocks(
+    q: str = Query(..., description="Search keyword"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    service = StockService()
+    results = service.search_stocks(q, limit)
+    return {"success": True, "data": results}
+
+
+@router.get("/{ts_code}", response_model=dict)
+async def get_stock_detail(ts_code: str):
+    service = StockService()
+    stock = service.get_stock_detail(ts_code)
+
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found")
+
+    return {"success": True, "data": stock}
+
+
+@router.get("/{ts_code}/kline", response_model=dict)
+async def get_kline_data(
+    ts_code: str,
+    period: str = Query("daily", description="daily, weekly, monthly"),
+    limit: int = Query(60, ge=1, le=365),
+):
+    service = StockService()
+    kline = service.get_kline_data(ts_code, period, limit)
+
+    return {
+        "success": True,
+        "data": {"ts_code": ts_code, "period": period, "data": kline},
+    }
