@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     data_sync_interval: int = 300
     signal_analysis_interval: int = 600
     tushare_token: str = ""
+    stock_sync_config_path: str = (
+        "/Users/yann/workspace/trading/miner_sync/configs/sync_config.yaml"
+    )
+    stock_sync_work_dir: str = "/Users/yann/workspace/trading/miner_sync"
 
     class Config:
         env_file = ".env"

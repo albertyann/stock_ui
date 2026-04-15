@@ -35,6 +35,12 @@
           <el-radio-button :label="false">仅热点</el-radio-button>
           <el-radio-button :label="true">全部</el-radio-button>
         </el-radio-group>
+        <el-button v-if="props.id == 2" type="warning" @click="handleSnapshot" :loading="snapshotLoading">
+          <el-icon><Camera /></el-icon>快照
+        </el-button>
+        <el-button v-if="props.id == 2" @click="openSnapshotHistory">
+          快照历史
+        </el-button>
         <el-button type="primary" @click="showAddDialog = true">
           <el-icon><Plus /></el-icon>添加股票
         </el-button>
@@ -75,7 +81,7 @@
                   {{ stock.status === 2 ? '静默' : '热点' }}
                 </el-tag>
                 <el-button
-                  type="info"
+                  type="success"
                   size="small"
                   circle
                   @click="openSwitchGroupDialog(stock)"
@@ -100,6 +106,9 @@
               {{ stockPrices[stock.ts_code].change_pct > 0 ? '+' : '' }}
               {{ stockPrices[stock.ts_code].change_pct?.toFixed(2) }}%
             </div>
+          </div>
+
+          <div class="stock-price" v-if="stockPrices[stock.ts_code]">
             <div v-if="stockPrices[stock.ts_code].market_cap">
               {{ formatMarketCap(stockPrices[stock.ts_code].market_cap) }}
             </div>
@@ -132,18 +141,27 @@
           <div class="stock-footer">
             <span class="added-time">{{ formatDate(stock.added_at) }}</span>
             
-            <el-button 
-              type="primary" 
+            <el-button
+              type="primary"
+              size="small"
+              link
+              @click="openNotesDialog(stock)"
+            >
+              备注
+            </el-button>
+
+            <el-button
+              type="primary"
               size="small"
               link
               @click="openXueqiu(stock.ts_code)"
             >
               雪球
             </el-button>
-            
-            <el-button 
-              type="primary" 
-              size="small" 
+
+            <el-button
+              type="primary"
+              size="small"
               text
               @click="$router.push(`/stock/${stock.ts_code}`)"
             >
@@ -176,6 +194,36 @@
       </template>
     </el-dialog>
 
+    <!-- 股票备注弹窗 -->
+    <el-dialog v-model="showNotesDialog" title="编辑股票备注" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="股票">
+          <el-text>{{ selectedStockForNotes?.name || selectedStockForNotes?.symbol }} ({{ selectedStockForNotes?.ts_code }})</el-text>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input
+            v-model="stockNotesInput"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入股票备注信息..."
+            resize="none"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showNotesDialog = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="saveStockNotes"
+          :disabled="notesLoading"
+          :loading="notesLoading"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 切换分组弹窗 -->
     <el-dialog v-model="showSwitchGroupDialog" title="切换分组" width="500px">
       <el-form label-width="100px">
@@ -191,7 +239,7 @@
             <el-option
               v-for="watchlist in availableWatchlists"
               :key="watchlist.id"
-              :label="watchlist.watchlist_name"
+              :label="watchlist.name"
               :value="watchlist.id"
               :disabled="watchlist.id === Number(props.id)"
             />
@@ -220,6 +268,38 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 快照历史弹窗 -->
+    <el-dialog v-model="showSnapshotHistoryDialog" title="快照历史" width="900px">
+      <el-table :data="snapshots" style="width: 100%">
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <el-table :data="row.items" :border="true" size="small" style="margin: 10px;">
+              <el-table-column prop="ts_code" label="股票代码" width="120" />
+              <el-table-column prop="name" label="股票名称" width="120" />
+              <el-table-column prop="industry" label="板块" width="120" />
+              <el-table-column prop="notes" label="备注" show-overflow-tooltip />
+            </el-table>
+          </template>
+        </el-table-column>
+        <el-table-column prop="snapshot_date" label="快照日期" width="120" />
+        <el-table-column prop="snapshot_time" label="快照时间" width="120" />
+        <el-table-column prop="items.length" label="股票数量" width="100">
+          <template #default="{ row }">
+            {{ row.items?.length || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="created_at" label="创建时间">
+          <template #default="{ row }">
+            {{ new Date(row.created_at).toLocaleString('zh-CN') }}
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <el-button @click="showSnapshotHistoryDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -229,7 +309,7 @@ import { useRoute } from 'vue-router'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { watchlistApi, stockApi, signalApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { Plus, Delete, Refresh, Switch } from '@element-plus/icons-vue'
+import { Plus, Delete, Refresh, Switch, Camera } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const store = useWatchlistStore()
@@ -256,6 +336,17 @@ const selectedTargetWatchlist = ref(null)
 const switchGroupReason = ref('')
 const switchLoading = ref(false)
 const availableWatchlists = ref([])
+
+// 股票备注相关
+const showNotesDialog = ref(false)
+const selectedStockForNotes = ref(null)
+const stockNotesInput = ref('')
+const notesLoading = ref(false)
+
+// 快照相关
+const snapshotLoading = ref(false)
+const showSnapshotHistoryDialog = ref(false)
+const snapshots = ref([])
 
 let priceRefreshInterval = null
 
@@ -498,8 +589,12 @@ const switchStockGroup = async () => {
     )
     ElMessage.success('切换分组成功')
     showSwitchGroupDialog.value = false
-    // 刷新当前分组
-    await loadWatchlist(selectedDate.value)
+    // 从当前列表中移除已切换的股票卡片
+    if (currentWatchlist.value?.stocks) {
+      currentWatchlist.value.stocks = currentWatchlist.value.stocks.filter(
+        stock => stock.id !== selectedStockForSwitch.value.id
+      )
+    }
   } catch (error) {
     console.error('Failed to switch stock group:', error)
     ElMessage.error('切换分组失败')
@@ -514,12 +609,12 @@ const getChangeClass = (change) => {
 }
 
 const getSignalType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info' }
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
   return map[type] || 'info'
 }
 
 const formatSignal = (type) => {
-  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望' }
+  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注' }
   return map[type] || type
 }
 
@@ -544,6 +639,86 @@ const openXueqiu = (tsCode) => {
   const [code, exchange] = tsCode.split('.')
   const xueqiuCode = exchange + code
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
+}
+
+// 打开股票备注弹窗
+const openNotesDialog = (stock) => {
+  selectedStockForNotes.value = stock
+  stockNotesInput.value = stock.notes || ''
+  showNotesDialog.value = true
+}
+
+// 保存股票备注
+const saveStockNotes = async () => {
+  if (!selectedStockForNotes.value) return
+
+  notesLoading.value = true
+  try {
+    await watchlistApi.updateStockNotes(
+      props.id,
+      selectedStockForNotes.value.id,
+      stockNotesInput.value.trim()
+    )
+    ElMessage.success('备注更新成功')
+    showNotesDialog.value = false
+
+    const stock = currentWatchlist.value?.stocks?.find(
+      s => s.id === selectedStockForNotes.value.id
+    )
+    if (stock) {
+      stock.notes = stockNotesInput.value.trim()
+    }
+  } catch (error) {
+    console.error('Failed to update stock notes:', error)
+    ElMessage.error('备注更新失败')
+  } finally {
+    notesLoading.value = false
+  }
+}
+
+const handleSnapshot = async () => {
+  if (!currentWatchlist.value?.stocks?.length) {
+    ElMessage.warning('当前分组没有股票，无法创建快照')
+    return
+  }
+
+  const stocksToSnapshot = filteredStocks.value.map(stock => ({
+    ts_code: stock.ts_code,
+    name: stock.name || stock.symbol,
+    industry: stock.industry || '',
+    notes: stock.notes || ''
+  }))
+
+  if (stocksToSnapshot.length === 0) {
+    ElMessage.warning('当前筛选条件下没有股票，无法创建快照')
+    return
+  }
+
+  snapshotLoading.value = true
+  try {
+    await watchlistApi.createSnapshot(props.id, stocksToSnapshot)
+    ElMessage.success(`成功创建快照，共 ${stocksToSnapshot.length} 只股票`)
+  } catch (error) {
+    console.error('Failed to create snapshot:', error)
+    ElMessage.error('快照创建失败')
+  } finally {
+    snapshotLoading.value = false
+  }
+}
+
+const openSnapshotHistory = async () => {
+  showSnapshotHistoryDialog.value = true
+  await loadSnapshots()
+}
+
+const loadSnapshots = async () => {
+  try {
+    const response = await watchlistApi.getSnapshots(props.id)
+    snapshots.value = response.data || []
+  } catch (error) {
+    console.error('Failed to load snapshots:', error)
+    ElMessage.error('加载快照历史失败')
+  }
 }
 </script>
 

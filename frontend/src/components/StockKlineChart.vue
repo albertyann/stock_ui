@@ -22,16 +22,6 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
-  // 股东人数数据（可选）
-  holderData: {
-    type: Array,
-    default: () => []
-  },
-  // 是否显示股东人数
-  showHolderNumber: {
-    type: Boolean,
-    default: false
-  },
   // 是否显示MACD
   showMACD: {
     type: Boolean,
@@ -137,23 +127,10 @@ const renderChart = () => {
     macd = macdData.macd
   }
 
-  // 处理股东人数数据
-  let holderNums = []
-  if (props.showHolderNumber && props.holderData && props.holderData.length > 0) {
-    const holderDataMap = new Map()
-    props.holderData.forEach(item => {
-      holderDataMap.set(item.date, item.holder_num)
-    })
-    holderNums = dates.map(date => holderDataMap.get(date) || null)
-  }
-
   // 构建图例数据
   const legendData = ['日K', 'MA5', 'MA20', 'MA30', 'MA60', '成交量']
   if (props.showMACD) {
     legendData.push('DIF', 'DEA', 'MACD')
-  }
-  if (props.showHolderNumber && holderNums.length > 0) {
-    legendData.push('股东人数')
   }
 
   // 构建tooltip formatter
@@ -184,11 +161,6 @@ const renderChart = () => {
         html += `<div>${param.marker} ${param.seriesName}: ${param.value.toFixed(2)}</div>`
       }
     })
-    
-    // 添加股东人数信息
-    if (props.showHolderNumber && holderNums[dataIndex] !== null) {
-      html += `<div style="color:#fac858;">股东人数: ${(holderNums[dataIndex] / 10000).toFixed(2)}万</div>`
-    }
     
     return html
   }
@@ -397,55 +369,6 @@ const renderChart = () => {
     )
   }
 
-  // 添加股东人数
-  if (props.showHolderNumber && holderNums.length > 0) {
-    const gridIndex = props.showMACD ? 3 : 2
-    grids.push({
-      left: '10%',
-      right: '8%',
-      top: props.showMACD ? '94%' : '80%',
-      height: '10%'
-    })
-
-    xAxes.push({
-      type: 'category',
-      gridIndex: gridIndex,
-      data: dates,
-      scale: true,
-      boundaryGap: false,
-      axisLine: { onZero: false, lineStyle: { color: '#777' } },
-      axisTick: { show: false },
-      splitLine: { show: false },
-      axisLabel: { show: false },
-      min: 'dataMin',
-      max: 'dataMax'
-    })
-
-    yAxes.push({
-      scale: true,
-      gridIndex: gridIndex,
-      splitNumber: 2,
-      axisLabel: { show: false },
-      axisLine: { show: false },
-      axisTick: { show: false },
-      splitLine: { show: false }
-    })
-
-    series.push({
-      name: '股东人数',
-      type: 'line',
-      xAxisIndex: gridIndex,
-      yAxisIndex: gridIndex,
-      data: holderNums,
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#fac858' },
-      itemStyle: { color: '#fac858' },
-      symbol: 'circle',
-      symbolSize: 4,
-      showSymbol: false
-    })
-  }
-
   const option = {
     title: {
       text: props.stockName || '',
@@ -519,13 +442,6 @@ defineExpose({
 
 // 监听数据变化
 watch(() => props.klineData, () => {
-  if (chart) {
-    renderChart()
-  }
-}, { deep: true })
-
-// 监听股东人数变化
-watch(() => props.holderData, () => {
   if (chart) {
     renderChart()
   }

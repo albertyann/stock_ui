@@ -8,6 +8,12 @@ import RealtimePrice from '@/views/RealtimePrice.vue'
 import LimitUpStocks from '@/views/LimitUpStocks.vue'
 import SectorList from '@/views/SectorList.vue'
 import StockQuery from '@/views/StockQuery.vue'
+import TradeCal from '@/views/TradeCal.vue'
+import StockBasic from '@/views/StockBasic.vue'
+import DailyData from '@/views/DailyData.vue'
+import WeeklyData from '@/views/WeeklyData.vue'
+import SyncTasks from '@/views/SyncTasks.vue'
+import SnapshotManage from '@/views/SnapshotManageView.vue'
 
 const routes = [
   {
@@ -56,6 +62,37 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: Settings
+  },
+  {
+    path: '/basic-data/trade-cal',
+    name: 'TradeCal',
+    component: TradeCal
+  },
+  {
+    path: '/basic-data/stocks',
+    name: 'StockBasic',
+    component: StockBasic
+  },
+  {
+    path: '/basic-data/daily',
+    name: 'DailyData',
+    component: DailyData
+  },
+  {
+    path: '/basic-data/weekly',
+    name: 'WeeklyData',
+    component: WeeklyData
+  },
+  {
+    path: '/sync-tasks',
+    name: 'SyncTasks',
+    component: SyncTasks
+  },
+  {
+    path: '/snapshot-manage',
+    name: 'SnapshotManage',
+    component: SnapshotManage,
+    meta: { title: '快照管理' }
   }
 ]
 

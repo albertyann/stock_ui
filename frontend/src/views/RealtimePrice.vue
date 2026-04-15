@@ -225,8 +225,14 @@
               <el-button size="small" @click="viewDetail(stock)">
                 <el-icon><View /></el-icon>详情
               </el-button>
-              <el-button size="small" type="warning" @click="addToWatchlist(stock)" :loading="stock.addingToWatchlist">
-                <el-icon><Star /></el-icon>关注
+              <el-button
+                size="small"
+                type="warning"
+                @click="addToWatchlist(stock)"
+                :loading="stock.addingToWatchlist"
+                :disabled="stock.isWatched"
+              >
+                <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
               </el-button>
               <el-button size="small" type="primary" link @click="openXueqiu(stock)">
                 雪球
@@ -241,7 +247,6 @@
               :ts-code="stock.ts_code"
               :stock-name="stock.name"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
-              :show-holder-number="false"
               :show-m-a-c-d="true"
             />
           </div>
@@ -250,74 +255,11 @@
     </div>
 
     <!-- 关注股票弹窗 -->
-    <el-dialog
+    <FollowStockDialog
       v-model="followDialogVisible"
-      title="关注股票"
-      width="450px"
-      :close-on-click-modal="false"
-    >
-      <div v-if="currentFollowStock" class="follow-dialog-content">
-        <div class="stock-basic-info">
-          <h4>股票信息</h4>
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="股票代码">
-              {{ currentFollowStock.ts_code }}
-            </el-descriptions-item>
-            <el-descriptions-item label="名称">
-              {{ currentFollowStock.name }}
-            </el-descriptions-item>
-            <el-descriptions-item label="板块">
-              {{ currentFollowStock.industry || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="当前价格">
-              ¥{{ (currentFollowStock.price ?? 0).toFixed(2) }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-
-        <div class="follow-form">
-          <h4>关注设置</h4>
-          <el-form :model="followForm" label-width="100px">
-            <el-form-item label="关注原因">
-              <el-select
-                v-model="followForm.watch_reason"
-                placeholder="请选择关注原因"
-                style="width: 100%"
-              >
-                <el-option
-                  v-for="reason in watchReasons"
-                  :key="reason.value"
-                  :label="reason.label"
-                  :value="reason.value"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="关注日期">
-              <el-date-picker
-                v-model="followForm.watch_date"
-                type="date"
-                placeholder="选择关注日期"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-                :disabled-date="disabledDate"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-form>
-        </div>
-      </div>
-
-      <template #footer>
-        <el-button @click="followDialogVisible = false">取消</el-button>
-        <el-button
-          type="primary"
-          :loading="followLoading"
-          @click="confirmFollow"
-        >
-          确认关注
-        </el-button>
-      </template>
-    </el-dialog>
+      :stock="currentFollowStock"
+      @success="handleFollowSuccess"
+    />
   </div>
 </template>
 
@@ -329,6 +271,7 @@ import { Refresh, View, ArrowLeft, Search, Star } from '@element-plus/icons-vue'
 import { realtimeApi, watchlistApi } from '@/api'
 import api from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
+import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -416,69 +359,18 @@ const chartRefs = ref(new Map())
 
 // 关注弹窗相关
 const followDialogVisible = ref(false)
-const followLoading = ref(false)
 const currentFollowStock = ref(null)
-const followForm = ref({
-  watch_reason: '',
-  watch_date: ''
-})
-const watchReasons = ref([])
-
-// 获取今日日期
-const getTodayDate = () => {
-  const today = new Date()
-  return today.toISOString().split('T')[0]
-}
-
-// 禁用未来日期
-const disabledDate = (time) => {
-  return time.getTime() > Date.now()
-}
-
-// 加载关注原因列表
-const loadWatchReasons = async () => {
-  try {
-    const response = await watchlistApi.getWatchReasons(8)
-    if (response.data?.watch_reasons) {
-      watchReasons.value = response.data.watch_reasons
-    }
-  } catch (error) {
-    console.error('Failed to load watch reasons:', error)
-  }
-}
 
 // 打开关注弹窗
-const openFollowDialog = async (stock) => {
+const openFollowDialog = (stock) => {
   currentFollowStock.value = stock
-  followForm.value = {
-    watch_reason: '',
-    watch_date: getTodayDate()
-  }
-  await loadWatchReasons()
   followDialogVisible.value = true
 }
 
-// 确认关注
-const confirmFollow = async () => {
-  if (!followForm.value.watch_reason) {
-    ElMessage.warning('请选择关注原因')
-    return
-  }
-
-  followLoading.value = true
-  try {
-    await watchlistApi.addStock(8, {
-      ts_code: currentFollowStock.value.ts_code,
-      watch_reason: followForm.value.watch_reason,
-      watch_date: followForm.value.watch_date
-    })
-    ElMessage.success(`${currentFollowStock.value.name} (${currentFollowStock.value.ts_code}) 已添加到关注列表`)
-    followDialogVisible.value = false
-  } catch (error) {
-    console.error('Follow failed:', error)
-    ElMessage.error('关注失败: ' + (error.response?.data?.detail || error.message))
-  } finally {
-    followLoading.value = false
+const handleFollowSuccess = () => {
+  followDialogVisible.value = false
+  if (currentFollowStock.value) {
+    currentFollowStock.value.isWatched = true
   }
 }
 
@@ -510,11 +402,13 @@ const fetchSectorStocks = async () => {
       sectorInfo.value = response.data.sector
       stocks.value = response.data.stocks || []
       totalStocks.value = response.data.pagination?.total || 0
-      
+
       if (stocks.value.length === 0) {
         ElMessage.info('该板块暂无股票数据')
       } else {
         ElMessage.success(`成功获取 ${stocks.value.length} 只股票数据（共 ${totalStocks.value} 条）`)
+        // 检查关注状态
+        checkWatchStatus(stocks.value)
         // 数据加载完成后获取K线数据
         nextTick(() => {
           stocks.value.forEach(stock => {
@@ -536,7 +430,7 @@ const fetchSectorStocks = async () => {
 // 批量获取K线数据
 const fetchKlineData = async (tsCode) => {
   if (klineDataCache.value.has(tsCode)) return
-  
+
   try {
     const response = await realtimeApi.getKline(tsCode, 'daily', 180)
     if (response.success && response.data && response.data.data) {
@@ -544,6 +438,26 @@ const fetchKlineData = async (tsCode) => {
     }
   } catch (error) {
     console.error('Failed to load kline for', tsCode, error)
+  }
+}
+
+// 检查股票是否已被关注
+const checkWatchStatus = async (stockList) => {
+  if (!stockList || stockList.length === 0) return
+
+  const tsCodes = stockList.map(s => s.ts_code).filter(Boolean)
+  if (tsCodes.length === 0) return
+
+  try {
+    const response = await watchlistApi.checkStocks(tsCodes)
+    if (response.success && response.data && response.data.watched_codes) {
+      const watchedSet = new Set(response.data.watched_codes)
+      stockList.forEach(stock => {
+        stock.isWatched = watchedSet.has(stock.ts_code)
+      })
+    }
+  } catch (error) {
+    console.error('Failed to check watch status:', error)
   }
 }
 
@@ -580,6 +494,8 @@ const fetchPrices = async () => {
         ElMessage.info('未找到股票数据，请检查代码是否正确')
       } else {
         ElMessage.success(`成功获取 ${stocks.value.length} 只股票数据`)
+        // 检查关注状态
+        checkWatchStatus(stocks.value)
         // 数据加载完成后获取K线数据
         nextTick(() => {
           stocks.value.forEach(stock => {
@@ -1219,28 +1135,6 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   min-height: 400px;
-}
-
-/* 关注弹窗样式 */
-.follow-dialog-content {
-  padding: 0 10px;
-}
-
-.stock-basic-info {
-  margin-bottom: 24px;
-}
-
-.stock-basic-info h4,
-.follow-form h4 {
-  margin: 0 0 12px 0;
-  color: #303133;
-  font-size: 16px;
-  border-left: 4px solid #409eff;
-  padding-left: 8px;
-}
-
-.follow-form {
-  margin-top: 20px;
 }
 
 /* 响应式布局 */

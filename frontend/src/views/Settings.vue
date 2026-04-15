@@ -1,7 +1,5 @@
 <template>
   <div class="settings-page">
-    <h2>设置</h2>
-    
     <el-card class="settings-card">
       <template #header>
         <div class="card-header">
@@ -23,8 +21,22 @@
           </template>
         </el-table-column>
         
+        <el-table-column prop="sort_num" label="排序" width="120">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="row.sort_num"
+              :min="0"
+              :max="9999"
+              :controls="false"
+              size="small"
+              style="width: 80px"
+              @change="handleSortChange(row)"
+            />
+          </template>
+        </el-table-column>
+
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        
+
         <el-table-column prop="created_at" label="创建时间" width="180">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
@@ -69,6 +81,16 @@
         <el-form-item label="名称" required>
           <el-input v-model="newWatchlist.name" placeholder="请输入分组名称" />
         </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number
+            v-model="newWatchlist.sort_num"
+            :min="0"
+            :max="9999"
+            :controls="false"
+            placeholder="请输入排序数字"
+            style="width: 100%"
+          />
+        </el-form-item>
         <el-form-item label="描述">
           <el-input 
             v-model="newWatchlist.description" 
@@ -90,6 +112,16 @@
       <el-form :model="editWatchlist" label-width="80px">
         <el-form-item label="名称" required>
           <el-input v-model="editWatchlist.name" placeholder="请输入分组名称" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number
+            v-model="editWatchlist.sort_num"
+            :min="0"
+            :max="9999"
+            :controls="false"
+            placeholder="请输入排序数字"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input 
@@ -121,11 +153,11 @@ const { watchlists, loading } = storeToRefs(store)
 
 const showCreateDialog = ref(false)
 const creating = ref(false)
-const newWatchlist = ref({ name: '', description: '' })
+const newWatchlist = ref({ name: '', description: '', sort_num: 0 })
 
 const showEditDialog = ref(false)
 const updating = ref(false)
-const editWatchlist = ref({ id: null, name: '', description: '' })
+const editWatchlist = ref({ id: null, name: '', description: '', sort_num: 0 })
 
 onMounted(() => {
   store.fetchWatchlists()
@@ -142,7 +174,7 @@ const createWatchlist = async () => {
     await store.createWatchlist(newWatchlist.value)
     ElMessage.success('创建成功')
     showCreateDialog.value = false
-    newWatchlist.value = { name: '', description: '' }
+    newWatchlist.value = { name: '', description: '', sort_num: 0 }
   } catch (error) {
     ElMessage.error('创建失败')
   } finally {
@@ -184,7 +216,8 @@ const openEditDialog = (watchlist) => {
   editWatchlist.value = {
     id: watchlist.id,
     name: watchlist.name,
-    description: watchlist.description || ''
+    description: watchlist.description || '',
+    sort_num: watchlist.sort_num || 0
   }
   showEditDialog.value = true
 }
@@ -194,18 +227,31 @@ const updateWatchlist = async () => {
     ElMessage.warning('请输入分组名称')
     return
   }
-  
+
   updating.value = true
   try {
     const { id, ...data } = editWatchlist.value
     await store.updateWatchlist(id, data)
     ElMessage.success('修改成功')
     showEditDialog.value = false
-    editWatchlist.value = { id: null, name: '', description: '' }
+    editWatchlist.value = { id: null, name: '', description: '', sort_num: 0 }
   } catch (error) {
     ElMessage.error('修改失败')
   } finally {
     updating.value = false
+  }
+}
+
+// 处理表格内排序数字变化
+const handleSortChange = async (row) => {
+  try {
+    const { id, name, description, sort_num } = row
+    await store.updateWatchlist(id, { name, description, sort_num })
+    ElMessage.success('排序已更新')
+  } catch (error) {
+    ElMessage.error('排序更新失败')
+    // 重新获取数据以恢复原始值
+    store.fetchWatchlists()
   }
 }
 

@@ -4,7 +4,7 @@
       <el-aside width="200px" class="sidebar">
         <div class="logo">
           <el-icon><TrendCharts /></el-icon>
-          <span>股票关注</span>
+          <span>小麦国度</span>
         </div>
         <el-menu
           :default-active="$route.path"
@@ -26,26 +26,80 @@
             <el-icon><DataLine /></el-icon>
             <span>实时股价</span>
           </el-menu-item>
-          <el-menu-item index="/sectors">
-            <el-icon><Grid /></el-icon>
-            <span>看板块</span>
-          </el-menu-item>
-          <el-menu-item index="/limit-up">
-            <el-icon><TrendCharts /></el-icon>
-            <span>今日涨停</span>
-          </el-menu-item>
-          <el-menu-item index="/stock-query">
-            <el-icon><Search /></el-icon>
-            <span>股票查询</span>
-          </el-menu-item>
-          <el-menu-item 
-            v-for="wl in watchlists" 
-            :key="wl.id" 
-            :index="`/watchlist/${wl.id}`"
-          >
-            <el-icon><Folder /></el-icon>
-            <span>{{ wl.name }}</span>
-          </el-menu-item>
+          <el-sub-menu index="group-watchlists">
+            <template #title>
+              <el-icon><FolderOpened /></el-icon>
+              <span>关注股票</span>
+            </template>
+            <el-menu-item 
+              v-for="wl in watchlists" 
+              :key="wl.id" 
+              :index="`/watchlist/${wl.id}`"
+            >
+              <el-icon><Folder /></el-icon>
+              <span>{{ wl.name }}</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="group-tools">
+            <template #title>
+              <el-icon><Tools /></el-icon>
+              <span>股票工具</span>
+            </template>
+            <el-menu-item index="/stock-query">
+              <el-icon><Search /></el-icon>
+              <span>股票查询</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="group-analysis">
+            <template #title>
+              <el-icon><TrendCharts /></el-icon>
+              <span>分析工具</span>
+            </template>
+            <el-menu-item index="/sectors">
+              <el-icon><Grid /></el-icon>
+              <span>看板块</span>
+            </el-menu-item>
+            <el-menu-item index="/limit-up">
+              <el-icon><TrendCharts /></el-icon>
+              <span>今日涨停</span>
+            </el-menu-item>
+            <el-menu-item index="/snapshot-manage">
+              <el-icon><Camera /></el-icon>
+              <span>快照管理</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="group-basic-data">
+            <template #title>
+              <el-icon><DataLine /></el-icon>
+              <span>基础数据</span>
+            </template>
+            <el-menu-item index="/basic-data/trade-cal">
+              <el-icon><Calendar /></el-icon>
+              <span>交易日历</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/stocks">
+              <el-icon><Document /></el-icon>
+              <span>股票数据</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/daily">
+              <el-icon><Histogram /></el-icon>
+              <span>日线数据</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/weekly">
+              <el-icon><TrendCharts /></el-icon>
+              <span>周线数据</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="group-sync">
+            <template #title>
+              <el-icon><Refresh /></el-icon>
+              <span>数据同步</span>
+            </template>
+            <el-menu-item index="/sync-tasks">
+              <el-icon><Timer /></el-icon>
+              <span>同步任务管理</span>
+            </el-menu-item>
+          </el-sub-menu>
           <el-divider class="sidebar-divider" />
           <el-menu-item index="/settings">
             <el-icon><Setting /></el-icon>
@@ -57,12 +111,7 @@
       <el-container>
         <el-header class="header">
           <div class="header-left">
-            <h2>{{ $route.meta.title || '股票关注系统' }}</h2>
-          </div>
-          <div class="header-right">
-            <el-button type="primary" @click="showCreateDialog = true">
-              <el-icon><Plus /></el-icon>新建分组
-            </el-button>
+            <i>{{ '一花一世界，一树一菩提' }}</i>
           </div>
         </el-header>
         
@@ -72,24 +121,6 @@
       </el-container>
     </el-container>
 
-    <el-dialog v-model="showCreateDialog" title="新建分组" width="400px">
-      <el-form :model="newWatchlist" label-width="80px">
-        <el-form-item label="名称">
-          <el-input v-model="newWatchlist.name" placeholder="请输入分组名称" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input 
-            v-model="newWatchlist.description" 
-            type="textarea" 
-            placeholder="请输入描述（可选）"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCreateDialog = false">取消</el-button>
-        <el-button type="primary" @click="createWatchlist">确定</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -108,18 +139,6 @@ onMounted(() => {
   store.fetchWatchlists()
 })
 
-const createWatchlist = async () => {
-  if (!newWatchlist.value.name.trim()) {
-    return
-  }
-  try {
-    await store.createWatchlist(newWatchlist.value)
-    showCreateDialog.value = false
-    newWatchlist.value = { name: '', description: '' }
-  } catch (error) {
-    console.error('Failed to create watchlist:', error)
-  }
-}
 </script>
 
 <style scoped>

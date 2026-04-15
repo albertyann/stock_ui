@@ -15,11 +15,13 @@ router = APIRouter(prefix="/watchlists", tags=["watchlists"])
 class WatchlistCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    sort_num: Optional[int] = 0
 
 
 class WatchlistUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    sort_num: Optional[int] = None
 
 
 class WatchlistStockCreate(BaseModel):
@@ -38,6 +40,7 @@ class WatchlistResponse(BaseModel):
     name: str
     description: Optional[str]
     is_default: bool
+    sort_num: int
     created_at: str
 
     class Config:
@@ -76,7 +79,7 @@ def get_watch_reasons():
 @router.get("", response_model=dict)
 async def get_watchlists(user_id: str = "default", db: AsyncSession = Depends(get_db)):
     service = WatchlistService(db)
-    watchlists = await service.get_watchlists(user_id)
+    watchlists_with_count = await service.get_watchlists_with_count(user_id)
     return {
         "success": True,
         "data": [
@@ -85,11 +88,63 @@ async def get_watchlists(user_id: str = "default", db: AsyncSession = Depends(ge
                 "name": w.name,
                 "description": w.description,
                 "is_default": w.is_default,
+                "sort_num": w.sort_num if w.sort_num is not None else 0,
                 "created_at": w.created_at.isoformat() if w.created_at else None,
+                "stock_count": stock_count,
             }
-            for w in watchlists
+            for w, stock_count in watchlists_with_count
         ],
     }
+
+
+@router.get("/stats/overview", response_model=dict)
+async def get_watchlist_stats(db: AsyncSession = Depends(get_db)):
+    """Get dashboard statistics for watchlist stocks"""
+    from sqlalchemy import func, case, select
+    from app.models import WatchlistStock
+
+    result = await db.execute(
+        select(
+            func.count(WatchlistStock.id).label("total"),
+            func.sum(case((WatchlistStock.status == 1, 1), else_=0)).label("hot"),
+            func.sum(case((WatchlistStock.status == 2, 1), else_=0)).label("silent"),
+        )
+    )
+    row = result.one()
+
+    return {
+        "success": True,
+        "data": {
+            "total_stocks": row.total,
+            "hot_stocks": row.hot,
+            "silent_stocks": row.silent,
+        },
+    }
+
+
+class CheckStocksRequest(BaseModel):
+    ts_codes: List[str]
+
+
+@router.post("/check-stocks", response_model=dict)
+async def check_stocks_in_watchlists(
+    data: CheckStocksRequest, db: AsyncSession = Depends(get_db)
+):
+    """Check if stocks are already in any watchlist"""
+    from sqlalchemy import select, distinct
+    from app.models import WatchlistStock
+
+    if not data.ts_codes:
+        return {"success": True, "data": {"watched_codes": []}}
+
+    result = await db.execute(
+        select(distinct(WatchlistStock.ts_code)).where(
+            WatchlistStock.ts_code.in_(data.ts_codes)
+        )
+    )
+    watched_codes = [row[0] for row in result.all()]
+
+    return {"success": True, "data": {"watched_codes": watched_codes}}
 
 
 @router.post("", response_model=dict)
@@ -98,7 +153,10 @@ async def create_watchlist(
 ):
     service = WatchlistService(db)
     watchlist = await service.create_watchlist(
-        name=data.name, description=data.description, user_id=user_id
+        name=data.name,
+        description=data.description,
+        user_id=user_id,
+        sort_num=data.sort_num,
     )
     return {
         "success": True,
@@ -107,6 +165,7 @@ async def create_watchlist(
             "name": watchlist.name,
             "description": watchlist.description,
             "is_default": watchlist.is_default,
+            "sort_num": watchlist.sort_num if watchlist.sort_num is not None else 0,
             "created_at": watchlist.created_at.isoformat()
             if watchlist.created_at
             else None,
@@ -155,7 +214,10 @@ async def update_watchlist(
 ):
     service = WatchlistService(db)
     watchlist = await service.update_watchlist(
-        watchlist_id=watchlist_id, name=data.name, description=data.description
+        watchlist_id=watchlist_id,
+        name=data.name,
+        description=data.description,
+        sort_num=data.sort_num,
     )
 
     if not watchlist:
@@ -167,6 +229,7 @@ async def update_watchlist(
             "id": watchlist.id,
             "name": watchlist.name,
             "description": watchlist.description,
+            "sort_num": watchlist.sort_num if watchlist.sort_num is not None else 0,
         },
     }
 
@@ -200,6 +263,9 @@ async def get_watchlist_stocks(
         watchlist_id, signal_date=signal_date, watch_date=watch_date, limit=limit
     )
 
+    ts_codes = [s.ts_code for s in stocks]
+    industries = service.get_stock_industries(ts_codes)
+
     stock_data = []
     for s in stocks:
         stock_info = {
@@ -207,6 +273,7 @@ async def get_watchlist_stocks(
             "ts_code": s.ts_code,
             "symbol": s.symbol,
             "name": s.name,
+            "industry": industries.get(s.ts_code, ""),
             "added_at": s.added_at.isoformat() if s.added_at else None,
             "watch_date": s.watch_date,
             "watch_reason": s.watch_reason,
@@ -408,3 +475,154 @@ async def update_stock_status(
             "status": stock.status,
         },
     }
+
+
+class WatchlistStockNotesUpdate(BaseModel):
+    notes: Optional[str] = None
+
+
+class MoveStockRequest(BaseModel):
+    target_watchlist_id: int
+    reason: Optional[str] = None
+
+
+class CreateSnapshotRequest(BaseModel):
+    stocks: List[dict]
+
+
+@router.put("/{watchlist_id}/stocks/{stock_id}/notes", response_model=dict)
+async def update_stock_notes(
+    watchlist_id: int,
+    stock_id: int,
+    data: WatchlistStockNotesUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """更新股票备注"""
+    service = WatchlistService(db)
+    stock = await service.update_stock_notes(watchlist_id, stock_id, data.notes)
+
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not found in watchlist")
+
+    return {
+        "success": True,
+        "data": {
+            "id": stock.id,
+            "ts_code": stock.ts_code,
+            "symbol": stock.symbol,
+            "name": stock.name,
+            "notes": stock.notes,
+        },
+    }
+
+
+@router.put("/stocks/{stock_id}/move", response_model=dict)
+async def move_stock_to_watchlist(
+    stock_id: int, data: MoveStockRequest, db: AsyncSession = Depends(get_db)
+):
+    service = WatchlistService(db)
+
+    target_watchlist = await service.get_watchlist(data.target_watchlist_id)
+    if not target_watchlist:
+        raise HTTPException(status_code=404, detail="Target watchlist not found")
+
+    stock = await service.move_stock_to_watchlist(stock_id, data.target_watchlist_id)
+
+    if not stock:
+        raise HTTPException(
+            status_code=400,
+            detail="Stock not found or already exists in target watchlist",
+        )
+
+    return {
+        "success": True,
+        "data": {
+            "id": stock.id,
+            "ts_code": stock.ts_code,
+            "symbol": stock.symbol,
+            "name": stock.name,
+            "watchlist_id": stock.watchlist_id,
+            "moved_to": target_watchlist.name,
+        },
+    }
+
+
+@router.post("/{watchlist_id}/snapshots", response_model=dict)
+async def create_watchlist_snapshot(
+    watchlist_id: int, data: CreateSnapshotRequest, db: AsyncSession = Depends(get_db)
+):
+    service = WatchlistService(db)
+    watchlist = await service.get_watchlist(watchlist_id)
+
+    if not watchlist:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+
+    snapshot = await service.create_snapshot(watchlist_id, data.stocks)
+
+    return {
+        "success": True,
+        "data": {
+            "id": snapshot.id,
+            "watchlist_id": snapshot.watchlist_id,
+            "snapshot_date": snapshot.snapshot_date,
+            "snapshot_time": snapshot.snapshot_time,
+            "created_at": snapshot.created_at.isoformat()
+            if snapshot.created_at
+            else None,
+        },
+    }
+
+
+@router.get("/{watchlist_id}/snapshots", response_model=dict)
+async def get_watchlist_snapshots(
+    watchlist_id: int, db: AsyncSession = Depends(get_db)
+):
+    service = WatchlistService(db)
+    watchlist = await service.get_watchlist(watchlist_id)
+
+    if not watchlist:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+
+    snapshots = await service.get_snapshots(watchlist_id)
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": s.id,
+                "watchlist_id": s.watchlist_id,
+                "snapshot_date": s.snapshot_date,
+                "snapshot_time": s.snapshot_time,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "items": [
+                    {
+                        "id": item.id,
+                        "ts_code": item.ts_code,
+                        "name": item.name,
+                        "industry": item.industry,
+                        "notes": item.notes,
+                    }
+                    for item in s.items
+                ],
+            }
+            for s in snapshots
+        ],
+    }
+
+
+@router.delete("/{watchlist_id}/snapshots/{snapshot_id}")
+async def delete_watchlist_snapshot(
+    watchlist_id: int, snapshot_id: int, db: AsyncSession = Depends(get_db)
+):
+    service = WatchlistService(db)
+    watchlist = await service.get_watchlist(watchlist_id)
+
+    if not watchlist:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+
+    success = await service.delete_snapshot(snapshot_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+
+    return {"success": True}

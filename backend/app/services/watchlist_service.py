@@ -1,9 +1,15 @@
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, Tuple
+from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, delete, distinct
+from sqlalchemy import select, and_, delete, distinct, func
 from sqlalchemy.orm import selectinload
-from app.models import Watchlist, WatchlistStock, Signal
+from app.models import (
+    Watchlist,
+    WatchlistStock,
+    Signal,
+    WatchlistSnapshot,
+    WatchlistSnapshotItem,
+)
 
 
 class WatchlistService:
@@ -14,9 +20,25 @@ class WatchlistService:
         result = await self.db.execute(
             select(Watchlist)
             .where(Watchlist.user_id == user_id)
-            .order_by(Watchlist.created_at.desc())
+            .order_by(
+                Watchlist.sort_num.asc().nullsfirst(), Watchlist.created_at.desc()
+            )
         )
         return result.scalars().all()
+
+    async def get_watchlists_with_count(
+        self, user_id: str = "default"
+    ) -> List[Tuple[Watchlist, int]]:
+        result = await self.db.execute(
+            select(Watchlist, func.count(WatchlistStock.id).label("stock_count"))
+            .outerjoin(WatchlistStock, Watchlist.id == WatchlistStock.watchlist_id)
+            .where(Watchlist.user_id == user_id)
+            .group_by(Watchlist.id)
+            .order_by(
+                Watchlist.sort_num.asc().nullsfirst(), Watchlist.created_at.desc()
+            )
+        )
+        return [(row.Watchlist, row.stock_count) for row in result.all()]
 
     async def get_watchlist(self, watchlist_id: int) -> Optional[Watchlist]:
         result = await self.db.execute(
@@ -32,9 +54,14 @@ class WatchlistService:
         description: str = None,
         user_id: str = "default",
         is_default: bool = False,
+        sort_num: int = 0,
     ) -> Watchlist:
         watchlist = Watchlist(
-            name=name, description=description, user_id=user_id, is_default=is_default
+            name=name,
+            description=description,
+            user_id=user_id,
+            is_default=is_default,
+            sort_num=sort_num,
         )
         self.db.add(watchlist)
         await self.db.commit()
@@ -42,7 +69,11 @@ class WatchlistService:
         return watchlist
 
     async def update_watchlist(
-        self, watchlist_id: int, name: str = None, description: str = None
+        self,
+        watchlist_id: int,
+        name: str = None,
+        description: str = None,
+        sort_num: int = None,
     ) -> Optional[Watchlist]:
         watchlist = await self.get_watchlist(watchlist_id)
         if not watchlist:
@@ -52,6 +83,8 @@ class WatchlistService:
             watchlist.name = name
         if description is not None:
             watchlist.description = description
+        if sort_num is not None:
+            watchlist.sort_num = sort_num
 
         await self.db.commit()
         await self.db.refresh(watchlist)
@@ -88,8 +121,6 @@ class WatchlistService:
         if existing.scalar_one_or_none():
             return None
 
-        from datetime import date
-
         stock = WatchlistStock(
             watchlist_id=watchlist_id,
             ts_code=ts_code,
@@ -104,6 +135,10 @@ class WatchlistService:
         self.db.add(stock)
         await self.db.commit()
         await self.db.refresh(stock)
+
+        if notes:
+            await self._create_note_signal(ts_code, notes)
+
         return stock
 
     async def remove_stock(self, watchlist_id: int, stock_id: int) -> bool:
@@ -139,6 +174,24 @@ class WatchlistService:
 
         result = await self.db.execute(query)
         return result.scalars().all()
+
+    def get_stock_industries(self, ts_codes: List[str]) -> dict:
+        if not ts_codes:
+            return {}
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(
+                    "SELECT ts_code, industry FROM stock_basic WHERE ts_code = ANY(:ts_codes)"
+                ),
+                {"ts_codes": ts_codes},
+            )
+            return {row.ts_code: row.industry or "" for row in result}
 
     async def get_last_trading_day(self, exchange: str = "SSE") -> Optional[str]:
         """获取指定交易所的最后一个交易日
@@ -210,3 +263,134 @@ class WatchlistService:
         await self.db.commit()
         await self.db.refresh(stock)
         return stock
+
+    async def update_stock_notes(
+        self, watchlist_id: int, stock_id: int, notes: str
+    ) -> Optional[WatchlistStock]:
+        result = await self.db.execute(
+            select(WatchlistStock).where(
+                and_(
+                    WatchlistStock.id == stock_id,
+                    WatchlistStock.watchlist_id == watchlist_id,
+                )
+            )
+        )
+        stock = result.scalar_one_or_none()
+        if not stock:
+            return None
+
+        stock.notes = notes
+        await self.db.commit()
+        await self.db.refresh(stock)
+
+        if notes:
+            await self._create_note_signal(stock.ts_code, notes)
+
+        return stock
+
+    async def _create_note_signal(self, ts_code: str, note_content: str) -> Signal:
+        today = date.today()
+
+        result = await self.db.execute(
+            select(Signal).where(
+                and_(
+                    Signal.ts_code == ts_code,
+                    Signal.signal_type == "NOTE",
+                    Signal.signal_date == today,
+                )
+            )
+        )
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            existing.note_content = note_content
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing
+
+        signal = Signal(
+            ts_code=ts_code,
+            signal_type="NOTE",
+            signal_date=today,
+            note_content=note_content,
+            is_active=True,
+        )
+        self.db.add(signal)
+        await self.db.commit()
+        await self.db.refresh(signal)
+        return signal
+
+    async def move_stock_to_watchlist(
+        self, stock_id: int, target_watchlist_id: int
+    ) -> Optional[WatchlistStock]:
+        result = await self.db.execute(
+            select(WatchlistStock).where(WatchlistStock.id == stock_id)
+        )
+        stock = result.scalar_one_or_none()
+        if not stock:
+            return None
+
+        existing = await self.db.execute(
+            select(WatchlistStock).where(
+                and_(
+                    WatchlistStock.watchlist_id == target_watchlist_id,
+                    WatchlistStock.ts_code == stock.ts_code,
+                )
+            )
+        )
+        if existing.scalar_one_or_none():
+            return None
+
+        stock.watchlist_id = target_watchlist_id
+        await self.db.commit()
+        await self.db.refresh(stock)
+        return stock
+
+    async def create_snapshot(
+        self, watchlist_id: int, stocks: List[dict]
+    ) -> WatchlistSnapshot:
+        from datetime import datetime
+
+        now = datetime.now()
+        snapshot = WatchlistSnapshot(
+            watchlist_id=watchlist_id,
+            snapshot_date=now.strftime("%Y-%m-%d"),
+            snapshot_time=now.strftime("%H:%M:%S"),
+        )
+        self.db.add(snapshot)
+        await self.db.commit()
+        await self.db.refresh(snapshot)
+
+        for stock in stocks:
+            item = WatchlistSnapshotItem(
+                snapshot_id=snapshot.id,
+                ts_code=stock["ts_code"],
+                name=stock.get("name"),
+                industry=stock.get("industry"),
+                notes=stock.get("notes"),
+            )
+            self.db.add(item)
+
+        await self.db.commit()
+        return snapshot
+
+    async def get_snapshots(self, watchlist_id: int) -> List[WatchlistSnapshot]:
+        result = await self.db.execute(
+            select(WatchlistSnapshot)
+            .where(WatchlistSnapshot.watchlist_id == watchlist_id)
+            .options(selectinload(WatchlistSnapshot.items))
+            .order_by(WatchlistSnapshot.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def delete_snapshot(self, snapshot_id: int) -> bool:
+        result = await self.db.execute(
+            select(WatchlistSnapshot).where(WatchlistSnapshot.id == snapshot_id)
+        )
+        snapshot = result.scalar_one_or_none()
+        if not snapshot:
+            return False
+
+        await self.db.delete(snapshot)
+        await self.db.commit()
+        return True

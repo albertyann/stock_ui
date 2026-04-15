@@ -204,14 +204,19 @@
               :ts-code="stock.ts_code"
               :stock-name="stock.name"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
-              :holder-data="holderNumberCache.get(stock.ts_code) || []"
-              :show-holder-number="true"
               :show-m-a-c-d="true"
             />
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 关注股票弹窗 -->
+    <FollowStockDialog
+      v-model="followDialogVisible"
+      :stock="currentFollowStock"
+      @success="handleFollowSuccess"
+    />
   </div>
 </template>
 
@@ -221,8 +226,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, View, Star, Search } from '@element-plus/icons-vue'
 import { realtimeApi, sectorApi } from '@/api'
-import api from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
+import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
 const router = useRouter()
 
@@ -295,7 +300,6 @@ const fetchLimitUpStocks = async () => {
 
   // 清理旧的数据缓存
   klineDataCache.value.clear()
-  holderNumberCache.value.clear()
 
   try {
     const params = {
@@ -346,11 +350,6 @@ const fetchKlineData = async (tsCode) => {
       klineDataCache.value.set(tsCode, response.data.data)
     }
     
-    // 获取股东人数数据
-    const holderResponse = await realtimeApi.getHolderNumber(tsCode, 180)
-    if (holderResponse.success && holderResponse.data && holderResponse.data.data) {
-      holderNumberCache.value.set(tsCode, holderResponse.data.data)
-    }
   } catch (error) {
     console.error('Failed to load kline for', tsCode, error)
   }
@@ -407,6 +406,17 @@ watch(searchQuery, () => {
   currentPage.value = 1
 })
 
+// 当分页股票变化时，获取新股票的K线数据
+watch(paginatedStocks, (newStocks) => {
+  nextTick(() => {
+    newStocks.forEach(stock => {
+      if (!klineDataCache.value.has(stock.ts_code)) {
+        fetchKlineData(stock.ts_code)
+      }
+    })
+  })
+}, { immediate: true })
+
 // 涨跌幅样式
 const getChangeClass = (changePct) => {
   if (changePct > 0) return 'up'
@@ -457,37 +467,29 @@ const openXueqiu = (stock) => {
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
+// 关注弹窗相关
+const followDialogVisible = ref(false)
+const currentFollowStock = ref(null)
+
+// 打开关注弹窗
+const openFollowDialog = (stock) => {
+  currentFollowStock.value = stock
+  followDialogVisible.value = true
+}
+
+const handleFollowSuccess = () => {
+  followDialogVisible.value = false
+}
+
 // 添加到关注列表
 const addToWatchlist = async (stock) => {
-  // 设置loading状态
   stock.addingToWatchlist = true
-  
-  try {
-    const response = await api.post('/watchlists/8/stocks', {
-      ts_code: stock.ts_code,
-      notes: `从涨停股票页面添加 - ${new Date().toLocaleDateString()}`
-    })
-    
-    if (response.success) {
-      ElMessage.success(`${stock.name} 已成功加入关注列表`)
-    } else {
-      ElMessage.warning(response.error || '添加失败，该股票可能已在关注列表中')
-    }
-  } catch (error) {
-    console.error('Failed to add to watchlist:', error)
-    if (error.response?.data?.detail) {
-      ElMessage.error(error.response.data.detail)
-    } else {
-      ElMessage.error('添加到关注列表失败：' + (error.message || '网络错误'))
-    }
-  } finally {
-    stock.addingToWatchlist = false
-  }
+  await openFollowDialog(stock)
+  stock.addingToWatchlist = false
 }
 
 // 数据缓存
 const klineDataCache = ref(new Map())
-const holderNumberCache = ref(new Map())
 const chartRefs = ref(new Map())
 
 // 窗口大小变化时重新调整图表

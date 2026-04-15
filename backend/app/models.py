@@ -24,6 +24,7 @@ class Watchlist(Base):
     description = Column(Text)
     user_id = Column(String(50), default="default")
     is_default = Column(Boolean, default=False)
+    sort_num = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -78,6 +79,7 @@ class Signal(Base):
     is_active = Column(Boolean, default=True)
     executed_at = Column(DateTime(timezone=True))
     execution_result = Column(Text)
+    note_content = Column(Text)  # 用于记录 NOTE 类型的备注内容
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -141,3 +143,100 @@ class TradeCal(Base):
     cal_date = Column(Date, primary_key=True)
     is_open = Column(Integer)
     pretrade_date = Column(Date)
+
+
+class StockBasic(Base):
+    __tablename__ = "stock_basic"
+
+    ts_code = Column(String(20), primary_key=True)
+    symbol = Column(String(10))
+    name = Column(String(100))
+    industry = Column(String(50))
+    market = Column(String(20))
+    list_date = Column(Date)
+    update_time = Column(DateTime(timezone=False), nullable=False)
+
+
+class DailyData(Base):
+    __tablename__ = "daily_data"
+
+    ts_code = Column(String(20), primary_key=True)
+    trade_date = Column(Date, primary_key=True)
+    open = Column(Numeric(10, 2))
+    high = Column(Numeric(10, 2))
+    low = Column(Numeric(10, 2))
+    close = Column(Numeric(10, 2))
+    pre_close = Column(Numeric(10, 2))
+    change = Column(Numeric(10, 2))
+    pct_chg = Column(Numeric(10, 2))
+    vol = Column(Numeric(15, 2))
+    amount = Column(Numeric(15, 2))
+
+
+class WeeklyData(Base):
+    __tablename__ = "weekly_data"
+
+    ts_code = Column(String(20), primary_key=True)
+    trade_date = Column(Date, primary_key=True)
+    open = Column(Numeric(10, 2))
+    high = Column(Numeric(10, 2))
+    low = Column(Numeric(10, 2))
+    close = Column(Numeric(10, 2))
+    pre_close = Column(Numeric(10, 2))
+    change = Column(Numeric(10, 2))
+    pct_chg = Column(Numeric(10, 2))
+    vol = Column(Numeric(15, 2))
+    amount = Column(Numeric(15, 2))
+
+
+class WatchlistSnapshot(Base):
+    __tablename__ = "watchlist_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    watchlist_id = Column(
+        Integer,
+        ForeignKey("watchlists.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    snapshot_date = Column(String(10), nullable=False, index=True)
+    snapshot_time = Column(String(8), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    items = relationship(
+        "WatchlistSnapshotItem", back_populates="snapshot", cascade="all, delete-orphan"
+    )
+
+
+class WatchlistSnapshotItem(Base):
+    __tablename__ = "watchlist_snapshot_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    snapshot_id = Column(
+        Integer,
+        ForeignKey("watchlist_snapshots.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    ts_code = Column(String(20), nullable=False, index=True)
+    name = Column(String(100))
+    industry = Column(String(50))
+    notes = Column(Text)
+
+    snapshot = relationship("WatchlistSnapshot", back_populates="items")
+
+
+class SyncTask(Base):
+    __tablename__ = "sync_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    command = Column(String(50), default="stock-sync")
+    sub_command = Column(String(50), default="run")
+    task_type = Column(String(50), nullable=False)
+    params = Column(JSONB, default=dict)
+    description = Column(Text)
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())

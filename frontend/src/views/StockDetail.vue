@@ -323,12 +323,12 @@ const getChangeClass = (change) => {
 }
 
 const getSignalType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info' }
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
   return map[type] || 'info'
 }
 
 const formatSignal = (type) => {
-  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望' }
+  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注' }
   return map[type] || type
 }
 

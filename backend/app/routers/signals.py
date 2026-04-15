@@ -49,6 +49,7 @@ async def get_signals(
                 "strategy_name": s.strategy_name,
                 "conditions_met": s.conditions_met,
                 "is_active": s.is_active,
+                "note_content": s.note_content,
             }
             for s in signals
         ],
@@ -74,6 +75,7 @@ async def get_latest_signal(ts_code: str, db: AsyncSession = Depends(get_db)):
             if signal.signal_date
             else None,
             "indicators": signal.indicators,
+            "note_content": signal.note_content,
         },
     }
 

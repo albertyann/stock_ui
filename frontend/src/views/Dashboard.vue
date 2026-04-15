@@ -2,9 +2,9 @@
   <div class="dashboard">
     <el-row :gutter="20">
       <el-col :span="6">
-        <el-card class="stat-card">
-          <div class="stat-value">{{ watchlists.length }}</div>
-          <div class="stat-label">自选股分组</div>
+        <el-card class="stat-card" @click="$router.push('/watchlist/2')" style="cursor: pointer;">
+          <div class="stat-value">{{ kpdStocksCount }}</div>
+          <div class="stat-label">开票盯股票</div>
         </el-card>
       </el-col>
       <el-col :span="6">
@@ -50,25 +50,15 @@
           <template #header>
             <div class="card-header">
               <span>我的分组</span>
-              <el-button type="primary" size="small" @click="$router.push('/')">
-                查看全部
+              <el-button type="primary" size="small" @click="$router.push('/settings')">
+                设置
               </el-button>
             </div>
           </template>
           <el-table :data="watchlists" style="width: 100%">
             <el-table-column prop="name" label="名称" />
             <el-table-column prop="description" label="描述" show-overflow-tooltip />
-            <el-table-column label="操作" width="120">
-              <template #default="{ row }">
-                <el-button 
-                  type="primary" 
-                  size="small" 
-                  @click="$router.push(`/watchlist/${row.id}`)"
-                >
-                  查看
-                </el-button>
-              </template>
-            </el-table-column>
+            <el-table-column prop="stock_count" label="数量" width="80" />
           </el-table>
         </el-card>
       </el-col>
@@ -110,7 +100,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useWatchlistStore } from '@/stores/watchlist'
-import { signalApi } from '@/api'
+import { signalApi, watchlistApi } from '@/api'
 import { storeToRefs } from 'pinia'
 
 const store = useWatchlistStore()
@@ -121,6 +111,12 @@ const buySignals = ref(0)
 const sellSignals = ref(0)
 const recentSignals = ref([])
 
+// 计算开票盯股票（watchlist id=2）的股票数量
+const kpdStocksCount = computed(() => {
+  const kpdWatchlist = watchlists.value.find(w => w.id === 2)
+  return kpdWatchlist?.stock_count || kpdWatchlist?.stocks?.length || 0
+})
+
 onMounted(async () => {
   await store.fetchWatchlists()
   await fetchDashboardData()
@@ -128,23 +124,30 @@ onMounted(async () => {
 
 const fetchDashboardData = async () => {
   try {
+    // 获取信号数据
     const response = await signalApi.getAll({ limit: 10 })
     recentSignals.value = response.data || []
-    
+
     buySignals.value = recentSignals.value.filter(s => s.signal_type === 'BUY').length
     sellSignals.value = recentSignals.value.filter(s => s.signal_type === 'SELL').length
+
+    // 获取统计信息 (status=1 的热点股票数)
+    const statsResponse = await watchlistApi.getStats()
+    if (statsResponse.data) {
+      totalStocks.value = statsResponse.data.hot_stocks || 0
+    }
   } catch (error) {
-    console.error('Failed to fetch signals:', error)
+    console.error('Failed to fetch dashboard data:', error)
   }
 }
 
 const signalType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info' }
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
   return map[type] || 'info'
 }
 
 const signalText = (type) => {
-  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望' }
+  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注' }
   return map[type] || type
 }
 

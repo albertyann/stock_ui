@@ -4,7 +4,15 @@ from contextlib import asynccontextmanager
 
 from app.config import get_settings
 from app.database import init_db
-from app.routers import watchlists, stocks, signals, realtime, sectors
+from app.routers import (
+    watchlists,
+    stocks,
+    signals,
+    realtime,
+    sectors,
+    basic_data,
+    sync_tasks,
+)
 from app.tasks.scheduler import task_manager
 from app.websockets.routes import router as ws_router
 
@@ -40,6 +48,8 @@ app.include_router(stocks.router, prefix=api_prefix)
 app.include_router(signals.router, prefix=api_prefix)
 app.include_router(realtime.router, prefix=api_prefix)
 app.include_router(sectors.router, prefix=api_prefix)
+app.include_router(basic_data.router, prefix=api_prefix)
+app.include_router(sync_tasks.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 
