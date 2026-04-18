@@ -5,6 +5,7 @@ import StockDetail from '@/views/StockDetail.vue'
 import Settings from '@/views/Settings.vue'
 import BuyReference from '@/views/BuyReference.vue'
 import RealtimePrice from '@/views/RealtimePrice.vue'
+import WatchlistStockList from '@/views/WatchlistStockList.vue'
 import LimitUpStocks from '@/views/LimitUpStocks.vue'
 import SectorList from '@/views/SectorList.vue'
 import StockQuery from '@/views/StockQuery.vue'
@@ -42,6 +43,12 @@ const routes = [
     path: '/realtime-price',
     name: 'RealtimePrice',
     component: RealtimePrice
+  },
+  {
+    path: '/watchlist-stocks',
+    name: 'WatchlistStockList',
+    component: WatchlistStockList,
+    meta: { title: '关注清单' }
   },
   {
     path: '/limit-up',

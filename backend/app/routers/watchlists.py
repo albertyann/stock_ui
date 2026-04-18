@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from pydantic import BaseModel
@@ -94,6 +94,38 @@ async def get_watchlists(user_id: str = "default", db: AsyncSession = Depends(ge
             }
             for w, stock_count in watchlists_with_count
         ],
+    }
+
+
+@router.get("/stocks/all", response_model=dict)
+async def get_all_watchlist_stocks(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(30, ge=1, le=1000, description="每页数量"),
+    search: Optional[str] = Query(None, description="搜索关键词（ts_code或股票名称）"),
+    industry: Optional[str] = Query(None, description="板块筛选"),
+    watchlist_id: Optional[int] = Query(None, description="分组筛选"),
+    sort_by_change_pct: Optional[str] = Query(
+        None, description="按涨幅排序: asc, desc"
+    ),
+    db: AsyncSession = Depends(get_db),
+):
+    service = WatchlistService(db)
+    result = service.get_all_watchlist_stocks(
+        page=page,
+        page_size=page_size,
+        search=search,
+        industry=industry,
+        watchlist_id=watchlist_id,
+        sort_by_change_pct=sort_by_change_pct,
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return {
+        "success": True,
+        "data": result["stocks"],
+        "pagination": result["pagination"],
     }
 
 
@@ -490,16 +522,15 @@ class CreateSnapshotRequest(BaseModel):
     stocks: List[dict]
 
 
-@router.put("/{watchlist_id}/stocks/{stock_id}/notes", response_model=dict)
+@router.put("/stocks/{stock_id}/notes", response_model=dict)
 async def update_stock_notes(
-    watchlist_id: int,
     stock_id: int,
     data: WatchlistStockNotesUpdate,
     db: AsyncSession = Depends(get_db),
 ):
     """更新股票备注"""
     service = WatchlistService(db)
-    stock = await service.update_stock_notes(watchlist_id, stock_id, data.notes)
+    stock = await service.update_stock_notes_by_id(stock_id, data.notes)
 
     if not stock:
         raise HTTPException(status_code=404, detail="Stock not found in watchlist")

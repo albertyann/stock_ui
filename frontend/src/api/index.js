@@ -8,6 +8,22 @@ const api = axios.create({
   }
 })
 
+const longRunningApi = axios.create({
+  baseURL: '/api/v1',
+  timeout: 300000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+longRunningApi.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    console.error('Long Running API Error:', error)
+    return Promise.reject(error)
+  }
+)
+
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
@@ -22,6 +38,23 @@ export const watchlistApi = {
   get: (id) => api.get(`/watchlists/${id}`),
   update: (id, data) => api.put(`/watchlists/${id}`, data),
   delete: (id) => api.delete(`/watchlists/${id}`),
+  getAllWatchlistStocks: (params = {}) => {
+    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null } = params
+    let url = `/watchlists/stocks/all?page=${page}&page_size=${page_size}`
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`
+    }
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (watchlist_id) {
+      url += `&watchlist_id=${watchlist_id}`
+    }
+    if (sort_by_change_pct) {
+      url += `&sort_by_change_pct=${sort_by_change_pct}`
+    }
+    return api.get(url)
+  },
   getStocks: (id, signalDate = null) => {
     const params = signalDate ? `?signal_date=${signalDate}` : ''
     return api.get(`/watchlists/${id}/stocks${params}`)
@@ -55,8 +88,8 @@ export const watchlistApi = {
       reason: reason
     }),
   // 更新股票备注
-  updateStockNotes: (watchlistId, stockId, notes) =>
-    api.put(`/watchlists/${watchlistId}/stocks/${stockId}/notes`, { notes }),
+  updateStockNotes: (stockId, notes) =>
+    api.put(`/watchlists/stocks/${stockId}/notes`, { notes }),
   checkStocks: (tsCodes) => api.post('/watchlists/check-stocks', { ts_codes: tsCodes }),
   createSnapshot: (id, stocks) => api.post(`/watchlists/${id}/snapshots`, { stocks }),
   getSnapshots: (id) => api.get(`/watchlists/${id}/snapshots`),
@@ -74,7 +107,8 @@ export const signalApi = {
   getAll: (params = {}) => api.get('/signals', { params }),
   getLatest: (tsCode) => api.get(`/signals/latest/${tsCode}`),
   analyze: (tsCodes) => api.post('/signals/analyze', { ts_codes: tsCodes }),
-  analyzeAll: () => api.post('/signals/analyze-all')
+  analyzeAll: () => api.post('/signals/analyze-all'),
+  addNote: (tsCode, noteContent) => api.post('/signals/note', { ts_code: tsCode, note_content: noteContent })
 }
 
 export const realtimeApi = {
@@ -132,7 +166,7 @@ export const syncTaskApi = {
   get: (id) => api.get(`/sync-tasks/${id}`),
   update: (id, data) => api.put(`/sync-tasks/${id}`, data),
   delete: (id) => api.delete(`/sync-tasks/${id}`),
-  execute: (id, params = {}) => api.post(`/sync-tasks/${id}/execute`, { params })
+  execute: (id, params = {}) => longRunningApi.post(`/sync-tasks/${id}/execute`, { params })
 }
 
 export const basicDataApi = {
@@ -189,6 +223,9 @@ export const basicDataApi = {
       url += `&trade_date=${trade_date}`
     }
     return api.get(url)
+  },
+  getMoneyflow: (tsCode, limit = 20) => {
+    return api.get(`/basic-data/moneyflow/${tsCode}?limit=${limit}`)
   }
 }
 

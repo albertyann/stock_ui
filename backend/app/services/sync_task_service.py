@@ -96,8 +96,8 @@ class SyncTaskService:
             cmd_parts.extend(["-c", settings.stock_sync_config_path])
         if task.sub_command:
             cmd_parts.append(task.sub_command)
-
-        cmd_parts.extend(["--task", task.task_type])
+        if task.task_type:
+            cmd_parts.append(task.task_type)
 
         params = dict(task.params or {})
         if runtime_params:

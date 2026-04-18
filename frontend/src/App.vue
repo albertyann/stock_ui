@@ -22,10 +22,24 @@
             <el-icon><TrendCharts /></el-icon>
             <span>买入参考</span>
           </el-menu-item>
-          <el-menu-item index="/realtime-price">
-            <el-icon><DataLine /></el-icon>
-            <span>实时股价</span>
-          </el-menu-item>
+          <el-sub-menu index="group-realtime">
+            <template #title>
+              <el-icon><DataLine /></el-icon>
+              <span>实时股价</span>
+            </template>
+            <el-menu-item index="/realtime-price">
+              <el-icon><TrendCharts /></el-icon>
+              <span>实时股价</span>
+            </el-menu-item>
+            <el-menu-item index="/watchlist-stocks">
+              <el-icon><Star /></el-icon>
+              <span>关注清单</span>
+            </el-menu-item>
+            <el-menu-item index="/limit-up">
+              <el-icon><TrendCharts /></el-icon>
+              <span>今日涨停</span>
+            </el-menu-item>
+          </el-sub-menu>
           <el-sub-menu index="group-watchlists">
             <template #title>
               <el-icon><FolderOpened /></el-icon>
@@ -58,10 +72,6 @@
             <el-menu-item index="/sectors">
               <el-icon><Grid /></el-icon>
               <span>看板块</span>
-            </el-menu-item>
-            <el-menu-item index="/limit-up">
-              <el-icon><TrendCharts /></el-icon>
-              <span>今日涨停</span>
             </el-menu-item>
             <el-menu-item index="/snapshot-manage">
               <el-icon><Camera /></el-icon>

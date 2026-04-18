@@ -411,10 +411,31 @@ class RealtimePriceService:
         # 默认返回深圳
         return f"{ts_code}.SZ"
 
+    def _resolve_stock_names(self, names: List[str]) -> List[str]:
+        """根据股票名称从 stock_basic 查询对应的 ts_code"""
+        if not names:
+            return []
+        try:
+            with self.engine.connect() as conn:
+                params = {f"name{i}": name for i, name in enumerate(names)}
+                placeholders = ", ".join([f":name{i}" for i in range(len(names))])
+                query = f"""
+                    SELECT ts_code, name FROM stock_basic
+                    WHERE name IN ({placeholders})
+                """
+                result = conn.execute(text(query), params)
+                return [row.ts_code for row in result]
+        except Exception as e:
+            print(f"Resolve stock names error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return []
+
     def parse_ts_codes_input(self, input_text: str) -> List[str]:
         """
-        解析用户输入的股票代码
-        支持逗号分隔或换行分隔
+        解析用户输入的股票代码或名称
+        支持逗号分隔或换行分隔；对无法识别为代码的输入会按名称到 stock_basic 查询
 
         Args:
             input_text: 用户输入文本
@@ -426,7 +447,7 @@ class RealtimePriceService:
             return []
 
         # 支持逗号和换行分隔
-        separators = [",", "，", "\n", "\t", " "]
+        separators = [",", "，", "\n", "\t"]
         codes = [input_text]
 
         for sep in separators:
@@ -437,12 +458,23 @@ class RealtimePriceService:
 
         # 清理并标准化
         result = []
+        names_to_lookup = []
         for code in codes:
             code = code.strip()
-            if code:
+            if not code:
+                continue
+            if self.validate_ts_code(code):
                 normalized = self.normalize_ts_code(code)
                 if normalized and normalized not in result:
                     result.append(normalized)
+            else:
+                names_to_lookup.append(code)
+
+        if names_to_lookup:
+            resolved = self._resolve_stock_names(names_to_lookup)
+            for ts_code in resolved:
+                if ts_code not in result:
+                    result.append(ts_code)
 
         return result
 

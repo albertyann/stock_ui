@@ -655,7 +655,6 @@ const saveStockNotes = async () => {
   notesLoading.value = true
   try {
     await watchlistApi.updateStockNotes(
-      props.id,
       selectedStockForNotes.value.id,
       stockNotesInput.value.trim()
     )

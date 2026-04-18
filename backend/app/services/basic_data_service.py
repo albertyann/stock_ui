@@ -336,6 +336,67 @@ class BasicDataService:
         except Exception as e:
             return {"success": False, "error": str(e), "data": []}
 
+    def get_moneyflow(
+        self,
+        ts_code: str,
+        limit: int = 20,
+    ) -> Dict:
+        try:
+            with self.engine.connect() as conn:
+                query = text("""
+                    SELECT trade_date,
+                           buy_sm_amount, sell_sm_amount,
+                           buy_md_amount, sell_md_amount,
+                           buy_lg_amount, sell_lg_amount,
+                           buy_elg_amount, sell_elg_amount,
+                           net_mf_amount
+                    FROM moneyflow
+                    WHERE ts_code = :ts_code
+                    ORDER BY trade_date DESC
+                    LIMIT :limit
+                """)
+                result = conn.execute(query, {"ts_code": ts_code, "limit": limit})
+                items = []
+                for row in result:
+                    items.append(
+                        {
+                            "trade_date": row.trade_date.strftime("%Y-%m-%d")
+                            if row.trade_date
+                            else None,
+                            "buy_sm_amount": float(row.buy_sm_amount)
+                            if row.buy_sm_amount is not None
+                            else 0,
+                            "sell_sm_amount": float(row.sell_sm_amount)
+                            if row.sell_sm_amount is not None
+                            else 0,
+                            "buy_md_amount": float(row.buy_md_amount)
+                            if row.buy_md_amount is not None
+                            else 0,
+                            "sell_md_amount": float(row.sell_md_amount)
+                            if row.sell_md_amount is not None
+                            else 0,
+                            "buy_lg_amount": float(row.buy_lg_amount)
+                            if row.buy_lg_amount is not None
+                            else 0,
+                            "sell_lg_amount": float(row.sell_lg_amount)
+                            if row.sell_lg_amount is not None
+                            else 0,
+                            "buy_elg_amount": float(row.buy_elg_amount)
+                            if row.buy_elg_amount is not None
+                            else 0,
+                            "sell_elg_amount": float(row.sell_elg_amount)
+                            if row.sell_elg_amount is not None
+                            else 0,
+                            "net_mf_amount": float(row.net_mf_amount)
+                            if row.net_mf_amount is not None
+                            else 0,
+                        }
+                    )
+                items.reverse()
+                return {"success": True, "data": items}
+        except Exception as e:
+            return {"success": False, "error": str(e), "data": []}
+
     def get_exchanges(self) -> List[str]:
         try:
             with self.engine.connect() as conn:

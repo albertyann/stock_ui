@@ -48,6 +48,7 @@
             <el-option label="rt_k (实时日线数据)" value="rt_k" />
             <el-option label="weekly_data (周线数据)" value="weekly_data" />
             <el-option label="stock_basic (股票基本信息)" value="stock_basic" />
+            <el-option label="moneyflow (资金流动)" value="moneyflow" />
           </el-select>
         </el-form-item>
         <el-form-item label="命令">
@@ -115,6 +116,15 @@
         </el-form-item>
       </el-form>
 
+      <div v-if="executing" class="executing-progress">
+        <el-divider />
+        <div class="progress-content">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          <span>任务执行中... 已耗时 {{ elapsedTime }} 秒</span>
+        </div>
+        <el-progress :percentage="100" :status="executing ? '' : 'success'" :show-text="false" :indeterminate="true" />
+      </div>
+
       <div v-if="executeResult" class="execute-result">
         <el-divider />
         <div class="result-header">
@@ -141,17 +151,19 @@
       </div>
 
       <template #footer>
-        <el-button @click="executeDialogVisible = false">关闭</el-button>
-        <el-button type="primary" :loading="executing" @click="runTask">立即执行</el-button>
+        <el-button @click="executeDialogVisible = false" :disabled="executing">关闭</el-button>
+        <el-button type="primary" :loading="executing" @click="runTask">
+          {{ executing ? '执行中...' : '立即执行' }}
+        </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading } from '@element-plus/icons-vue'
 import { syncTaskApi } from '@/api'
 
 const loading = ref(false)
@@ -180,6 +192,8 @@ const executing = ref(false)
 const executeResult = ref(null)
 const executeForm = reactive({ params: {} })
 const executeParamList = ref([])
+const elapsedTime = ref(0)
+let timerInterval = null
 
 const previewCommand = computed(() => {
   if (!currentTask.value) return ''
@@ -187,8 +201,9 @@ const previewCommand = computed(() => {
   if (currentTask.value.sub_command) {
     parts.push(currentTask.value.sub_command)
   }
-  parts.push('--task')
-  parts.push(currentTask.value.task_type)
+  if (currentTask.value.task_type) {
+    parts.push(currentTask.value.task_type)
+  }
 
   const params = {}
   if (currentTask.value.params) {
@@ -336,6 +351,11 @@ const openExecuteDialog = (row) => {
   currentTask.value = row
   executeResult.value = null
   executeParamList.value = []
+  elapsedTime.value = 0
+  if (timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
   executeDialogVisible.value = true
 }
 
@@ -364,11 +384,17 @@ const runTask = async () => {
 
   executing.value = true
   executeResult.value = null
+  elapsedTime.value = 0
+  
+  timerInterval = setInterval(() => {
+    elapsedTime.value++
+  }, 1000)
+  
   try {
     const res = await syncTaskApi.execute(currentTask.value.id, params)
     executeResult.value = res
     if (res.success) {
-      ElMessage.success('任务执行成功')
+      ElMessage.success(`任务执行成功 (耗时 ${elapsedTime.value} 秒)`)
     } else {
       ElMessage.error(res.error || '任务执行失败')
     }
@@ -376,9 +402,18 @@ const runTask = async () => {
     ElMessage.error('任务执行失败')
     executeResult.value = { success: false, error: err.message || '执行失败' }
   } finally {
+    clearInterval(timerInterval)
+    timerInterval = null
     executing.value = false
   }
 }
+
+watch(executeDialogVisible, (newVal) => {
+  if (!newVal && timerInterval) {
+    clearInterval(timerInterval)
+    timerInterval = null
+  }
+})
 
 onMounted(() => {
   fetchTasks()
@@ -433,6 +468,17 @@ onMounted(() => {
   padding: 1px 4px;
   border-radius: 3px;
   font-family: monospace;
+}
+.executing-progress {
+  margin-top: 10px;
+}
+.progress-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: #409eff;
+  font-weight: 500;
 }
 .execute-result {
   margin-top: 10px;

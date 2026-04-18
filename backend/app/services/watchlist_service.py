@@ -288,6 +288,25 @@ class WatchlistService:
 
         return stock
 
+    async def update_stock_notes_by_id(
+        self, stock_id: int, notes: str
+    ) -> Optional[WatchlistStock]:
+        result = await self.db.execute(
+            select(WatchlistStock).where(WatchlistStock.id == stock_id)
+        )
+        stock = result.scalar_one_or_none()
+        if not stock:
+            return None
+
+        stock.notes = notes
+        await self.db.commit()
+        await self.db.refresh(stock)
+
+        if notes:
+            await self._create_note_signal(stock.ts_code, notes)
+
+        return stock
+
     async def _create_note_signal(self, ts_code: str, note_content: str) -> Signal:
         today = date.today()
 
@@ -394,3 +413,148 @@ class WatchlistService:
         await self.db.delete(snapshot)
         await self.db.commit()
         return True
+
+    def get_all_watchlist_stocks(
+        self,
+        page: int = 1,
+        page_size: int = 30,
+        search: Optional[str] = None,
+        industry: Optional[str] = None,
+        watchlist_id: Optional[int] = None,
+        sort_by_change_pct: Optional[str] = None,
+    ) -> dict:
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                where_clauses = []
+                params = {}
+
+                if search:
+                    where_clauses.append(
+                        "(ws.ts_code ILIKE :search OR ws.name ILIKE :search)"
+                    )
+                    params["search"] = f"%{search}%"
+
+                if industry:
+                    where_clauses.append("sb.industry = :industry")
+                    params["industry"] = industry
+
+                if watchlist_id:
+                    where_clauses.append("ws.watchlist_id = :watchlist_id")
+                    params["watchlist_id"] = watchlist_id
+
+                where_sql = ""
+                if where_clauses:
+                    where_sql = "WHERE " + " AND ".join(where_clauses)
+
+                order_sql = "ws.added_at DESC"
+                if sort_by_change_pct == "asc":
+                    order_sql = "dd.pct_chg ASC NULLS LAST"
+                elif sort_by_change_pct == "desc":
+                    order_sql = "dd.pct_chg DESC NULLS LAST"
+
+                count_query = f"""
+                    SELECT COUNT(*)
+                    FROM watchlist_stocks ws
+                    LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    {where_sql}
+                """
+                total_result = conn.execute(text(count_query), params)
+                total = total_result.scalar()
+
+                query = f"""
+                    SELECT
+                        ws.id,
+                        ws.watchlist_id,
+                        ws.ts_code,
+                        ws.symbol,
+                        ws.name as stock_name,
+                        w.name as watchlist_name,
+                        sb.industry,
+                        dd.close as close_price,
+                        dd.pct_chg as change_pct,
+                        di.total_mv * 10000 as total_mv,
+                        ws.notes,
+                        ws.added_at
+                    FROM watchlist_stocks ws
+                    JOIN watchlists w ON ws.watchlist_id = w.id
+                    LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    LEFT JOIN LATERAL (
+                        SELECT close, pct_chg
+                        FROM daily_data
+                        WHERE ts_code = ws.ts_code
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    ) dd ON TRUE
+                    LEFT JOIN LATERAL (
+                        SELECT total_mv
+                        FROM daily_indicators
+                        WHERE ts_code = ws.ts_code
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    ) di ON TRUE
+                    {where_sql}
+                    ORDER BY {order_sql}
+                    LIMIT :page_size OFFSET :offset
+                """
+                query_params = {
+                    **params,
+                    "page_size": page_size,
+                    "offset": (page - 1) * page_size,
+                }
+                result = conn.execute(text(query), query_params)
+
+                stocks = []
+                for row in result:
+                    stocks.append(
+                        {
+                            "id": row.id,
+                            "watchlist_id": row.watchlist_id,
+                            "ts_code": row.ts_code,
+                            "symbol": row.symbol,
+                            "name": row.stock_name or row.ts_code,
+                            "watchlist_name": row.watchlist_name,
+                            "industry": row.industry or "",
+                            "close_price": float(row.close_price)
+                            if row.close_price
+                            else None,
+                            "change_pct": float(row.change_pct)
+                            if row.change_pct
+                            else None,
+                            "total_mv": float(row.total_mv) if row.total_mv else None,
+                            "notes": row.notes,
+                            "added_at": row.added_at.isoformat()
+                            if row.added_at
+                            else None,
+                        }
+                    )
+
+                return {
+                    "stocks": stocks,
+                    "pagination": {
+                        "page": page,
+                        "page_size": page_size,
+                        "total": total,
+                        "total_pages": (total + page_size - 1) // page_size,
+                    },
+                }
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            return {
+                "stocks": [],
+                "pagination": {
+                    "page": page,
+                    "page_size": page_size,
+                    "total": 0,
+                    "total_pages": 0,
+                },
+                "error": str(e),
+            }

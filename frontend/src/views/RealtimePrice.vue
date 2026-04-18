@@ -62,8 +62,8 @@
     <el-card v-if="!isSectorMode" class="input-card">
       <template #header>
         <div class="input-header">
-          <span>股票代码输入</span>
-          <el-tag type="info" size="small">支持逗号或换行分隔</el-tag>
+          <span>股票输入</span>
+          <el-tag type="info" size="small">支持股票代码或名称，一行一个</el-tag>
         </div>
       </template>
 
@@ -71,13 +71,13 @@
         v-model="stockInput"
         type="textarea"
         :rows="4"
-        placeholder="请输入股票代码，如：&#10;600000.SH, 000001.SZ&#10;或&#10;600000&#10;000001&#10;300001"
+        placeholder="请输入股票代码或名称，如：&#10;600000.SH&#10;000001.SZ&#10;或&#10;平安银行&#10;贵州茅台"
         :disabled="loading"
       />
 
       <div class="input-actions">
         <div class="parsed-info" v-if="parsedCodes.length > 0">
-          <el-tag type="success">已解析 {{ parsedCodes.length }} 个代码</el-tag>
+          <el-tag type="success">已解析 {{ parsedCodes.length }} 个</el-tag>
         </div>
         <el-button
           type="primary"
@@ -334,7 +334,7 @@ const parsedCodes = computed(() => {
   if (!stockInput.value.trim()) return []
   
   const text = stockInput.value
-  const separators = [',', '，', '\n', '\t', ' ']
+  const separators = [',', '，', '\n', '\t']
   let codes = [text]
   
   for (const sep of separators) {
