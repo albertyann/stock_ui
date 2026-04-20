@@ -3,10 +3,10 @@ from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, delete, distinct, func
 from sqlalchemy.orm import selectinload
+from app.events import event_bus, NoteCreatedEvent
 from app.models import (
     Watchlist,
     WatchlistStock,
-    Signal,
     WatchlistSnapshot,
     WatchlistSnapshotItem,
 )
@@ -112,10 +112,7 @@ class WatchlistService:
     ) -> Optional[WatchlistStock]:
         existing = await self.db.execute(
             select(WatchlistStock).where(
-                and_(
-                    WatchlistStock.watchlist_id == watchlist_id,
-                    WatchlistStock.ts_code == ts_code,
-                )
+                WatchlistStock.ts_code == ts_code,
             )
         )
         if existing.scalar_one_or_none():
@@ -137,7 +134,10 @@ class WatchlistService:
         await self.db.refresh(stock)
 
         if notes:
-            await self._create_note_signal(ts_code, notes)
+            await event_bus.publish(
+                "note_created",
+                NoteCreatedEvent(ts_code=ts_code, note_content=notes),
+            )
 
         return stock
 
@@ -223,17 +223,6 @@ class WatchlistService:
         row = result.scalar_one_or_none()
         return row.cal_date.strftime("%Y-%m-%d") if row else None
 
-    async def get_available_dates(self, watchlist_id: int) -> List[str]:
-        """获取有信号数据的日期列表"""
-        result = await self.db.execute(
-            select(Signal.signal_date)
-            .join(WatchlistStock, Signal.ts_code == WatchlistStock.ts_code)
-            .where(WatchlistStock.watchlist_id == watchlist_id)
-            .distinct()
-            .order_by(Signal.signal_date.desc())
-        )
-        return [row[0] for row in result.fetchall()]
-
     async def get_watch_dates(self, watchlist_id: int) -> List[str]:
         """获取关注日期列表用于筛选"""
         result = await self.db.execute(
@@ -284,7 +273,10 @@ class WatchlistService:
         await self.db.refresh(stock)
 
         if notes:
-            await self._create_note_signal(stock.ts_code, notes)
+            await event_bus.publish(
+                "note_created",
+                NoteCreatedEvent(ts_code=stock.ts_code, note_content=notes),
+            )
 
         return stock
 
@@ -303,41 +295,12 @@ class WatchlistService:
         await self.db.refresh(stock)
 
         if notes:
-            await self._create_note_signal(stock.ts_code, notes)
+            await event_bus.publish(
+                "note_created",
+                NoteCreatedEvent(ts_code=stock.ts_code, note_content=notes),
+            )
 
         return stock
-
-    async def _create_note_signal(self, ts_code: str, note_content: str) -> Signal:
-        today = date.today()
-
-        result = await self.db.execute(
-            select(Signal).where(
-                and_(
-                    Signal.ts_code == ts_code,
-                    Signal.signal_type == "NOTE",
-                    Signal.signal_date == today,
-                )
-            )
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            existing.note_content = note_content
-            await self.db.commit()
-            await self.db.refresh(existing)
-            return existing
-
-        signal = Signal(
-            ts_code=ts_code,
-            signal_type="NOTE",
-            signal_date=today,
-            note_content=note_content,
-            is_active=True,
-        )
-        self.db.add(signal)
-        await self.db.commit()
-        await self.db.refresh(signal)
-        return signal
 
     async def move_stock_to_watchlist(
         self, stock_id: int, target_watchlist_id: int

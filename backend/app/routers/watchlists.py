@@ -179,6 +179,42 @@ async def check_stocks_in_watchlists(
     return {"success": True, "data": {"watched_codes": watched_codes}}
 
 
+@router.get("/stocks/by-ts-code/{ts_code}", response_model=dict)
+async def get_watchlist_stock_by_ts_code(
+    ts_code: str, db: AsyncSession = Depends(get_db)
+):
+    """Get watchlist_stock record for a given ts_code, including watchlist name"""
+    from sqlalchemy import select
+    from app.models import WatchlistStock, Watchlist
+
+    result = await db.execute(
+        select(WatchlistStock, Watchlist.name.label("watchlist_name"))
+        .join(Watchlist, WatchlistStock.watchlist_id == Watchlist.id)
+        .where(WatchlistStock.ts_code == ts_code)
+    )
+    row = result.first()
+
+    if not row:
+        return {"success": True, "data": None}
+
+    ws, watchlist_name = row
+    return {
+        "success": True,
+        "data": {
+            "id": ws.id,
+            "watchlist_id": ws.watchlist_id,
+            "watchlist_name": watchlist_name,
+            "ts_code": ws.ts_code,
+            "name": ws.name,
+            "notes": ws.notes,
+            "added_at": ws.added_at.isoformat() if ws.added_at else None,
+            "watch_date": ws.watch_date,
+            "watch_reason": ws.watch_reason,
+            "status": ws.status,
+        },
+    }
+
+
 @router.post("", response_model=dict)
 async def create_watchlist(
     data: WatchlistCreate, user_id: str = "default", db: AsyncSession = Depends(get_db)
@@ -435,7 +471,10 @@ async def get_watchlist_available_dates(
     if not watchlist:
         raise HTTPException(status_code=404, detail="Watchlist not found")
 
-    dates = await service.get_available_dates(watchlist_id)
+    from app.services.signal_service import SignalService
+
+    signal_service = SignalService(db)
+    dates = await signal_service.get_available_dates(watchlist_id)
 
     return {
         "success": True,

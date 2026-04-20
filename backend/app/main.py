@@ -22,6 +22,12 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    from app.events import event_bus, NOTE_CREATED
+    from app.services.signal_service import SignalService
+
+    event_bus.subscribe(NOTE_CREATED, SignalService.handle_note_created)
+
     task_manager.start()
     yield
     task_manager.shutdown()

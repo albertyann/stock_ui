@@ -572,7 +572,8 @@ const formatAmount = (amount) => {
 
 // 查看详情
 const viewDetail = (stock) => {
-  router.push(`/stock/${stock.ts_code}`)
+  if (!stock.ts_code) return
+  window.open(`/stock/${stock.ts_code}`, '_blank')
 }
 
 // 打开雪球网

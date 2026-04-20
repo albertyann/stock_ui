@@ -188,8 +188,8 @@
               <el-button size="small" @click="viewDetail(stock)">
                 <el-icon><View /></el-icon>详情
               </el-button>
-              <el-button size="small" type="warning" @click="addToWatchlist(stock)" :loading="stock.addingToWatchlist">
-                <el-icon><Star /></el-icon>关注
+              <el-button size="small" type="warning" @click="addToWatchlist(stock)" :loading="stock.addingToWatchlist" :disabled="stock.isWatched">
+                <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
               </el-button>
               <el-button size="small" type="primary" link @click="openXueqiu(stock)">
                 雪球
@@ -225,7 +225,7 @@ import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, View, Star, Search } from '@element-plus/icons-vue'
-import { realtimeApi, sectorApi } from '@/api'
+import { realtimeApi, sectorApi, watchlistApi } from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
@@ -321,6 +321,8 @@ const fetchLimitUpStocks = async () => {
       } else {
         const dateLabel = selectedDate.value || tradeDate.value
         ElMessage.success(`${dateLabel} 共 ${stocks.value.length} 只涨停股票`)
+        // 检查关注状态
+        checkWatchStatus(stocks.value)
         // 数据加载完成后获取K线数据
         nextTick(() => {
           paginatedStocks.value.forEach(stock => {
@@ -467,6 +469,26 @@ const openXueqiu = (stock) => {
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
+// 检查股票是否已被关注
+const checkWatchStatus = async (stockList) => {
+  if (!stockList || stockList.length === 0) return
+
+  const tsCodes = stockList.map(s => s.ts_code).filter(Boolean)
+  if (tsCodes.length === 0) return
+
+  try {
+    const response = await watchlistApi.checkStocks(tsCodes)
+    if (response.success && response.data && response.data.watched_codes) {
+      const watchedSet = new Set(response.data.watched_codes)
+      stockList.forEach(stock => {
+        stock.isWatched = watchedSet.has(stock.ts_code)
+      })
+    }
+  } catch (error) {
+    console.error('Failed to check watch status:', error)
+  }
+}
+
 // 关注弹窗相关
 const followDialogVisible = ref(false)
 const currentFollowStock = ref(null)
@@ -479,6 +501,9 @@ const openFollowDialog = (stock) => {
 
 const handleFollowSuccess = () => {
   followDialogVisible.value = false
+  if (currentFollowStock.value) {
+    currentFollowStock.value.isWatched = true
+  }
 }
 
 // 添加到关注列表

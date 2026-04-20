@@ -13,6 +13,8 @@ from stock_picker.strategy.momentum_strategy import MomentumStrategy
 from stock_picker.analysis.technical_indicators import TechnicalIndicators
 from stock_picker.data.fetcher import DataFetcher
 from app.models import Signal, StockPriceCache, TechnicalIndicator
+from app.events.note_events import NoteCreatedEvent
+from app.database import async_session
 
 
 class SignalService:
@@ -125,7 +127,7 @@ class SignalService:
         if active_only:
             query = query.where(Signal.is_active == True)
 
-        query = query.order_by(Signal.signal_date.desc()).limit(limit)
+        query = query.order_by(Signal.id.desc()).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
 
@@ -168,3 +170,59 @@ class SignalService:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+    async def get_available_dates(
+        self, watchlist_id: int
+    ) -> List[str]:
+        from app.models import WatchlistStock
+
+        result = await self.db.execute(
+            select(Signal.signal_date)
+            .join(WatchlistStock, Signal.ts_code == WatchlistStock.ts_code)
+            .where(WatchlistStock.watchlist_id == watchlist_id)
+            .distinct()
+            .order_by(Signal.signal_date.desc())
+        )
+        return [row[0] for row in result.fetchall()]
+
+    @staticmethod
+    async def handle_note_created(event: NoteCreatedEvent) -> None:
+        from datetime import date
+        from sqlalchemy import and_
+        from app.models import Signal
+
+        try:
+            async with async_session() as session:
+                today = date.today()
+
+                result = await session.execute(
+                    select(Signal).where(
+                        and_(
+                            Signal.ts_code == event.ts_code,
+                            Signal.signal_type == "NOTE",
+                            Signal.signal_date == today,
+                        )
+                    )
+                )
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    existing.note_content = event.note_content
+                    await session.commit()
+                    await session.refresh(existing)
+                    return
+
+                signal = Signal(
+                    ts_code=event.ts_code,
+                    signal_type="NOTE",
+                    signal_date=today,
+                    note_content=event.note_content,
+                    is_active=True,
+                )
+                session.add(signal)
+                await session.commit()
+                await session.refresh(signal)
+        except Exception:
+            logger.exception(
+                "Failed to create note signal for %s", event.ts_code
+            )

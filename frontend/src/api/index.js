@@ -91,6 +91,7 @@ export const watchlistApi = {
   updateStockNotes: (stockId, notes) =>
     api.put(`/watchlists/stocks/${stockId}/notes`, { notes }),
   checkStocks: (tsCodes) => api.post('/watchlists/check-stocks', { ts_codes: tsCodes }),
+  getStockByTsCode: (tsCode) => api.get(`/watchlists/stocks/by-ts-code/${tsCode}`),
   createSnapshot: (id, stocks) => api.post(`/watchlists/${id}/snapshots`, { stocks }),
   getSnapshots: (id) => api.get(`/watchlists/${id}/snapshots`),
   deleteSnapshot: (watchlistId, snapshotId) => api.delete(`/watchlists/${watchlistId}/snapshots/${snapshotId}`)
