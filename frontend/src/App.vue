@@ -77,6 +77,10 @@
               <el-icon><Camera /></el-icon>
               <span>快照管理</span>
             </el-menu-item>
+            <el-menu-item index="/signal-manage">
+              <el-icon><Bell /></el-icon>
+              <span>信号管理</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-basic-data">
             <template #title>

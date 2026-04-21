@@ -317,7 +317,7 @@
     <el-empty v-else description="加载中..." />
 
     <!-- 编辑备注弹窗 -->
-    <el-dialog v-model="showNotesDialog" title="编辑股票备注" width="500px">
+    <el-dialog v-model="showNotesDialog" title="编辑股票备注" width="500px" @opened="onNotesDialogOpened">
       <el-form label-width="100px">
         <el-form-item label="股票">
           <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
@@ -837,9 +837,11 @@ const switchStockGroup = async () => {
 const openNotesDialog = () => {
   stockNotesInput.value = ''
   showNotesDialog.value = true
-  nextTick(() => {
-    notesInputRef.value?.focus()
-  })
+}
+
+// 弹窗打开动画结束后聚焦输入框
+const onNotesDialogOpened = () => {
+  notesInputRef.value?.focus()
 }
 
 // 保存股票备注

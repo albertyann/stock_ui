@@ -15,6 +15,7 @@ import DailyData from '@/views/DailyData.vue'
 import WeeklyData from '@/views/WeeklyData.vue'
 import SyncTasks from '@/views/SyncTasks.vue'
 import SnapshotManage from '@/views/SnapshotManageView.vue'
+import SignalManage from '@/views/SignalManage.vue'
 
 const routes = [
   {
@@ -100,6 +101,12 @@ const routes = [
     name: 'SnapshotManage',
     component: SnapshotManage,
     meta: { title: '快照管理' }
+  },
+  {
+    path: '/signal-manage',
+    name: 'SignalManage',
+    component: SignalManage,
+    meta: { title: '信号管理' }
   }
 ]
 

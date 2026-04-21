@@ -1,7 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, update
+from sqlalchemy import select, and_, update, func, delete as sa_delete
 from sqlalchemy.dialects.postgresql import insert
 import pandas as pd
 import sys
@@ -130,6 +130,54 @@ class SignalService:
         query = query.order_by(Signal.id.desc()).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
+
+    async def get_signals_paginated(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        ts_code: Optional[str] = None,
+        signal_type: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        signal_date: Optional[date] = None,
+        signal_date_start: Optional[date] = None,
+        signal_date_end: Optional[date] = None,
+    ) -> Tuple[List[Signal], int]:
+        filters = []
+        if ts_code:
+            filters.append(Signal.ts_code == ts_code)
+        if signal_type:
+            filters.append(Signal.signal_type == signal_type)
+        if is_active is not None:
+            filters.append(Signal.is_active == is_active)
+        if signal_date:
+            filters.append(Signal.signal_date == signal_date)
+        if signal_date_start:
+            filters.append(Signal.signal_date >= signal_date_start)
+        if signal_date_end:
+            filters.append(Signal.signal_date <= signal_date_end)
+
+        count_query = select(func.count()).select_from(Signal)
+        if filters:
+            count_query = count_query.where(and_(*filters))
+        total = (await self.db.execute(count_query)).scalar()
+
+        offset = (page - 1) * page_size
+        data_query = select(Signal)
+        if filters:
+            data_query = data_query.where(and_(*filters))
+        data_query = data_query.order_by(Signal.id.desc()).offset(offset).limit(page_size)
+
+        result = await self.db.execute(data_query)
+        signals = result.scalars().all()
+
+        return signals, total
+
+    async def delete_signal(self, signal_id: int) -> bool:
+        result = await self.db.execute(
+            sa_delete(Signal).where(Signal.id == signal_id)
+        )
+        await self.db.commit()
+        return result.rowcount > 0
 
     async def get_latest_signal(self, ts_code: str) -> Optional[Signal]:
         result = await self.db.execute(

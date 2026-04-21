@@ -109,7 +109,20 @@ export const signalApi = {
   getLatest: (tsCode) => api.get(`/signals/latest/${tsCode}`),
   analyze: (tsCodes) => api.post('/signals/analyze', { ts_codes: tsCodes }),
   analyzeAll: () => api.post('/signals/analyze-all'),
-  addNote: (tsCode, noteContent) => api.post('/signals/note', { ts_code: tsCode, note_content: noteContent })
+  addNote: (tsCode, noteContent) => api.post('/signals/note', { ts_code: tsCode, note_content: noteContent }),
+  // Signal management (paginated)
+  getSignalsManage: (params = {}) => {
+    const { page = 1, page_size = 20, ts_code = null, signal_type = null, is_active = null, signal_date = null, signal_date_start = null, signal_date_end = null } = params
+    let url = `/signals/manage?page=${page}&page_size=${page_size}`
+    if (ts_code) url += `&ts_code=${encodeURIComponent(ts_code)}`
+    if (signal_type) url += `&signal_type=${encodeURIComponent(signal_type)}`
+    if (is_active !== null && is_active !== undefined) url += `&is_active=${is_active}`
+    if (signal_date) url += `&signal_date=${signal_date}`
+    if (signal_date_start) url += `&signal_date_start=${signal_date_start}`
+    if (signal_date_end) url += `&signal_date_end=${signal_date_end}`
+    return api.get(url)
+  },
+  deleteSignal: (id) => api.delete(`/signals/${id}`)
 }
 
 export const realtimeApi = {

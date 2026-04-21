@@ -1,16 +1,5 @@
 <template>
   <div class="realtime-price-page">
-    <div class="page-header">
-      <h2>{{ pageTitle }}</h2>
-      <div class="header-actions">
-        <el-button v-if="isSectorMode" @click="goBack">
-          <el-icon><ArrowLeft /></el-icon>返回板块列表
-        </el-button>
-        <el-button type="primary" @click="fetchPrices" :loading="loading">
-          <el-icon><Refresh /></el-icon>刷新
-        </el-button>
-      </div>
-    </div>
 
     <!-- 板块信息卡片 -->
     <el-card v-if="isSectorMode && sectorInfo" class="sector-info-card">
@@ -248,6 +237,7 @@
               :stock-name="stock.name"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-m-a-c-d="true"
+              min-height="260px"
             />
           </div>
         </div>
@@ -1029,7 +1019,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: #fff;
-  min-height: 420px;
+  min-height: 280px;
 }
 
 /* 响应式布局 */
@@ -1052,201 +1042,83 @@ onUnmounted(() => {
   }
 
   .stock-chart-section {
-    min-height: 380px;
-    padding: 12px;
-  }
-}
-
-@media (max-width: 768px) {
-  .realtime-price-page {
-    padding: 12px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .filter-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .filter-row .el-input {
-    margin-right: 0 !important;
-    width: 100%;
-  }
-
-  .input-actions {
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
-  }
-
-  .parsed-info {
-    text-align: center;
-  }
-
-  .stock-info-section {
-    padding: 16px;
-  }
-
-  .stock-chart-section {
-    min-height: 320px;
-    padding: 10px;
-  }
-
-  .current-price {
-    font-size: 24px;
-  }
-
-  .price-details,
-  .bid-ask-section {
-    padding: 8px;
-  }
-
-  .bid-ask-row {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .bid, .ask {
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 480px) {
-  .stock-header {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .change-badge {
-    width: 100%;
-    height: 32px;
-  }
-
-  .stock-chart-section {
-    min-height: 280px;
-  }
-}
-
-.kline-chart {
-  width: 100%;
-  height: 100%;
-  min-height: 400px;
-}
-
-/* 响应式布局 */
-@media (max-width: 1200px) {
-  .stock-info-section {
-    flex: 0 0 280px;
-  }
-}
-
-@media (max-width: 992px) {
-  .stock-card {
-    flex-direction: column;
-  }
-
-  .stock-info-section {
-    flex: none;
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #ebeef5;
-  }
-
-  .stock-chart-section {
-    min-height: 380px;
-    padding: 12px;
-  }
-
-  .kline-chart {
-    min-height: 360px;
-  }
-}
-
-@media (max-width: 768px) {
-  .realtime-price-page {
-    padding: 12px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .filter-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .filter-row .el-input {
-    margin-right: 0 !important;
-    width: 100%;
-  }
-
-  .input-actions {
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
-  }
-
-  .parsed-info {
-    text-align: center;
-  }
-
-  .stock-info-section {
-    padding: 16px;
-  }
-
-  .stock-chart-section {
-    min-height: 320px;
-    padding: 10px;
-  }
-
-  .kline-chart {
-    min-height: 300px;
-  }
-
-  .current-price {
-    font-size: 24px;
-  }
-
-  .price-details,
-  .bid-ask-section {
-    padding: 8px;
-  }
-
-  .bid-ask-row {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .bid, .ask {
-    justify-content: space-between;
-  }
-}
-
-@media (max-width: 480px) {
-  .stock-header {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .change-badge {
-    width: 100%;
-    height: 32px;
-  }
-
-  .stock-chart-section {
-    min-height: 280px;
-  }
-
-  .kline-chart {
     min-height: 260px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .realtime-price-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .filter-row .el-input {
+    margin-right: 0 !important;
+    width: 100%;
+  }
+
+  .input-actions {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .parsed-info {
+    text-align: center;
+  }
+
+  .stock-info-section {
+    padding: 16px;
+  }
+
+  .stock-chart-section {
+    min-height: 220px;
+    padding: 10px;
+  }
+
+  .current-price {
+    font-size: 24px;
+  }
+
+  .price-details,
+  .bid-ask-section {
+    padding: 8px;
+  }
+
+  .bid-ask-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bid, .ask {
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 480px) {
+  .stock-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .change-badge {
+    width: 100%;
+    height: 32px;
+  }
+
+  .stock-chart-section {
+    min-height: 200px;
   }
 }
 </style>

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
+from datetime import date
 from pydantic import BaseModel
 
 from app.database import get_db
@@ -61,6 +62,72 @@ async def get_signals(
             for s in signals
         ],
     }
+
+
+def _serialize_signal(s) -> dict:
+    return {
+        "id": s.id,
+        "ts_code": s.ts_code,
+        "signal_type": s.signal_type,
+        "signal_strength": s.signal_strength,
+        "signal_date": s.signal_date.isoformat() if s.signal_date else None,
+        "current_price": float(s.current_price) if s.current_price else None,
+        "target_price": float(s.target_price) if s.target_price else None,
+        "stop_loss_price": float(s.stop_loss_price) if s.stop_loss_price else None,
+        "indicators": s.indicators,
+        "strategy_name": s.strategy_name,
+        "conditions_met": s.conditions_met,
+        "is_active": s.is_active,
+        "execution_result": s.execution_result,
+        "note_content": s.note_content,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+@router.get("/manage", response_model=dict)
+async def get_signals_manage(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    ts_code: Optional[str] = None,
+    signal_type: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    signal_date: Optional[date] = None,
+    signal_date_start: Optional[date] = None,
+    signal_date_end: Optional[date] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    service = SignalService(db)
+    signals, total = await service.get_signals_paginated(
+        page=page,
+        page_size=page_size,
+        ts_code=ts_code,
+        signal_type=signal_type,
+        is_active=is_active,
+        signal_date=signal_date,
+        signal_date_start=signal_date_start,
+        signal_date_end=signal_date_end,
+    )
+
+    return {
+        "success": True,
+        "data": [_serialize_signal(s) for s in signals],
+        "pagination": {
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "total_pages": (total + page_size - 1) // page_size,
+        },
+    }
+
+
+@router.delete("/{signal_id}", response_model=dict)
+async def delete_signal(signal_id: int, db: AsyncSession = Depends(get_db)):
+    service = SignalService(db)
+    deleted = await service.delete_signal(signal_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Signal not found")
+    return {"success": True, "data": {"message": "Signal deleted"}}
 
 
 @router.get("/latest/{ts_code}", response_model=dict)
