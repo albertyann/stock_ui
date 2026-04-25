@@ -10,6 +10,19 @@ export function useWebSocket() {
   const connectionError = ref(null)
   let reconnectTimer = null
   let pingTimer = null
+  const typeHandlers = {}
+
+  const onMessageType = (type, handler) => {
+    if (!typeHandlers[type]) typeHandlers[type] = new Set()
+    typeHandlers[type].add(handler)
+    return () => offMessageType(type, handler)
+  }
+
+  const offMessageType = (type, handler) => {
+    if (!typeHandlers[type]) return
+    typeHandlers[type].delete(handler)
+    if (typeHandlers[type].size === 0) delete typeHandlers[type]
+  }
   
   const connect = () => {
     try {
@@ -35,6 +48,12 @@ export function useWebSocket() {
           
           if (data.type === 'pong') {
             console.log('Ping-pong latency:', Date.now() - data.timestamp, 'ms')
+          }
+
+          if (data.type && typeHandlers[data.type]) {
+            typeHandlers[data.type].forEach(handler => {
+              try { handler(data) } catch (e) { console.error('WS handler error:', e) }
+            })
           }
         } catch (e) {
           console.error('Failed to parse message:', e)
@@ -151,6 +170,8 @@ export function useWebSocket() {
     subscribe,
     unsubscribe,
     getPrice,
-    getSignal
+    getSignal,
+    onMessageType,
+    offMessageType
   }
 }

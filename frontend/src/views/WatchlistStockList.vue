@@ -45,6 +45,26 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="标签">
+          <el-select
+            v-model="filter.tags"
+            placeholder="选择标签"
+            multiple
+            filterable
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            style="width: 200px"
+            @change="handleFilterChange"
+          >
+            <el-option
+              v-for="tag in allTags"
+              :key="tag"
+              :label="tag"
+              :value="tag"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleFilterChange">搜索</el-button>
           <el-button @click="resetFilter">重置</el-button>
@@ -53,7 +73,7 @@
     </el-card>
 
     <el-card v-loading="loading">
-      <el-table :data="tableData" stripe border @sort-change="handleSortChange">
+      <el-table :data="tableData" stripe border @sort-change="handleSortChange" @row-click="handleRowClick" :row-class-name="tableRowClassName">
         <el-table-column prop="ts_code" label="TS代码" width="130" fixed="left">
           <template #default="{ row }">
             <a :href="getXueqiuLink(row.ts_code)" target="_blank" rel="noopener noreferrer">
@@ -93,10 +113,26 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="notes" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="added_at" label="添加日期" width="160">
+        <el-table-column prop="notes" label="备注" min-width="180">
           <template #default="{ row }">
-            <span>{{ formatDateTime(row.added_at) }}</span>
+            <el-popover
+              v-if="row.notes"
+              placement="top"
+              :width="300"
+              trigger="hover"
+              :show-after="300"
+            >
+              <template #reference>
+                <span class="notes-cell">{{ row.notes }}</span>
+              </template>
+              <div class="notes-popover-content">{{ row.notes }}</div>
+            </el-popover>
+            <span v-else class="notes-cell">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="updated_at" label="更新时间" width="160">
+          <template #default="{ row }">
+            <span>{{ formatDateTime(row.updated_at) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="watchlist_name" label="所属分组" min-width="140" />
@@ -209,20 +245,23 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { watchlistApi, sectorApi } from '@/api'
+import { useWebSocket } from '@/composables/useWebSocket'
 
 const loading = ref(false)
 const tableData = ref([])
 const industryOptions = ref([])
 const watchlistOptions = ref([])
+const allTags = ref([])
 
 const filter = reactive({
   search: '',
   industry: '',
-  watchlist_id: null
+  watchlist_id: null,
+  tags: []
 })
 
 const pagination = reactive({
@@ -235,6 +274,9 @@ const pagination = reactive({
 const sortState = reactive({
   sort_by_change_pct: null
 })
+
+// 行选中相关
+const selectedRowId = ref(null)
 
 // 股票备注相关
 const showNotesDialog = ref(false)
@@ -259,6 +301,7 @@ const fetchData = async () => {
       search: filter.search || null,
       industry: filter.industry || null,
       watchlist_id: filter.watchlist_id || null,
+      tags: filter.tags,
       sort_by_change_pct: sortState.sort_by_change_pct
     })
     if (res.success) {
@@ -279,15 +322,19 @@ const fetchData = async () => {
 
 const fetchOptions = async () => {
   try {
-    const [sectorRes, watchlistRes] = await Promise.all([
+    const [sectorRes, watchlistRes, tagsRes] = await Promise.all([
       sectorApi.getAllSectors(),
-      watchlistApi.getAll()
+      watchlistApi.getAll(),
+      watchlistApi.getAllTags()
     ])
     if (sectorRes.success) {
       industryOptions.value = sectorRes.data || []
     }
     if (watchlistRes.success) {
       watchlistOptions.value = watchlistRes.data || []
+    }
+    if (tagsRes.success) {
+      allTags.value = tagsRes.data.tags || []
     }
   } catch (err) {
     console.error('Failed to fetch options:', err)
@@ -303,6 +350,7 @@ const resetFilter = () => {
   filter.search = ''
   filter.industry = ''
   filter.watchlist_id = null
+  filter.tags = []
   sortState.sort_by_change_pct = null
   pagination.page = 1
   fetchData()
@@ -333,6 +381,17 @@ const handleSortChange = ({ prop, order }) => {
   }
   pagination.page = 1
   fetchData()
+}
+
+const handleRowClick = (row) => {
+  selectedRowId.value = row.id
+}
+
+const tableRowClassName = ({ row }) => {
+  if (row.id === selectedRowId.value) {
+    return 'selected-row'
+  }
+  return ''
 }
 
 const getChangeClass = (changePct) => {
@@ -452,9 +511,23 @@ const switchStockGroup = async () => {
   }
 }
 
+const { onMessageType, offMessageType } = useWebSocket()
+
+const handleNotesUpdated = ({ ts_code, notes }) => {
+  const stock = tableData.value.find(s => s.ts_code === ts_code)
+  if (stock) {
+    stock.notes = notes
+  }
+}
+
 onMounted(() => {
   fetchOptions()
   fetchData()
+  onMessageType('notes_updated', handleNotesUpdated)
+})
+
+onUnmounted(() => {
+  offMessageType('notes_updated', handleNotesUpdated)
 })
 </script>
 
@@ -489,5 +562,45 @@ onMounted(() => {
 }
 .flat {
   color: #909399;
+}
+.notes-cell {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+.notes-popover-content {
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+  font-size: 13px;
+  color: #303133;
+}
+
+:deep(.el-table .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
 }
 </style>

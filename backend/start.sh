@@ -5,9 +5,6 @@
 echo "Starting Stock Watchlist Backend..."
 echo "WebSocket Protocol: wsproto (websockets package disabled)"
 
-# Set Python path to include parent directory for stock_picker imports
-export PYTHONPATH="/Users/yann/workspace/trading:${PYTHONPATH}"
-
 # Start uvicorn with wsproto explicitly
 cd /Users/yann/workspace/trading/stock_watchlist/backend
 exec uvicorn app.main:app \

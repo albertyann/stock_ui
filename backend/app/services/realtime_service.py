@@ -14,7 +14,10 @@ class RealtimePriceService:
     def __init__(self):
         self.settings = get_settings()
         self.sync_url = self.settings.database_url.replace("+asyncpg", "")
-        self.engine = create_engine(self.sync_url)
+        self.engine = create_engine(
+            self.sync_url,
+            connect_args={"options": "-c timezone=Asia/Shanghai"}
+        )
 
     async def get_realtime_prices(self, ts_codes: List[str]) -> Dict:
         """
@@ -97,7 +100,7 @@ class RealtimePriceService:
             "volume": int(row.volume or 0),
             "amount": float(row.amount or 0),
             "trade_date": row.trade_date.strftime("%Y-%m-%d") if row.trade_date else "",
-            "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "updated_at": row.updated_at.strftime("%Y-%m-%d %H:%M:%S") if hasattr(row, "updated_at") and row.updated_at else None,
             "data_source": "local_db",  # 标记数据来源
         }
 
@@ -663,14 +666,15 @@ class RealtimePriceService:
                             d.vol as volume,
                             d.amount,
                             d.pct_chg as change_pct,
-                            d.pre_close
-                        FROM daily_data d
-                        JOIN stock_basic s ON d.ts_code = s.ts_code
-                        WHERE d.trade_date = :trade_date
-                        AND d.pct_chg >= :min_change_pct
-                        AND s.industry = :industry
-                        ORDER BY d.pct_chg DESC
-                        LIMIT :limit
+                        d.pre_close,
+                        d.updated_at
+                    FROM daily_data d
+                    JOIN stock_basic s ON d.ts_code = s.ts_code
+                    WHERE d.trade_date = :trade_date
+                    AND d.pct_chg >= :min_change_pct
+                    AND s.industry = :industry
+                    ORDER BY d.pct_chg DESC
+                    LIMIT :limit
                     """
                     result = conn.execute(
                         text(query),
@@ -693,12 +697,13 @@ class RealtimePriceService:
                             d.vol as volume,
                             d.amount,
                             d.pct_chg as change_pct,
-                            d.pre_close
-                        FROM daily_data d
-                        WHERE d.trade_date = :trade_date
-                        AND d.pct_chg >= :min_change_pct
-                        ORDER BY d.pct_chg DESC
-                        LIMIT :limit
+                        d.pre_close,
+                        d.updated_at
+                    FROM daily_data d
+                    WHERE d.trade_date = :trade_date
+                    AND d.pct_chg >= :min_change_pct
+                    ORDER BY d.pct_chg DESC
+                    LIMIT :limit
                     """
                     result = conn.execute(
                         text(query),

@@ -127,3 +127,11 @@ async def broadcast_signal(signal_data: dict):
 
 async def broadcast_system_message(message: str, level: str = "info"):
     await manager.broadcast({"type": "system", "level": level, "message": message})
+
+
+async def broadcast_notes_updated(ts_code: str, notes: str):
+    await manager.broadcast({
+        "type": "notes_updated",
+        "ts_code": ts_code,
+        "notes": notes,
+    })

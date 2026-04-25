@@ -3,12 +3,15 @@ from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, delete, distinct, func
 from sqlalchemy.orm import selectinload
+import json
 from app.events import event_bus, NoteCreatedEvent
 from app.models import (
     Watchlist,
     WatchlistStock,
     WatchlistSnapshot,
     WatchlistSnapshotItem,
+    StockTag,
+    Tag,
 )
 
 
@@ -193,6 +196,24 @@ class WatchlistService:
             )
             return {row.ts_code: row.industry or "" for row in result}
 
+    def get_stock_tags(self, ts_codes: List[str]) -> dict:
+        if not ts_codes:
+            return {}
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+        with engine.connect() as conn:
+            result = conn.execute(
+                text(
+                    "SELECT ts_code, tags FROM stock_tags WHERE ts_code = ANY(:ts_codes)"
+                ),
+                {"ts_codes": ts_codes},
+            )
+            return {row.ts_code: row.tags if row.tags is not None else [] for row in result}
+
     async def get_last_trading_day(self, exchange: str = "SSE") -> Optional[str]:
         """获取指定交易所的最后一个交易日
 
@@ -268,7 +289,9 @@ class WatchlistService:
         if not stock:
             return None
 
+        from datetime import datetime as dt
         stock.notes = notes
+        stock.updated_at = dt.now()
         await self.db.commit()
         await self.db.refresh(stock)
 
@@ -283,6 +306,7 @@ class WatchlistService:
     async def update_stock_notes_by_id(
         self, stock_id: int, notes: str
     ) -> Optional[WatchlistStock]:
+        from datetime import datetime as dt
         result = await self.db.execute(
             select(WatchlistStock).where(WatchlistStock.id == stock_id)
         )
@@ -291,6 +315,7 @@ class WatchlistService:
             return None
 
         stock.notes = notes
+        stock.updated_at = dt.now()
         await self.db.commit()
         await self.db.refresh(stock)
 
@@ -377,6 +402,51 @@ class WatchlistService:
         await self.db.commit()
         return True
 
+    async def get_all_tags(self) -> List[str]:
+        result = await self.db.execute(
+            select(Tag.name).order_by(Tag.name)
+        )
+        return [row[0] for row in result.fetchall() if row[0]]
+
+    async def update_stock_tags(self, ts_code: str, tags: List[str]) -> Optional[StockTag]:
+        from sqlalchemy import text
+
+        cleaned_tags = sorted(list(set(tag.strip() for tag in tags if tag and tag.strip())))
+
+        if cleaned_tags:
+            existing_tags_result = await self.db.execute(
+                select(Tag.name).where(Tag.name.in_(cleaned_tags))
+            )
+            existing_tags = {row[0] for row in existing_tags_result.fetchall()}
+            missing_tags = [tag for tag in cleaned_tags if tag not in existing_tags]
+
+            # 自动创建不存在的标签
+            for tag_name in missing_tags:
+                new_tag = Tag(name=tag_name)
+                self.db.add(new_tag)
+
+            if missing_tags:
+                await self.db.flush()  # Flush to make new tags available for the upsert
+
+        result = await self.db.execute(
+            text("""
+                INSERT INTO stock_tags (ts_code, tags, updated_at)
+                VALUES (:ts_code, :tags, NOW())
+                ON CONFLICT (ts_code)
+                DO UPDATE SET
+                    tags = EXCLUDED.tags,
+                    updated_at = NOW()
+                RETURNING ts_code, tags, updated_at
+            """),
+            {"ts_code": ts_code, "tags": json.dumps(cleaned_tags)}
+        )
+        await self.db.commit()
+
+        row = result.fetchone()
+        if row:
+            return StockTag(ts_code=row.ts_code, tags=row.tags, updated_at=row.updated_at)
+        return None
+
     def get_all_watchlist_stocks(
         self,
         page: int = 1,
@@ -384,6 +454,7 @@ class WatchlistService:
         search: Optional[str] = None,
         industry: Optional[str] = None,
         watchlist_id: Optional[int] = None,
+        tags: Optional[List[str]] = None,
         sort_by_change_pct: Optional[str] = None,
     ) -> dict:
         from sqlalchemy import create_engine, text
@@ -412,6 +483,10 @@ class WatchlistService:
                     where_clauses.append("ws.watchlist_id = :watchlist_id")
                     params["watchlist_id"] = watchlist_id
 
+                if tags:
+                    where_clauses.append("st.tags ?| :tags_list")
+                    params["tags_list"] = tags
+
                 where_sql = ""
                 if where_clauses:
                     where_sql = "WHERE " + " AND ".join(where_clauses)
@@ -426,6 +501,7 @@ class WatchlistService:
                     SELECT COUNT(*)
                     FROM watchlist_stocks ws
                     LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    LEFT JOIN stock_tags st ON ws.ts_code = st.ts_code
                     {where_sql}
                 """
                 total_result = conn.execute(text(count_query), params)
@@ -444,10 +520,13 @@ class WatchlistService:
                         dd.pct_chg as change_pct,
                         di.total_mv * 10000 as total_mv,
                         ws.notes,
-                        ws.added_at
+                        ws.added_at,
+                        ws.updated_at,
+                        st.tags as tags
                     FROM watchlist_stocks ws
                     JOIN watchlists w ON ws.watchlist_id = w.id
                     LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    LEFT JOIN stock_tags st ON ws.ts_code = st.ts_code
                     LEFT JOIN LATERAL (
                         SELECT close, pct_chg
                         FROM daily_data
@@ -484,6 +563,7 @@ class WatchlistService:
                             "name": row.stock_name or row.ts_code,
                             "watchlist_name": row.watchlist_name,
                             "industry": row.industry or "",
+                            "tags": row.tags if row.tags is not None else [],
                             "close_price": float(row.close_price)
                             if row.close_price
                             else None,
@@ -494,6 +574,9 @@ class WatchlistService:
                             "notes": row.notes,
                             "added_at": row.added_at.isoformat()
                             if row.added_at
+                            else None,
+                            "updated_at": row.updated_at.isoformat()
+                            if row.updated_at
                             else None,
                         }
                     )

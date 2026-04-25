@@ -8,6 +8,7 @@ import RealtimePrice from '@/views/RealtimePrice.vue'
 import WatchlistStockList from '@/views/WatchlistStockList.vue'
 import LimitUpStocks from '@/views/LimitUpStocks.vue'
 import SectorList from '@/views/SectorList.vue'
+import SectorLargeOrder from '@/views/SectorLargeOrder.vue'
 import StockQuery from '@/views/StockQuery.vue'
 import TradeCal from '@/views/TradeCal.vue'
 import StockBasic from '@/views/StockBasic.vue'
@@ -16,6 +17,11 @@ import WeeklyData from '@/views/WeeklyData.vue'
 import SyncTasks from '@/views/SyncTasks.vue'
 import SnapshotManage from '@/views/SnapshotManageView.vue'
 import SignalManage from '@/views/SignalManage.vue'
+import StockCalculator from '@/views/StockCalculator.vue'
+import TagManage from '@/views/TagManage.vue'
+import WatchlistManage from '@/views/WatchlistManage.vue'
+import MoneyflowIndThs from '@/views/MoneyflowIndThs.vue'
+import SectorDetail from '@/views/SectorDetail.vue'
 
 const routes = [
   {
@@ -60,6 +66,19 @@ const routes = [
     path: '/sectors',
     name: 'SectorList',
     component: SectorList
+  },
+  {
+    path: '/sector/:code',
+    name: 'SectorDetail',
+    component: SectorDetail,
+    props: true,
+    meta: { title: '板块详情' }
+  },
+  {
+    path: '/sector-large-orders',
+    name: 'SectorLargeOrder',
+    component: SectorLargeOrder,
+    meta: { title: '板块大单' }
   },
   {
     path: '/stock-query',
@@ -107,6 +126,30 @@ const routes = [
     name: 'SignalManage',
     component: SignalManage,
     meta: { title: '信号管理' }
+  },
+  {
+    path: '/stock-calculator',
+    name: 'StockCalculator',
+    component: StockCalculator,
+    meta: { title: '股票计算器' }
+  },
+  {
+    path: '/basic-data/tags',
+    name: 'TagManage',
+    component: TagManage,
+    meta: { title: '标签管理' }
+  },
+  {
+    path: '/basic-data/watchlists',
+    name: 'WatchlistManage',
+    component: WatchlistManage,
+    meta: { title: '股票分组' }
+  },
+  {
+    path: '/moneyflow-ind-ths',
+    name: 'MoneyflowIndThs',
+    component: MoneyflowIndThs,
+    meta: { title: '行业资金' }
   }
 ]
 

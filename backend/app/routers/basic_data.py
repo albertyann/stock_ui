@@ -35,9 +35,10 @@ async def get_stock_basic(
     name: Optional[str] = Query(None, description="股票名称搜索"),
     ts_code: Optional[str] = Query(None, description="ts_code搜索"),
     symbol: Optional[str] = Query(None, description="symbol搜索"),
+    industry: Optional[str] = Query(None, description="行业筛选"),
 ):
     service = BasicDataService()
-    result = service.get_stock_basic(page, page_size, name, ts_code, symbol)
+    result = service.get_stock_basic(page, page_size, name, ts_code, symbol, industry)
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result
@@ -80,6 +81,23 @@ async def get_moneyflow(
 ):
     service = BasicDataService()
     result = service.get_moneyflow(ts_code, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/moneyflow-ind-ths", response_model=dict)
+async def get_moneyflow_ind_ths(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
+    industry: Optional[str] = Query(None, description="行业名称搜索"),
+    trade_date: Optional[str] = Query(None, description="交易日期搜索，格式YYYY-MM-DD"),
+    ts_code: Optional[str] = Query(None, description="行业代码搜索"),
+    sort_field: Optional[str] = Query(None, description="排序字段"),
+    sort_order: Optional[str] = Query(None, description="排序方向: ascending/descending"),
+):
+    service = BasicDataService()
+    result = service.get_moneyflow_ind_ths(page, page_size, industry, trade_date, ts_code, sort_field, sort_order)
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result

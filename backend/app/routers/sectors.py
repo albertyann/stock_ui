@@ -25,6 +25,29 @@ async def get_all_sectors():
     }
 
 
+@router.get("/large-orders", response_model=dict)
+async def get_sector_large_orders(
+    trade_date: str = Query(..., description="交易日期，格式YYYY-MM-DD"),
+):
+    """
+    获取板块大单交易统计（按行业汇总）
+
+    Args:
+        trade_date: 交易日期
+
+    Returns:
+        板块大单统计数据
+    """
+    service = SectorService()
+    data = service.get_sector_large_orders(trade_date)
+
+    return {
+        "success": True,
+        "data": data,
+        "count": len(data),
+    }
+
+
 @router.get("/{sector_code}", response_model=dict)
 async def get_sector_detail(
     sector_code: str,
@@ -59,6 +82,7 @@ async def get_sector_stocks(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（股票名称或代码）"),
+    sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序)"),
 ):
     """
     获取板块内的股票列表
@@ -69,6 +93,7 @@ async def get_sector_stocks(
         page: 页码
         page_size: 每页数量
         search: 搜索关键词
+        sort: 排序方式
 
     Returns:
         股票列表及分页信息
@@ -80,8 +105,7 @@ async def get_sector_stocks(
     if not sector:
         raise HTTPException(status_code=404, detail="Sector not found")
 
-    # 获取所有股票
-    all_stocks = service.get_sector_stocks(sector_code, sector_type)
+    all_stocks = service.get_sector_stocks(sector_code, sector_type, sort=sort)
 
     # 搜索过滤
     if search:

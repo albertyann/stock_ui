@@ -46,6 +46,14 @@ async def init_database():
         """)
 
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS stock_tags (
+                ts_code VARCHAR(20) PRIMARY KEY,
+                tags JSONB DEFAULT '[]'::jsonb NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS signals (
                 id SERIAL PRIMARY KEY,
                 ts_code VARCHAR(20) NOT NULL,
@@ -131,6 +139,9 @@ async def init_database():
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_watchlist_stocks_watch_date ON watchlist_stocks(watch_date)"
         )
+        await conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_stock_tags_tags ON stock_tags USING GIN (tags)"
+        )
 
         # Insert default watchlist
         await conn.execute("""
@@ -143,6 +154,7 @@ async def init_database():
         print("✅ Tables created:")
         print("  - watchlists")
         print("  - watchlist_stocks")
+        print("  - stock_tags")
         print("  - signals")
         print("  - stock_prices_cache")
         print("  - technical_indicators_cache")

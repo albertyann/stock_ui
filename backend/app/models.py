@@ -46,6 +46,7 @@ class WatchlistStock(Base):
     symbol = Column(String(10), nullable=False)
     name = Column(String(100))
     added_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     watch_date = Column(
         String(10), index=True
     )  # 关注日期，格式 yyyy-MM-dd，用于日期搜索
@@ -59,6 +60,16 @@ class WatchlistStock(Base):
 
     __table_args__ = (
         UniqueConstraint("watchlist_id", "ts_code", name="uix_watchlist_stock"),
+    )
+
+
+class StockTag(Base):
+    __tablename__ = "stock_tags"
+
+    ts_code = Column(String(20), primary_key=True)
+    tags = Column(JSONB, default=list, server_default="[]")
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -171,6 +182,7 @@ class DailyData(Base):
     pct_chg = Column(Numeric(10, 2))
     vol = Column(Numeric(15, 2))
     amount = Column(Numeric(15, 2))
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class WeeklyData(Base):
@@ -238,5 +250,47 @@ class SyncTask(Base):
     description = Column(Text)
     sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
+    last_run_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class SyncTaskLog(Base):
+    __tablename__ = "sync_task_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_name = Column(String(100), nullable=False)
+    task_type = Column(String(50), nullable=False)
+    status = Column(String(20), nullable=False)
+    started_at = Column(DateTime(timezone=True), nullable=False)
+    completed_at = Column(DateTime(timezone=True))
+    duration_seconds = Column(Numeric)
+    records_processed = Column(Integer, server_default="0")
+    records_inserted = Column(Integer, server_default="0")
+    records_updated = Column(Integer, server_default="0")
+    error_message = Column(Text)
+    stack_trace = Column(Text)
+    retry_count = Column(Integer, server_default="0")
+    trigger_type = Column(String(20), server_default="scheduled")
+    triggered_by = Column(String(100))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), nullable=False, unique=True, index=True)
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class StockInfo(Base):
+    __tablename__ = "stock_info"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ts_code = Column(String(20), nullable=False, index=True)
+    memo = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

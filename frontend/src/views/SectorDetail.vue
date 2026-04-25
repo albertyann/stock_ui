@@ -1,8 +1,14 @@
 <template>
-  <div class="realtime-price-page">
+  <div class="sector-detail-page">
+    <!-- 返回按钮和标题 -->
+    <div class="page-header">
+      <el-button @click="goBack" link>
+        <el-icon><ArrowLeft /></el-icon>返回板块列表
+      </el-button>
+    </div>
 
     <!-- 板块信息卡片 -->
-    <el-card v-if="isSectorMode && sectorInfo" class="sector-info-card">
+    <el-card v-if="sectorInfo" class="sector-info-card">
       <div class="sector-header-info">
         <div class="sector-title">
           <span class="sector-name">{{ sectorInfo.name }}</span>
@@ -22,7 +28,7 @@
     </el-card>
 
     <!-- 搜索和筛选区域 -->
-    <el-card class="filter-card" v-if="isSectorMode">
+    <el-card class="filter-card">
       <div class="filter-row">
         <el-input
           v-model="searchQuery"
@@ -32,13 +38,16 @@
           @input="handleSearch"
           style="flex: 1; margin-right: 15px;"
         />
-        <el-pagination
-          v-model:current-page="currentPage"
-          :page-size="20"
-          :total="totalStocks"
-          layout="total, prev, pager, next"
-          @current-change="handlePageChange"
-        />
+        <el-select
+          v-model="sortOrder"
+          placeholder="涨幅排序"
+          style="width: 140px;"
+          @change="handleSortChange"
+        >
+          <el-option label="默认排序" value="default" />
+          <el-option label="涨幅升序" value="asc" />
+          <el-option label="涨幅降序" value="desc" />
+        </el-select>
       </div>
       <div v-if="searchQuery.trim()" class="search-info">
         <el-tag type="info">
@@ -47,182 +56,144 @@
       </div>
     </el-card>
 
-    <!-- 普通模式：输入区域 -->
-    <el-card v-if="!isSectorMode" class="input-card">
-      <template #header>
-        <div class="input-header">
-          <span>股票输入</span>
-          <el-tag type="info" size="small">支持股票代码或名称，一行一个</el-tag>
-        </div>
-      </template>
-
-      <el-input
-        v-model="stockInput"
-        type="textarea"
-        :rows="4"
-        placeholder="请输入股票代码或名称，如：&#10;600000.SH&#10;000001.SZ&#10;或&#10;平安银行&#10;贵州茅台"
-        :disabled="loading"
-      />
-
-      <div class="input-actions">
-        <div class="parsed-info" v-if="parsedCodes.length > 0">
-          <el-tag type="success">已解析 {{ parsedCodes.length }} 个</el-tag>
-        </div>
-        <el-button
-          type="primary"
-          @click="fetchPrices"
-          :loading="loading"
-          :disabled="!stockInput.trim()"
-        >
-          查询实时价格
-        </el-button>
-      </div>
-    </el-card>
-
-    <!-- 统计信息 -->
-    <el-row :gutter="20" class="stats-row" v-if="stocks.length > 0">
-      <el-col :xs="12" :sm="6" :md="6" :lg="6">
-        <el-card class="stat-card">
-          <div class="stat-value">{{ stocks.length }}</div>
-          <div class="stat-label">关注股票</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6" :md="6" :lg="6">
-        <el-card class="stat-card up">
-          <div class="stat-value">{{ upCount }}</div>
-          <div class="stat-label">上涨</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6" :md="6" :lg="6">
-        <el-card class="stat-card down">
-          <div class="stat-value">{{ downCount }}</div>
-          <div class="stat-label">下跌</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="12" :sm="6" :md="6" :lg="6">
-        <el-card class="stat-card flat">
-          <div class="stat-value">{{ flatCount }}</div>
-          <div class="stat-label">平盘</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- 股票列表 -->
     <div v-loading="loading" class="stocks-container">
       <el-empty v-if="!loading && stocks.length === 0 && hasSearched" description="暂无数据" />
       
-      <div v-if="stocks.length > 0" class="stock-list">
-        <div 
-          v-for="(stock, index) in stocks" 
-          :key="stock.ts_code"
-          class="stock-card" 
-          :class="[getChangeClass(stock.change_pct), { selected: index === selectedStockIndex }]"
-          @click="selectedStockIndex = index"
-        >
-          <!-- 左侧：股票信息 -->
-          <div class="stock-info-section">
-            <div class="stock-header">
-              <div class="stock-title">
-                <div class="stock-name">{{ stock.name }}</div>
-                <div class="stock-code">{{ stock.ts_code }}</div>
-                <el-tag v-if="stock.industry" size="small" type="info" class="industry-tag">
-                  {{ stock.industry }}
-                </el-tag>
+      <template v-if="stocks.length > 0">
+        <div class="pagination-row top">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="20"
+            :total="totalStocks"
+            layout="total, prev, pager, next"
+            @current-change="handlePageChange"
+          />
+        </div>
+
+        <div class="stock-list">
+          <div 
+            v-for="(stock, index) in displayStocks" 
+            :key="stock.ts_code"
+            class="stock-card" 
+            :class="[getChangeClass(stock.change_pct), { selected: index === selectedStockIndex }]"
+            @click="selectedStockIndex = index"
+          >
+            <!-- 左侧：股票信息 -->
+            <div class="stock-info-section">
+              <div class="stock-header">
+                <div class="stock-title">
+                  <div class="stock-name">{{ stock.name }}</div>
+                  <div class="stock-code">{{ stock.ts_code }}</div>
+                  <el-tag v-if="stock.industry" size="small" type="info" class="industry-tag">
+                    {{ stock.industry }}
+                  </el-tag>
+                </div>
+                <div 
+                  class="change-badge" 
+                  :class="getChangeClass(stock.change_pct)"
+                >
+                  {{ formatChange(stock.change_pct) }}
+                </div>
               </div>
-              <div 
-                class="change-badge" 
-                :class="getChangeClass(stock.change_pct)"
-              >
-                {{ formatChange(stock.change_pct) }}
+              
+              <div class="stock-body">
+                <!-- 当前价格 -->
+                <div class="price-section">
+                  <div class="current-price" :class="getChangeClass(stock.change_pct)">
+                    ¥{{ (stock.price ?? 0).toFixed(2) }}
+                  </div>
+                  <div class="change-info">
+                    <span :class="getChangeClass(stock.change_pct)">
+                      {{ (stock.change ?? 0) >= 0 ? '+' : '' }}{{ (stock.change ?? 0).toFixed(2) }}
+                    </span>
+                    <span :class="getChangeClass(stock.change_pct)">
+                      ({{ (stock.change_pct ?? 0) >= 0 ? '+' : '' }}{{ (stock.change_pct ?? 0).toFixed(2) }}%)
+                    </span>
+                  </div>
+                </div>
+                
+                <!-- 成交量信息 -->
+                <div class="volume-section">
+                  <div class="volume-row">
+                    <span class="label">成交量</span>
+                    <span class="value">{{ formatVolume(stock.volume) }}</span>
+                  </div>
+                  <div class="volume-row">
+                    <span class="label">成交额</span>
+                    <span class="value">{{ formatAmount(stock.amount) }}</span>
+                  </div>
+                </div>
+                
+                <!-- 盘口信息 -->
+                <div class="bid-ask-section" v-if="stock.bid_price || stock.ask_price">
+                  <div class="bid-ask-row">
+                    <div class="bid">
+                      <span class="label">买一</span>
+                      <span class="value">{{ stock.bid_price ? '¥' + (stock.bid_price ?? 0).toFixed(2) : '-' }}</span>
+                      <span class="volume">{{ stock.bid_volume || '' }}</span>
+                    </div>
+                    <div class="ask">
+                      <span class="label">卖一</span>
+                      <span class="value">{{ stock.ask_price ? '¥' + (stock.ask_price ?? 0).toFixed(2) : '-' }}</span>
+                      <span class="volume">{{ stock.ask_volume || '' }}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- 更新时间 -->
+                <div class="time-section">
+                  <span class="time-label">更新：</span>
+                  <span class="time-value">{{ stock.update_time }}</span>
+                  <span v-if="stock.trade_time" class="trade-time">
+                    交易时间：{{ stock.trade_time }}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="stock-footer">
+                <el-button size="small" @click="viewDetail(stock)">
+                  <el-icon><View /></el-icon>详情
+                </el-button>
+                <el-button
+                  size="small"
+                  type="warning"
+                  @click="addToWatchlist(stock)"
+                  :loading="stock.addingToWatchlist"
+                  :disabled="stock.isWatched"
+                >
+                  <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
+                </el-button>
+                <el-button size="small" type="primary" link @click="openXueqiu(stock)">
+                  雪球
+                </el-button>
               </div>
             </div>
             
-            <div class="stock-body">
-              <!-- 当前价格 -->
-              <div class="price-section">
-                <div class="current-price" :class="getChangeClass(stock.change_pct)">
-                  ¥{{ (stock.price ?? 0).toFixed(2) }}
-                </div>
-                <div class="change-info">
-                  <span :class="getChangeClass(stock.change_pct)">
-                    {{ (stock.change ?? 0) >= 0 ? '+' : '' }}{{ (stock.change ?? 0).toFixed(2) }}
-                  </span>
-                  <span :class="getChangeClass(stock.change_pct)">
-                    ({{ (stock.change_pct ?? 0) >= 0 ? '+' : '' }}{{ (stock.change_pct ?? 0).toFixed(2) }}%)
-                  </span>
-                </div>
-              </div>
-              
-              <!-- 成交量信息 -->
-              <div class="volume-section">
-                <div class="volume-row">
-                  <span class="label">成交量</span>
-                  <span class="value">{{ formatVolume(stock.volume) }}</span>
-                </div>
-                <div class="volume-row">
-                  <span class="label">成交额</span>
-                  <span class="value">{{ formatAmount(stock.amount) }}</span>
-                </div>
-              </div>
-              
-              <!-- 盘口信息 -->
-              <div class="bid-ask-section" v-if="stock.bid_price || stock.ask_price">
-                <div class="bid-ask-row">
-                  <div class="bid">
-                    <span class="label">买一</span>
-                    <span class="value">{{ stock.bid_price ? '¥' + (stock.bid_price ?? 0).toFixed(2) : '-' }}</span>
-                    <span class="volume">{{ stock.bid_volume || '' }}</span>
-                  </div>
-                  <div class="ask">
-                    <span class="label">卖一</span>
-                    <span class="value">{{ stock.ask_price ? '¥' + (stock.ask_price ?? 0).toFixed(2) : '-' }}</span>
-                    <span class="volume">{{ stock.ask_volume || '' }}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- 更新时间 -->
-              <div class="time-section">
-                <span class="time-label">更新：</span>
-                <span class="time-value">{{ stock.update_time }}</span>
-                <span v-if="stock.trade_time" class="trade-time">
-                  交易时间：{{ stock.trade_time }}
-                </span>
-              </div>
+            <!-- 右侧：K线图 -->
+            <div class="stock-chart-section">
+              <StockKlineChart
+                :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
+                :ts-code="stock.ts_code"
+                :stock-name="stock.name"
+                :kline-data="klineDataCache.get(stock.ts_code) || []"
+                :show-m-a-c-d="true"
+                min-height="260px"
+              />
             </div>
-            
-            <div class="stock-footer">
-              <el-button size="small" @click="viewDetail(stock)">
-                <el-icon><View /></el-icon>详情
-              </el-button>
-              <el-button
-                size="small"
-                type="warning"
-                @click="addToWatchlist(stock)"
-                :loading="stock.addingToWatchlist"
-                :disabled="stock.isWatched"
-              >
-                <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
-              </el-button>
-              <el-button size="small" type="primary" link @click="openXueqiu(stock)">
-                雪球
-              </el-button>
-            </div>
-          </div>
-          
-          <!-- 右侧：K线图 -->
-          <div class="stock-chart-section">
-            <StockKlineChart
-              :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
-              :ts-code="stock.ts_code"
-              :stock-name="stock.name"
-              :kline-data="klineDataCache.get(stock.ts_code) || []"
-              :show-m-a-c-d="true"
-              min-height="260px"
-            />
           </div>
         </div>
-      </div>
+
+        <div class="pagination-row bottom">
+          <el-pagination
+            v-model:current-page="currentPage"
+            :page-size="20"
+            :total="totalStocks"
+            layout="total, prev, pager, next"
+            @current-change="handlePageChange"
+          />
+        </div>
+      </template>
     </div>
 
     <!-- 关注股票弹窗 -->
@@ -238,7 +209,7 @@
 import { ref, computed, nextTick, onUnmounted, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, View, ArrowLeft, Search, Star } from '@element-plus/icons-vue'
+import { View, ArrowLeft, Search, Star } from '@element-plus/icons-vue'
 import { realtimeApi, watchlistApi } from '@/api'
 import api from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
@@ -260,7 +231,7 @@ const handleKeydown = (event) => {
     return
   }
 
-  const maxIndex = stocks.value.length - 1
+  const maxIndex = displayStocks.value.length - 1
 
   // 处理 Ctrl+x 前缀键
   if (event.ctrlKey && event.key === 'x') {
@@ -276,7 +247,7 @@ const handleKeydown = (event) => {
     if (event.key === 's') {
       // Ctrl+x+s: 关注当前选中的股票
       event.preventDefault()
-      const selectedStock = stocks.value[selectedStockIndex.value]
+      const selectedStock = displayStocks.value[selectedStockIndex.value]
       if (selectedStock && !selectedStock.isWatched) {
         addToWatchlist(selectedStock)
       }
@@ -284,7 +255,7 @@ const handleKeydown = (event) => {
     } else if (event.key === 'o') {
       // Ctrl+x+o: 打开雪球
       event.preventDefault()
-      const selectedStock = stocks.value[selectedStockIndex.value]
+      const selectedStock = displayStocks.value[selectedStockIndex.value]
       if (selectedStock) {
         openXueqiu(selectedStock)
       }
@@ -306,6 +277,22 @@ const handleKeydown = (event) => {
       scrollToSelectedStock()
     }
   }
+
+  // h/l 翻页
+  const totalPages = Math.ceil(totalStocks.value / pageSize.value)
+  if (event.key === 'l') {
+    event.preventDefault()
+    if (currentPage.value < totalPages) {
+      handlePageChange(currentPage.value + 1, true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  } else if (event.key === 'h') {
+    event.preventDefault()
+    if (currentPage.value > 1) {
+      handlePageChange(currentPage.value - 1, true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 }
 
 // 滚动到选中的股票（居中显示）
@@ -318,15 +305,9 @@ const scrollToSelectedStock = () => {
   })
 }
 
-// 判断是否为板块模式
-const isSectorMode = computed(() => !!route.query.sector)
-
 // 页面标题
 const pageTitle = computed(() => {
-  if (isSectorMode.value) {
-    return route.query.sectorName ? `${route.query.sectorName} - 板块股票` : '板块股票'
-  }
-  return '实时股价'
+  return route.query.sectorName ? `${route.query.sectorName} - 板块股票` : '板块股票'
 })
 
 // 板块信息
@@ -337,11 +318,16 @@ const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-const stockInput = ref('')
 const stocks = ref([])
 const loading = ref(false)
 const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
+const sortOrder = ref('default') // 'default' | 'asc' | 'desc'
+
+// 股票列表（后端已按选定规则排序）
+const displayStocks = computed(() => {
+  return stocks.value
+})
 
 // 返回板块列表
 const goBack = () => {
@@ -349,15 +335,21 @@ const goBack = () => {
 }
 
 // 分页处理
-const handlePageChange = (page) => {
+const handlePageChange = (page, skipScroll = false) => {
   currentPage.value = page
   selectedStockIndex.value = 0 // 重置选中索引到第一个
-  fetchSectorStocks()
+  fetchSectorStocks().then(() => {
+    if (!skipScroll) {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  })
 }
 
-const handleSizeChange = (size) => {
-  // 固定每页20条，不再需要切换页面大小
-  console.warn('handleSizeChange is deprecated, page size is fixed at 20')
+// 排序变化处理
+const handleSortChange = () => {
+  selectedStockIndex.value = 0
+  currentPage.value = 1
+  fetchSectorStocks()
 }
 
 // 搜索处理
@@ -371,30 +363,6 @@ const handleSearch = () => {
     fetchSectorStocks()
   }, 300)
 }
-
-// 解析输入的股票代码
-const parsedCodes = computed(() => {
-  if (!stockInput.value.trim()) return []
-  
-  const text = stockInput.value
-  const separators = [',', '，', '\n', '\t']
-  let codes = [text]
-  
-  for (const sep of separators) {
-    const newCodes = []
-    for (const code of codes) {
-      newCodes.push(...code.split(sep))
-    }
-    codes = newCodes
-  }
-  
-  return codes.map(c => c.trim()).filter(c => c.length > 0)
-})
-
-// 统计信息
-const upCount = computed(() => stocks.value.filter(s => s.change_pct > 0).length)
-const downCount = computed(() => stocks.value.filter(s => s.change_pct < 0).length)
-const flatCount = computed(() => stocks.value.filter(s => s.change_pct === 0).length)
 
 // 数据缓存
 const klineDataCache = ref(new Map())
@@ -419,7 +387,7 @@ const handleFollowSuccess = () => {
 
 // 获取板块股票列表
 const fetchSectorStocks = async () => {
-  const sectorCode = route.query.sector
+  const sectorCode = route.params.code
   const sectorType = route.query.sectorType || 'industry'
 
   if (!sectorCode) return
@@ -437,7 +405,8 @@ const fetchSectorStocks = async () => {
         sector_type: sectorType,
         page: currentPage.value,
         page_size: 20, // 固定每页20条
-        search: searchQuery.value.trim() || undefined
+        search: searchQuery.value.trim() || undefined,
+        sort: sortOrder.value !== 'default' ? sortOrder.value : undefined
       }
     })
 
@@ -504,62 +473,9 @@ const checkWatchStatus = async (stockList) => {
   }
 }
 
-// 获取实时价格
-const fetchPrices = async () => {
-  if (isSectorMode.value) {
-    await fetchSectorStocks()
-    return
-  }
-
-  if (!stockInput.value.trim()) {
-    ElMessage.warning('请输入股票代码')
-    return
-  }
-
-  loading.value = true
-  hasSearched.value = true
-
-  // 清理旧的数据缓存
-  klineDataCache.value.clear()
-
-  try {
-    const response = await realtimeApi.getPrices(stockInput.value)
-    if (response.success) {
-      // 按照输入顺序排序股票列表
-      const stockData = response.data || []
-      const codeOrder = new Map(parsedCodes.value.map((code, index) => [code, index]))
-      stocks.value = stockData.sort((a, b) => {
-        const orderA = codeOrder.get(a.ts_code) ?? 999999
-        const orderB = codeOrder.get(b.ts_code) ?? 999999
-        return orderA - orderB
-      })
-      if (stocks.value.length === 0) {
-        ElMessage.info('未找到股票数据，请检查代码是否正确')
-      } else {
-        ElMessage.success(`成功获取 ${stocks.value.length} 只股票数据`)
-        // 检查关注状态
-        checkWatchStatus(stocks.value)
-        // 数据加载完成后获取K线数据
-        nextTick(() => {
-          stocks.value.forEach(stock => {
-            fetchKlineData(stock.ts_code)
-          })
-        })
-      }
-    } else {
-      ElMessage.error(response.error || '获取数据失败')
-    }
-  } catch (error) {
-    console.error('Failed to fetch prices:', error)
-    ElMessage.error('获取实时价格失败：' + (error.response?.data?.detail || error.message || '网络错误'))
-  } finally {
-    loading.value = false
-  }
-}
-
 // 监听路由参数变化
-watch(() => route.query.sector, (newSector) => {
-  if (newSector) {
+watch(() => route.params.code, (newCode) => {
+  if (newCode) {
     fetchSectorStocks()
   } else {
     stocks.value = []
@@ -572,7 +488,7 @@ watch(() => route.query.sector, (newSector) => {
 
 // 页面加载时检查路由参数
 onMounted(() => {
-  if (route.query.sector) {
+  if (route.params.code) {
     fetchSectorStocks()
   }
   // 注册键盘事件监听
@@ -651,7 +567,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.realtime-price-page {
+.sector-detail-page {
   padding: 20px;
 }
 
@@ -724,9 +640,6 @@ onUnmounted(() => {
 /* 筛选区域 */
 .filter-card {
   margin-bottom: 20px;
-  position: sticky;
-  top: 20px;
-  z-index: 100;
 }
 
 .filter-row {
@@ -737,29 +650,6 @@ onUnmounted(() => {
 
 .search-info {
   margin-top: 10px;
-}
-
-.input-card {
-  margin-bottom: 20px;
-  border-radius: 8px;
-}
-
-.input-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.input-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
-}
-
-.parsed-info {
-  font-size: 14px;
-  color: #67c23a;
 }
 
 .stats-row {
@@ -798,6 +688,19 @@ onUnmounted(() => {
 
 .stocks-container {
   min-height: 200px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pagination-row.top {
+  margin-bottom: 16px;
+}
+
+.pagination-row.bottom {
+  margin-top: 16px;
 }
 
 /* 股票列表 - 纵向排列 */
@@ -960,43 +863,6 @@ onUnmounted(() => {
   color: #909399;
 }
 
-.price-details {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 10px;
-  margin-bottom: 12px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-
-.detail-row:last-child {
-  margin-bottom: 0;
-}
-
-.detail-row .label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.detail-row .value {
-  font-size: 13px;
-  font-weight: 500;
-  color: #303133;
-}
-
-.detail-row .value.up {
-  color: #f56c6c;
-}
-
-.detail-row .value.down {
-  color: #67c23a;
-}
-
 .volume-section {
   margin-bottom: 12px;
 }
@@ -1123,7 +989,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .realtime-price-page {
+  .sector-detail-page {
     padding: 12px;
   }
 
@@ -1143,16 +1009,6 @@ onUnmounted(() => {
     width: 100%;
   }
 
-  .input-actions {
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
-  }
-
-  .parsed-info {
-    text-align: center;
-  }
-
   .stock-info-section {
     padding: 16px;
   }
@@ -1166,7 +1022,6 @@ onUnmounted(() => {
     font-size: 24px;
   }
 
-  .price-details,
   .bid-ask-section {
     padding: 8px;
   }

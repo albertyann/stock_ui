@@ -24,6 +24,11 @@ class SignalNoteRequest(BaseModel):
     note_content: str
 
 
+class SignalTagRequest(BaseModel):
+    ts_code: str
+    tags: List[str]
+
+
 @router.get("", response_model=dict)
 async def get_signals(
     ts_code: Optional[str] = None,
@@ -240,7 +245,7 @@ async def mark_signal_executed(
 @router.post("/note", response_model=dict)
 async def add_signal_note(data: SignalNoteRequest, db: AsyncSession = Depends(get_db)):
     from sqlalchemy import select
-    from app.models import Signal
+    from app.models import Signal, WatchlistStock
     from datetime import datetime, date
 
     from app.services.signal_service import SignalService
@@ -259,6 +264,63 @@ async def add_signal_note(data: SignalNoteRequest, db: AsyncSession = Depends(ge
         is_active=True,
     )
     db.add(signal)
+
+    ws_result = await db.execute(
+        select(WatchlistStock).where(WatchlistStock.ts_code == data.ts_code)
+    )
+    watchlist_stock = ws_result.scalar_one_or_none()
+    if watchlist_stock:
+        watchlist_stock.notes = data.note_content
+
+    await db.commit()
+    await db.refresh(signal)
+
+    try:
+        from app.websockets.manager import broadcast_notes_updated
+        await broadcast_notes_updated(data.ts_code, data.note_content)
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "data": {
+            "id": signal.id,
+            "ts_code": signal.ts_code,
+            "signal_type": signal.signal_type,
+            "note_content": signal.note_content,
+            "signal_date": signal.signal_date.isoformat(),
+            "created_at": signal.created_at.isoformat() if signal.created_at else None,
+        },
+    }
+
+
+@router.post("/tag", response_model=dict)
+async def add_signal_tag(data: SignalTagRequest, db: AsyncSession = Depends(get_db)):
+    """添加标签信号"""
+    from sqlalchemy import select
+    from app.models import Signal
+    from datetime import date
+
+    from app.services.signal_service import SignalService
+
+    service = SignalService(db)
+    cached_price = await service.get_cached_price(data.ts_code)
+    current_price = float(cached_price.close_price) if cached_price else None
+
+    # 将标签列表转换为逗号分隔的字符串存储在 note_content
+    tags_content = ", ".join(data.tags)
+
+    signal = Signal(
+        ts_code=data.ts_code,
+        signal_type="ADD_TAG",
+        signal_strength=0,
+        signal_date=date.today(),
+        current_price=current_price,
+        note_content=tags_content,
+        is_active=True,
+    )
+    db.add(signal)
+
     await db.commit()
     await db.refresh(signal)
 

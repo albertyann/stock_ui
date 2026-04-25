@@ -61,7 +61,7 @@ class SectorService:
             return []
 
     def get_sector_stocks(
-        self, sector_code: str, sector_type: str = "industry"
+        self, sector_code: str, sector_type: str = "industry", sort: str = "default"
     ) -> List[Dict]:
         """
         获取板块内的股票列表（包含实时价格数据）
@@ -69,6 +69,7 @@ class SectorService:
         Args:
             sector_code: 板块代码（在此实现中实际上是行业名称）
             sector_type: 板块类型 (industry)
+            sort: 排序方式 (default, asc, desc)
 
         Returns:
             股票列表（包含完整价格数据）
@@ -79,8 +80,14 @@ class SectorService:
 
             with self.engine.connect() as conn:
                 # 从 stock_basic 表和 daily_data 表获取该行业的股票及最新价格
-                query = """
-                    SELECT 
+                order_clause = "sb.symbol"
+                if sort == "asc":
+                    order_clause = "dd.pct_chg ASC NULLS LAST"
+                elif sort == "desc":
+                    order_clause = "dd.pct_chg DESC NULLS LAST"
+
+                query = f"""
+                    SELECT
                         sb.ts_code,
                         sb.symbol,
                         sb.name,
@@ -104,7 +111,7 @@ class SectorService:
                         LIMIT 1
                     ) dd ON true
                     WHERE sb.industry = :industry
-                    ORDER BY sb.symbol
+                    ORDER BY {order_clause}
                 """
                 result = conn.execute(text(query), {"industry": sector_name})
 
@@ -232,6 +239,66 @@ class SectorService:
         except Exception as e:
             print(f"Get sector name from code error: {e}")
             return sector_code
+
+    def get_sector_large_orders(self, trade_date: str) -> List[Dict]:
+        """
+        获取板块大单交易统计（按行业汇总）
+
+        Args:
+            trade_date: 交易日期，格式 YYYY-MM-DD
+
+        Returns:
+            板块大单统计数据列表
+        """
+        try:
+            with self.engine.connect() as conn:
+                query = """
+                    SELECT 
+                        m.trade_date,
+                        sb.industry,
+                        ROUND(SUM(m.buy_lg_amount)::numeric, 2) as buy_lg_amount,
+                        ROUND(SUM(m.sell_lg_amount)::numeric, 2) as sell_lg_amount,
+                        ROUND(SUM(m.buy_elg_amount)::numeric, 2) as buy_elg_amount,
+                        ROUND(SUM(m.sell_elg_amount)::numeric, 2) as sell_elg_amount
+                    FROM moneyflow m
+                    LEFT JOIN stock_basic sb ON sb.ts_code = m.ts_code
+                    WHERE m.trade_date = :trade_date
+                      AND sb.industry IS NOT NULL
+                      AND sb.industry != ''
+                    GROUP BY m.trade_date, sb.industry
+                    ORDER BY (SUM(m.buy_lg_amount) + SUM(m.buy_elg_amount)) DESC
+                """
+                result = conn.execute(text(query), {"trade_date": trade_date})
+
+                items = []
+                for row in result:
+                    buy_lg = float(row.buy_lg_amount or 0)
+                    sell_lg = float(row.sell_lg_amount or 0)
+                    buy_elg = float(row.buy_elg_amount or 0)
+                    sell_elg = float(row.sell_elg_amount or 0)
+                    net_lg = buy_lg - sell_lg
+                    net_elg = buy_elg - sell_elg
+                    net_total = net_lg + net_elg
+
+                    items.append({
+                        "trade_date": row.trade_date.strftime("%Y-%m-%d") if row.trade_date else trade_date,
+                        "industry": row.industry,
+                        "buy_lg_amount": buy_lg,
+                        "sell_lg_amount": sell_lg,
+                        "buy_elg_amount": buy_elg,
+                        "sell_elg_amount": sell_elg,
+                        "net_lg_amount": round(net_lg, 2),
+                        "net_elg_amount": round(net_elg, 2),
+                        "net_total_amount": round(net_total, 2),
+                    })
+
+                return items
+
+        except Exception as e:
+            print(f"Get sector large orders error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
 
     def _normalize_code(self, code: str) -> str:
         """标准化股票代码"""

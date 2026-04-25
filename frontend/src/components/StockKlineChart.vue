@@ -25,12 +25,12 @@ const props = defineProps({
   // 图表高度
   height: {
     type: String,
-    default: '100%'
+    default: '300px'
   },
   // 图表最小高度
   minHeight: {
     type: String,
-    default: '400px'
+    default: '300px'
   }
 })
 
@@ -216,8 +216,8 @@ const renderChart = () => {
         type: 'inside',
         start: 50,
         end: 100,
-        zoomOnMouseWheel: true,
-        moveOnMouseWheel: true
+        zoomOnMouseWheel: false,
+        moveOnMouseWheel: false
       },
       {
         show: true,

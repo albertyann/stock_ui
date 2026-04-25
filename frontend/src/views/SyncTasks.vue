@@ -13,12 +13,17 @@
         <el-table-column prop="task_type" label="任务类型" width="120" />
         <el-table-column prop="command" label="命令" width="120" />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="sort_order" label="排序" width="80" />
         <el-table-column prop="is_active" label="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'info'">
               {{ row.is_active ? '启用' : '禁用' }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="last_run_at" label="最后执行时间" width="180">
+          <template #default="{ row }">
+            <span v-if="row.last_run_at">{{ formatTime(row.last_run_at) }}</span>
+            <span v-else style="color: #909399">未执行</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
@@ -30,6 +35,120 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- Execution Logs -->
+    <el-card class="log-card" v-loading="logsLoading">
+      <template #header>
+        <div class="log-card-header">
+          <span>执行日志</span>
+          <div class="log-filter">
+            <el-select v-model="logFilterTaskName" placeholder="全部任务" clearable style="width: 200px" @change="fetchLogs(1)">
+              <el-option v-for="task in tasks" :key="task.id" :label="task.name" :value="task.task_type" />
+            </el-select>
+            <el-button size="small" @click="fetchLogs(logsCurrentPage)" style="margin-left: 8px">
+              <el-icon><Refresh /></el-icon>刷新
+            </el-button>
+          </div>
+        </div>
+      </template>
+      <el-table :data="logs" stripe border>
+        <el-table-column prop="task_name" label="任务名称" width="150" />
+        <el-table-column prop="task_type" label="任务类型" width="120" />
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="statusTagType(row.status)" size="small">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="duration_seconds" label="耗时" width="100">
+          <template #default="{ row }">
+            {{ row.duration_seconds != null ? row.duration_seconds.toFixed(2) + 's' : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="记录数" width="180">
+          <template #default="{ row }">
+            <span>处理 {{ row.records_processed }}</span>
+            <span style="color: #67c23a; margin-left: 4px">+{{ row.records_inserted }}</span>
+            <span style="color: #409eff; margin-left: 4px">~{{ row.records_updated }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="trigger_type" label="触发方式" width="100">
+          <template #default="{ row }">
+            {{ row.trigger_type === 'manual' ? '手动' : '定时' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="started_at" label="开始时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.started_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="80" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" link @click="openLogDetail(row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="log-pagination">
+        <el-pagination
+          v-model:current-page="logsCurrentPage"
+          :page-size="logsPageSize"
+          :total="logsTotal"
+          layout="total, prev, pager, next"
+          @current-change="fetchLogs"
+        />
+      </div>
+    </el-card>
+
+    <!-- Log Detail Dialog -->
+    <el-dialog
+      v-model="logDetailVisible"
+      title="执行日志详情"
+      width="700px"
+    >
+      <div v-if="currentLog" class="log-detail">
+        <div class="log-detail-row">
+          <strong>任务名称：</strong>{{ currentLog.task_name }}
+        </div>
+        <div class="log-detail-row">
+          <strong>任务类型：</strong>{{ currentLog.task_type }}
+        </div>
+        <div class="log-detail-row">
+          <strong>状态：</strong>
+          <el-tag :type="statusTagType(currentLog.status)">{{ statusLabel(currentLog.status) }}</el-tag>
+        </div>
+        <div class="log-detail-row">
+          <strong>触发方式：</strong>{{ currentLog.trigger_type === 'manual' ? '手动' : '定时' }}
+          <span v-if="currentLog.triggered_by"> ({{ currentLog.triggered_by }})</span>
+        </div>
+        <div class="log-detail-row">
+          <strong>开始时间：</strong>{{ formatTime(currentLog.started_at) }}
+        </div>
+        <div class="log-detail-row">
+          <strong>完成时间：</strong>{{ currentLog.completed_at ? formatTime(currentLog.completed_at) : '-' }}
+        </div>
+        <div class="log-detail-row">
+          <strong>耗时：</strong>{{ currentLog.duration_seconds != null ? currentLog.duration_seconds.toFixed(2) + 's' : '-' }}
+        </div>
+        <div class="log-detail-row">
+          <strong>记录数：</strong>处理 {{ currentLog.records_processed }}，新增 {{ currentLog.records_inserted }}，更新 {{ currentLog.records_updated }}
+        </div>
+        <div class="log-detail-row">
+          <strong>重试次数：</strong>{{ currentLog.retry_count }}
+        </div>
+        <div v-if="currentLog.error_message" class="result-output error">
+          <div class="output-label">错误信息：</div>
+          <pre>{{ currentLog.error_message }}</pre>
+        </div>
+        <div v-if="currentLog.stack_trace" class="result-output error">
+          <div class="output-label">堆栈跟踪：</div>
+          <pre>{{ currentLog.stack_trace }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="logDetailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <!-- Create/Edit Dialog -->
     <el-dialog
@@ -69,9 +188,6 @@
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" placeholder="任务描述" />
-        </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort_order" :min="0" />
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.is_active" />
@@ -163,11 +279,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Refresh } from '@element-plus/icons-vue'
 import { syncTaskApi } from '@/api'
 
 const loading = ref(false)
 const tasks = ref([])
+
+const formatTime = (isoStr) => {
+  const d = new Date(isoStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editingId = ref(null)
@@ -194,6 +316,48 @@ const executeForm = reactive({ params: {} })
 const executeParamList = ref([])
 const elapsedTime = ref(0)
 let timerInterval = null
+
+const logsLoading = ref(false)
+const logs = ref([])
+const logsTotal = ref(0)
+const logsCurrentPage = ref(1)
+const logsPageSize = ref(10)
+const logFilterTaskName = ref(null)
+const logDetailVisible = ref(false)
+const currentLog = ref(null)
+
+const statusTagType = (status) => {
+  const map = { SUCCESS: 'success', FAILED: 'danger', RUNNING: 'warning' }
+  return map[status] || 'info'
+}
+
+const statusLabel = (status) => {
+  const map = { SUCCESS: '成功', FAILED: '失败', RUNNING: '运行中' }
+  return map[status] || status
+}
+
+const fetchLogs = async (page = 1) => {
+  logsLoading.value = true
+  try {
+    const params = { page, page_size: logsPageSize.value }
+    if (logFilterTaskName.value) params.task_name = logFilterTaskName.value
+    const res = await syncTaskApi.getLogs(params)
+    if (res.success) {
+      logs.value = res.data.items || []
+      logsTotal.value = res.data.total || 0
+      logsCurrentPage.value = page
+    }
+  } catch (err) {
+    ElMessage.error('获取执行日志失败')
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+const openLogDetail = (row) => {
+  currentLog.value = row
+  logDetailVisible.value = true
+}
 
 const previewCommand = computed(() => {
   if (!currentTask.value) return ''
@@ -395,6 +559,7 @@ const runTask = async () => {
     executeResult.value = res
     if (res.success) {
       ElMessage.success(`任务执行成功 (耗时 ${elapsedTime.value} 秒)`)
+      fetchLogs(logsCurrentPage.value)
     } else {
       ElMessage.error(res.error || '任务执行失败')
     }
@@ -417,6 +582,7 @@ watch(executeDialogVisible, (newVal) => {
 
 onMounted(() => {
   fetchTasks()
+  fetchLogs(1)
 })
 </script>
 
@@ -434,6 +600,30 @@ onMounted(() => {
   margin: 0;
   color: #303133;
   font-size: 24px;
+}
+.log-card {
+  margin-top: 20px;
+}
+.log-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.log-card-header span {
+  font-size: 16px;
+  font-weight: 600;
+}
+.log-filter {
+  display: flex;
+  align-items: center;
+}
+.log-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+.log-detail-row {
+  margin-bottom: 8px;
 }
 .params-form {
   display: flex;

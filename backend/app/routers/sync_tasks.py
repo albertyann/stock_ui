@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,6 +41,18 @@ async def list_tasks(db: AsyncSession = Depends(get_db)):
     service = SyncTaskService(db)
     tasks = await service.get_all_tasks()
     return {"success": True, "data": tasks}
+
+
+@router.get("/logs", response_model=dict)
+async def get_logs(
+    task_name: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    service = SyncTaskService(db)
+    result = await service.get_logs(task_name=task_name, page=page, page_size=page_size)
+    return {"success": True, "data": result}
 
 
 @router.post("", response_model=dict)

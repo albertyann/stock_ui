@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { watchlistApi } from '@/api'
 
@@ -124,6 +124,16 @@ const form = ref({
 })
 const watchReasons = ref([])
 const watchlistOptions = ref([])
+
+// Ctrl+Enter 快捷键提交
+const handleKeydown = (e) => {
+  if (e.ctrlKey && e.key === 'Enter' && visible.value) {
+    e.preventDefault()
+    confirmFollow()
+  }
+}
+onMounted(() => document.addEventListener('keydown', handleKeydown))
+onUnmounted(() => document.removeEventListener('keydown', handleKeydown))
 
 // 同步 modelValue
 watch(() => props.modelValue, (val) => {

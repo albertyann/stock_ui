@@ -84,6 +84,7 @@ class BasicDataService:
         name: Optional[str] = None,
         ts_code: Optional[str] = None,
         symbol: Optional[str] = None,
+        industry: Optional[str] = None,
     ) -> Dict:
         try:
             with self.engine.connect() as conn:
@@ -99,6 +100,9 @@ class BasicDataService:
                 if symbol:
                     where_clauses.append("symbol ILIKE :symbol")
                     params["symbol"] = f"%{symbol}%"
+                if industry:
+                    where_clauses.append("industry = :industry")
+                    params["industry"] = industry
 
                 where_sql = ""
                 if where_clauses:
@@ -394,6 +398,113 @@ class BasicDataService:
                     )
                 items.reverse()
                 return {"success": True, "data": items}
+        except Exception as e:
+            return {"success": False, "error": str(e), "data": []}
+
+    def get_moneyflow_ind_ths(
+        self,
+        page: int = 1,
+        page_size: int = 20,
+        industry: Optional[str] = None,
+        trade_date: Optional[str] = None,
+        ts_code: Optional[str] = None,
+        sort_field: Optional[str] = None,
+        sort_order: Optional[str] = None,
+    ) -> Dict:
+        try:
+            with self.engine.connect() as conn:
+                where_clauses = []
+                params = {}
+
+                if industry:
+                    where_clauses.append("industry ILIKE :industry")
+                    params["industry"] = f"%{industry}%"
+                if trade_date:
+                    where_clauses.append("trade_date = :trade_date")
+                    params["trade_date"] = trade_date
+                if ts_code:
+                    where_clauses.append("ts_code ILIKE :ts_code")
+                    params["ts_code"] = f"%{ts_code}%"
+
+                where_sql = ""
+                if where_clauses:
+                    where_sql = "WHERE " + " AND ".join(where_clauses)
+
+                count_query = f"SELECT COUNT(*) as total FROM moneyflow_ind_ths {where_sql}"
+                total = conn.execute(text(count_query), params).fetchone().total
+
+                allowed_sort_fields = {
+                    'trade_date', 'ts_code', 'industry', 'lead_stock',
+                    'close', 'pct_change', 'company_num',
+                    'pct_change_stock', 'close_price',
+                    'net_buy_amount', 'net_sell_amount', 'net_amount'
+                }
+                if sort_field and sort_field in allowed_sort_fields:
+                    order_direction = 'DESC' if sort_order == 'descending' else 'ASC'
+                    order_by = f"ORDER BY {sort_field} {order_direction}, trade_date DESC, ts_code"
+                else:
+                    order_by = "ORDER BY net_amount DESC, trade_date DESC, ts_code"
+
+                offset = (page - 1) * page_size
+                query = f"""
+                    SELECT trade_date, ts_code, industry, lead_stock,
+                           close, pct_change, company_num,
+                           pct_change_stock, close_price,
+                           net_buy_amount, net_sell_amount, net_amount
+                    FROM moneyflow_ind_ths
+                    {where_sql}
+                    {order_by}
+                    LIMIT :limit OFFSET :offset
+                """
+                params["limit"] = page_size
+                params["offset"] = offset
+
+                result = conn.execute(text(query), params)
+                items = []
+                for row in result:
+                    items.append(
+                        {
+                            "trade_date": row.trade_date.strftime("%Y-%m-%d")
+                            if row.trade_date
+                            else None,
+                            "ts_code": row.ts_code,
+                            "industry": row.industry,
+                            "lead_stock": row.lead_stock,
+                            "close": float(row.close) if row.close is not None else None,
+                            "pct_change": float(row.pct_change)
+                            if row.pct_change is not None
+                            else None,
+                            "company_num": int(row.company_num)
+                            if row.company_num is not None
+                            else None,
+                            "pct_change_stock": float(row.pct_change_stock)
+                            if row.pct_change_stock is not None
+                            else None,
+                            "close_price": float(row.close_price)
+                            if row.close_price is not None
+                            else None,
+                            "net_buy_amount": float(row.net_buy_amount)
+                            if row.net_buy_amount is not None
+                            else None,
+                            "net_sell_amount": float(row.net_sell_amount)
+                            if row.net_sell_amount is not None
+                            else None,
+                            "net_amount": float(row.net_amount)
+                            if row.net_amount is not None
+                            else None,
+                        }
+                    )
+
+                return {
+                    "success": True,
+                    "data": items,
+                    "pagination": {
+                        "page": page,
+                        "page_size": page_size,
+                        "total": total,
+                        "total_pages": (total + page_size - 1) // page_size,
+                    },
+                }
         except Exception as e:
             return {"success": False, "error": str(e), "data": []}
 

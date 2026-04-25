@@ -31,6 +31,21 @@
             :value="reason.value"
           />
         </el-select>
+        <el-select
+          v-model="selectedTags"
+          multiple
+          filterable
+          clearable
+          placeholder="标签筛选"
+          style="width: 150px; margin-right: 10px;"
+        >
+          <el-option
+            v-for="tag in allTags"
+            :key="tag"
+            :label="tag"
+            :value="tag"
+          />
+        </el-select>
         <el-radio-group v-model="showAllStocks" size="small" style="margin-right: 10px;">
           <el-radio-button :label="false">仅热点</el-radio-button>
           <el-radio-button :label="true">全部</el-radio-button>
@@ -136,6 +151,51 @@
             <el-tag type="warning" size="small" effect="plain">
               {{ stock.watch_reason }}
             </el-tag>
+          </div>
+
+          <div class="stock-tags">
+            <el-popover
+              :width="280"
+              trigger="click"
+              v-model:visible="tagPopoverVisible[stock.id]"
+              @show="popoverSelectedTags = [...(stock.tags || [])]"
+            >
+              <template #reference>
+                <div class="tags-display" v-if="stock.tags && stock.tags.length">
+                  <el-tag
+                    v-for="tag in stock.tags"
+                    :key="tag"
+                    size="small"
+                    effect="plain"
+                    class="stock-tag"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                </div>
+                <el-tag v-else size="small" effect="plain" type="info" class="stock-tag-add">+ 标签</el-tag>
+              </template>
+              <div class="tag-edit-content">
+                <el-select
+                  v-model="popoverSelectedTags"
+                  multiple
+                  filterable
+                  allow-create
+                  placeholder="选择或输入标签"
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="tag in allTags"
+                    :key="tag"
+                    :label="tag"
+                    :value="tag"
+                  />
+                </el-select>
+                <div class="tag-edit-actions">
+                  <el-button size="small" @click="tagPopoverVisible[stock.id] = false">取消</el-button>
+                  <el-button size="small" type="primary" @click="saveStockTags(stock)">保存</el-button>
+                </div>
+              </div>
+            </el-popover>
           </div>
 
           <div class="stock-footer">
@@ -310,6 +370,7 @@ import { useWatchlistStore } from '@/stores/watchlist'
 import { watchlistApi, stockApi, signalApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Refresh, Switch, Camera } from '@element-plus/icons-vue'
+import { useWebSocket } from '@/composables/useWebSocket'
 
 const route = useRoute()
 const store = useWatchlistStore()
@@ -328,6 +389,7 @@ const availableDates = ref([])
 const showAllStocks = ref(false)  // false = 只显示热点股票, true = 显示全部
 const selectedWatchReason = ref('')  // 选中的关注原因
 const availableWatchReasons = ref([])  // 可用的关注原因列表
+const selectedTags = ref([])  // 选中的标签筛选
 
 // 切换分组相关
 const showSwitchGroupDialog = ref(false)
@@ -342,6 +404,10 @@ const showNotesDialog = ref(false)
 const selectedStockForNotes = ref(null)
 const stockNotesInput = ref('')
 const notesLoading = ref(false)
+// 标签相关
+const allTags = ref([])
+const tagPopoverVisible = ref({})
+const popoverSelectedTags = ref([])
 
 // 快照相关
 const snapshotLoading = ref(false)
@@ -349,6 +415,15 @@ const showSnapshotHistoryDialog = ref(false)
 const snapshots = ref([])
 
 let priceRefreshInterval = null
+const { onMessageType, offMessageType } = useWebSocket()
+
+const handleNotesUpdated = ({ ts_code, notes }) => {
+  if (!currentWatchlist.value?.stocks) return
+  const stock = currentWatchlist.value.stocks.find(s => s.ts_code === ts_code)
+  if (stock) {
+    stock.notes = notes
+  }
+}
 
 const filteredStocks = computed(() => {
   if (!currentWatchlist.value?.stocks) return []
@@ -364,14 +439,21 @@ const filteredStocks = computed(() => {
     stocks = stocks.filter(stock => stock.watch_reason === selectedWatchReason.value)
   }
   
+  // 筛选标签 (OR逻辑)
+  if (selectedTags.value.length > 0) {
+    stocks = stocks.filter(stock => 
+      stock.tags?.some(tag => selectedTags.value.includes(tag))
+    )
+  }
+  
   return stocks
 })
 
 onMounted(async () => {
-  // Load最后一个交易日
   await loadLastTradingDay()
-  // 加载 watchlist，使用最后交易日作为筛选条件
   await loadWatchlist(selectedDate.value || null)
+  await loadAllTags()
+  onMessageType('notes_updated', handleNotesUpdated)
 })
 
 // 监听路由参数变化，当切换到不同的 watchlist 时重新加载
@@ -379,6 +461,7 @@ watch(() => props.id, (newId, oldId) => {
   if (newId !== oldId) {
     selectedDate.value = ''
     selectedWatchReason.value = ''
+    selectedTags.value = []
     loadWatchlist()
   }
 })
@@ -387,6 +470,7 @@ onUnmounted(() => {
   if (priceRefreshInterval) {
     clearInterval(priceRefreshInterval)
   }
+  offMessageType('notes_updated', handleNotesUpdated)
 })
 
 const loadLastTradingDay = async () => {
@@ -486,6 +570,17 @@ const loadAvailableWatchReasons = async () => {
     }
   } catch (error) {
     console.error('Failed to load available watch reasons:', error)
+  }
+}
+
+const loadAllTags = async () => {
+  try {
+    const response = await watchlistApi.getAllTags()
+    if (response.data) {
+      allTags.value = response.data
+    }
+  } catch (error) {
+    console.error('Failed to load all tags:', error)
   }
 }
 
@@ -675,6 +770,19 @@ const saveStockNotes = async () => {
   }
 }
 
+// 保存股票标签
+const saveStockTags = async (stock) => {
+  try {
+    await watchlistApi.updateStockTags(stock.ts_code, popoverSelectedTags.value)
+    stock.tags = [...popoverSelectedTags.value]
+    ElMessage.success('标签更新成功')
+    tagPopoverVisible.value[stock.id] = false
+  } catch (error) {
+    console.error('Failed to update stock tags:', error)
+    ElMessage.error('标签更新失败')
+  }
+}
+
 const handleSnapshot = async () => {
   if (!currentWatchlist.value?.stocks?.length) {
     ElMessage.warning('当前分组没有股票，无法创建快照')
@@ -832,6 +940,35 @@ const loadSnapshots = async () => {
 
 .stock-watch-reason {
   margin-bottom: 15px;
+}
+
+.stock-tags {
+  margin-bottom: 15px;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stock-tag {
+  cursor: pointer;
+}
+
+.stock-tag-add {
+  cursor: pointer;
+}
+
+.tag-edit-content {
+  padding: 5px 0;
+}
+
+.tag-edit-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .stock-footer {

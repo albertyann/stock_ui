@@ -12,6 +12,8 @@ from app.routers import (
     sectors,
     basic_data,
     sync_tasks,
+    tags,
+    stock_info,
 )
 from app.tasks.scheduler import task_manager
 from app.websockets.routes import router as ws_router
@@ -56,6 +58,8 @@ app.include_router(realtime.router, prefix=api_prefix)
 app.include_router(sectors.router, prefix=api_prefix)
 app.include_router(basic_data.router, prefix=api_prefix)
 app.include_router(sync_tasks.router, prefix=api_prefix)
+app.include_router(tags.router, prefix=api_prefix)
+app.include_router(stock_info.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 

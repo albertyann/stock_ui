@@ -103,19 +103,24 @@
       
       <div v-if="paginatedStocks.length > 0" class="stock-list">
         <div 
-          v-for="stock in paginatedStocks" 
+          v-for="(stock, index) in paginatedStocks" 
           :key="stock.ts_code"
           class="stock-card" 
-          :class="getChangeClass(stock.change_pct)"
+          :class="[getChangeClass(stock.change_pct), { selected: index === selectedStockIndex }]"
+          @click="selectedStockIndex = index"
         >
           <!-- 左侧：股票信息 -->
           <div class="stock-info-section">
             <div class="stock-header">
               <div class="stock-title">
-                <div class="stock-name">{{ stock.name }}</div>
-                <div class="stock-code">{{ stock.ts_code }}</div>
+                <div class="stock-name">
+                  {{ stock.name }}
+                </div>
+                <div class="stock-code">
+                  {{ stock.ts_code }}
+                </div>
                 <el-tag v-if="stock.industry" size="small" type="info" class="industry-tag">
-                  {{ stock.industry }}
+                    {{ stock.industry }}
                 </el-tag>
               </div>
               <div
@@ -130,7 +135,7 @@
               <!-- 当前价格 -->
               <div class="price-section">
                 <div class="current-price" :class="getChangeClass(stock.change_pct)">
-                  ¥{{ stock.price.toFixed(2) }}
+                  {{ stock.price.toFixed(2) }}
                 </div>
                 <div class="change-info">
                   <span :class="getChangeClass(stock.change_pct)">
@@ -139,26 +144,6 @@
                   <span :class="getChangeClass(stock.change_pct)">
                     ({{ stock.change_pct >= 0 ? '+' : '' }}{{ stock.change_pct.toFixed(2) }}%)
                   </span>
-                </div>
-              </div>
-              
-              <!-- 价格详情 -->
-              <div class="price-details">
-                <div class="detail-row">
-                  <span class="label">昨收</span>
-                  <span class="value">¥{{ stock.pre_close.toFixed(2) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">今开</span>
-                  <span class="value">¥{{ stock.open.toFixed(2) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">最高</span>
-                  <span class="value up">¥{{ stock.high.toFixed(2) }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="label">最低</span>
-                  <span class="value down">¥{{ stock.low.toFixed(2) }}</span>
                 </div>
               </div>
               
@@ -177,7 +162,7 @@
               <!-- 更新时间 -->
               <div class="time-section">
                 <span class="time-label">更新：</span>
-                <span class="time-value">{{ stock.update_time }}</span>
+                <span class="time-value">{{ stock.updated_at }}</span>
                 <span class="trade-date">
                   交易日：{{ stock.trade_date }}
                 </span>
@@ -185,11 +170,11 @@
             </div>
             
             <div class="stock-footer">
-              <el-button size="small" @click="viewDetail(stock)">
-                <el-icon><View /></el-icon>详情
-              </el-button>
               <el-button size="small" type="warning" @click="addToWatchlist(stock)" :loading="stock.addingToWatchlist" :disabled="stock.isWatched">
-                <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
+                {{ stock.isWatched ? '已关注' : '关注' }}
+              </el-button>
+              <el-button size="small" type="primary" link  @click="viewDetail(stock)">
+                详情
               </el-button>
               <el-button size="small" type="primary" link @click="openXueqiu(stock)">
                 雪球
@@ -209,6 +194,19 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 底部分页组件 -->
+    <div class="pagination-wrapper" v-if="filteredStocks.length > 0">
+      <el-pagination
+        v-model:current-page="currentPage"
+        :page-size="pageSize"
+        :total="filteredStocks.length"
+        layout="total, sizes, prev, pager, next"
+        :page-sizes="[50, 100, 200]"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
     </div>
 
     <!-- 关注股票弹窗 -->
@@ -239,6 +237,77 @@ const tradeDate = ref('')
 // 分页相关
 const currentPage = ref(1)
 const pageSize = ref(50)
+
+// 选中股票索引（用于键盘导航）
+const selectedStockIndex = ref(0)
+
+// Ctrl+x 前缀键状态
+const ctrlXPressed = ref(false)
+
+// 键盘事件处理
+const handleKeydown = (event) => {
+  // 如果焦点在输入框或文本框中，不处理快捷键
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
+    return
+  }
+
+  const maxIndex = paginatedStocks.value.length - 1
+
+  // 处理 Ctrl+x 前缀键
+  if (event.ctrlKey && event.key === 'x') {
+    event.preventDefault()
+    ctrlXPressed.value = true
+    return
+  }
+
+  // 处理 Ctrl+x 后的子命令
+  if (ctrlXPressed.value) {
+    ctrlXPressed.value = false
+    
+    if (event.key === 's') {
+      // Ctrl+x+s: 关注当前选中的股票
+      event.preventDefault()
+      const selectedStock = paginatedStocks.value[selectedStockIndex.value]
+      if (selectedStock && !selectedStock.isWatched) {
+        addToWatchlist(selectedStock)
+      }
+      return
+    } else if (event.key === 'o') {
+      // Ctrl+x+o: 打开雪球
+      event.preventDefault()
+      const selectedStock = paginatedStocks.value[selectedStockIndex.value]
+      if (selectedStock) {
+        openXueqiu(selectedStock)
+      }
+      return
+    }
+  }
+
+  // 原有的 j/k 导航
+  if (event.key === 'j') {
+    event.preventDefault()
+    if (selectedStockIndex.value < maxIndex) {
+      selectedStockIndex.value++
+      scrollToSelectedStock()
+    }
+  } else if (event.key === 'k') {
+    event.preventDefault()
+    if (selectedStockIndex.value > 0) {
+      selectedStockIndex.value--
+      scrollToSelectedStock()
+    }
+  }
+}
+
+// 滚动到选中的股票（居中显示）
+const scrollToSelectedStock = () => {
+  nextTick(() => {
+    const stockCards = document.querySelectorAll('.stock-card')
+    if (stockCards[selectedStockIndex.value]) {
+      stockCards[selectedStockIndex.value].scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  })
+}
 
 // 筛选相关
 const selectedDate = ref('')
@@ -280,6 +349,7 @@ const paginatedStocks = computed(() => {
 // 分页处理
 const handlePageChange = (page) => {
   currentPage.value = page
+  selectedStockIndex.value = 0 // 重置选中索引到第一个
   // 滚动到列表顶部
   const stockListEl = document.querySelector('.stock-list')
   if (stockListEl) {
@@ -297,6 +367,7 @@ const fetchLimitUpStocks = async () => {
   loading.value = true
   hasLoaded.value = true
   currentPage.value = 1 // 重置到第一页
+  selectedStockIndex.value = 0 // 重置选中索引到第一个
 
   // 清理旧的数据缓存
   klineDataCache.value.clear()
@@ -458,7 +529,8 @@ const formatAmount = (amount) => {
 
 // 查看详情
 const viewDetail = (stock) => {
-  router.push(`/stock/${stock.ts_code}`)
+  const resolved = router.resolve(`/stock/${stock.ts_code}`)
+  window.open(resolved.href, '_blank')
 }
 
 // 打开雪球网
@@ -532,7 +604,11 @@ fetchIndustryOptions()
 // 组件卸载时清理
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('keydown', handleKeydown)
 })
+
+// 注册键盘事件监听
+window.addEventListener('keydown', handleKeydown)
 </script>
 
 <style scoped>
@@ -645,6 +721,7 @@ onUnmounted(() => {
   border: 2px solid transparent;
   overflow: hidden;
   transition: all 0.3s ease;
+  position: relative;
 }
 
 .stock-card:hover {
@@ -662,6 +739,23 @@ onUnmounted(() => {
 
 .stock-card.flat {
   border-color: #dcdfe6;
+}
+
+.stock-card.selected {
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
+  border-color: #409eff !important;
+  transform: translateY(-2px);
+}
+
+.stock-card.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #409eff 0%, #66b1ff 100%);
+  border-radius: 12px 0 0 12px;
 }
 
 /* 左侧信息区域 */
@@ -863,7 +957,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   background: #fff;
-  min-height: 420px;
 }
 
 /* 响应式布局 */

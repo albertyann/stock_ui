@@ -122,6 +122,18 @@
                     {{ signal.note_content || '无内容' }}
                   </div>
 
+                  <!-- ADD_TAG 类型展示标签列表 -->
+                  <div v-else-if="signal.signal_type === 'ADD_TAG'" class="signal-tags">
+                    <el-tag
+                      v-for="tag in (signal.note_content || '').split(', ')"
+                      :key="tag"
+                      size="small"
+                      effect="plain"
+                    >
+                      {{ tag }}
+                    </el-tag>
+                  </div>
+
                   <!-- 其他类型展示 execution_result -->
                   <div v-else class="signal-result">
                     <div v-if="signal.execution_result" class="result-text">
@@ -179,6 +191,41 @@
               </div>
             </div>
             <div ref="moneyflowChart" style="height: 300px;"></div>
+          </el-card>
+
+          <!-- 标签管理 -->
+          <el-card class="mt-20">
+            <template #header>
+              <div class="card-header">
+                <span>标签</span>
+                <el-button size="small" type="primary" link @click="openTagPopover">
+                  <el-icon><EditPen /></el-icon>编辑
+                </el-button>
+              </div>
+            </template>
+
+            <div class="tags-display">
+              <template v-if="stockTags.length > 0">
+                <el-tag
+                  v-for="tag in stockTags"
+                  :key="tag"
+                  size="small"
+                  effect="plain"
+                  class="stock-tag"
+                >
+                  {{ tag }}
+                </el-tag>
+              </template>
+              <el-tag
+                v-else
+                size="small"
+                type="info"
+                effect="plain"
+                class="stock-tag empty-tag"
+              >
+                暂无标签
+              </el-tag>
+            </div>
           </el-card>
 
           <el-card class="mt-20">
@@ -252,10 +299,48 @@
                 <span class="label">关注日期:</span>
                 <span>{{ watchlistStockInfo.watch_date }}</span>
               </div>
-              <div class="info-item" v-if="watchlistStockInfo.notes">
-                <span class="label">备注:</span>
-                <span>{{ watchlistStockInfo.notes }}</span>
+            </div>
+          </el-card>
+
+          <el-card class="mt-20">
+            <template #header>
+              <div class="card-header">
+                <span>股票信息</span>
+                <el-button size="small" type="primary" link @click="openCreateInfoDialog">
+                  添加
+                </el-button>
               </div>
+            </template>
+
+            <div class="stock-infos-list">
+              <template v-if="stockInfos.length > 0">
+                <div
+                  v-for="info in stockInfos"
+                  :key="info.id"
+                  class="stock-info-item"
+                >
+                  <div class="info-content">{{ info.memo }}</div>
+                  <div class="info-actions">
+                    <el-button
+                      size="small"
+                      type="primary"
+                      link
+                      @click="openEditInfoDialog(info)"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                    <el-button
+                      size="small"
+                      type="danger"
+                      link
+                      @click="deleteStockInfo(info.id)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+              <el-text v-else type="info" size="small">暂无信息</el-text>
             </div>
           </el-card>
 
@@ -394,15 +479,103 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑标签弹窗 -->
+    <el-dialog v-model="tagPopoverVisible" title="编辑标签" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="股票">
+          <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
+        </el-form-item>
+        <el-form-item label="已选标签">
+          <div class="selected-tags-container">
+            <el-tag
+              v-for="tag in popoverSelectedTags"
+              :key="tag"
+              closable
+              size="small"
+              @close="removeSelectedTag(tag)"
+              class="selected-tag"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-input
+              ref="tagInputRef"
+              v-model="newTagInput"
+              size="small"
+              class="tag-input"
+              placeholder="输入新标签，回车添加"
+              @keydown.enter.prevent="addNewTag"
+            />
+          </div>
+        </el-form-item>
+        <el-form-item label="可选标签">
+          <div class="available-tags-container">
+            <el-tag
+              v-for="tag in availableTagsList"
+              :key="tag"
+              size="small"
+              effect="plain"
+              class="available-tag"
+              @click="addSelectedTag(tag)"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-text v-if="availableTagsList.length === 0" type="info" size="small">
+              暂无可选标签
+            </el-text>
+          </div>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="tagPopoverVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="saveStockTags"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 股票信息弹窗 -->
+    <el-dialog v-model="showInfoDialog" :title="infoDialogMode === 'create' ? '添加信息' : '编辑信息'" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="股票">
+          <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
+        </el-form-item>
+        <el-form-item label="信息内容">
+          <el-input
+            v-model="infoMemoInput"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入股票相关信息..."
+            resize="none"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showInfoDialog = false">取消</el-button>
+        <el-button
+          type="primary"
+          @click="saveStockInfo"
+          :disabled="infoLoading"
+          :loading="infoLoading"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { stockApi, signalApi, basicDataApi, watchlistApi } from '@/api'
+import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { EditPen } from '@element-plus/icons-vue'
+import { EditPen, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockVolumeChart from '@/components/StockVolumeChart.vue'
@@ -443,6 +616,27 @@ const switchGroupReason = ref('')
 const switchLoading = ref(false)
 const availableWatchlists = ref([])
 
+// 标签相关
+const stockTags = ref([])
+const allTags = ref([])
+const tagPopoverVisible = ref(false)
+const popoverSelectedTags = ref([])
+const newTagInput = ref('')
+const tagInputRef = ref(null)
+
+// 股票信息相关
+const stockInfos = ref([])
+const showInfoDialog = ref(false)
+const infoDialogMode = ref('create')
+const editingInfoId = ref(null)
+const infoMemoInput = ref('')
+const infoLoading = ref(false)
+
+// 可选标签列表（排除已选中的）
+const availableTagsList = computed(() => {
+  return allTags.value.filter(tag => !popoverSelectedTags.value.includes(tag))
+})
+
 // Ctrl+X 按键序列状态
 let ctrlXPending = false
 let ctrlXTimer = null
@@ -477,6 +671,15 @@ const handleKeydown = (e) => {
     clearTimeout(ctrlXTimer)
     if (!showNotesDialog.value) {
       openNotesDialog()
+    }
+  }
+  // Ctrl+X -> G: 打开标签编辑弹窗
+  if (ctrlXPending && e.key === 'g') {
+    e.preventDefault()
+    ctrlXPending = false
+    clearTimeout(ctrlXTimer)
+    if (!tagPopoverVisible.value) {
+      openTagPopover()
     }
   }
 }
@@ -520,6 +723,9 @@ const loadStockDetail = async () => {
     await loadSignals()
     await loadWatchlistStockInfo()
     await fetchWatchlistOptions()
+    await loadTags()
+    await loadAllTags()
+    await loadStockInfos()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
     ElMessage.error('加载失败')
@@ -629,7 +835,7 @@ const renderMoneyflowChart = () => {
         lineStyle: { type: 'dashed', color: '#eee' }
       }
     },
-    dataZoom: [{ type: 'inside', start: 0, end: 100, zoomOnMouseWheel: true, moveOnMouseWheel: true }],
+    dataZoom: [{ type: 'inside', start: 0, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }],
     series: series
   }
 
@@ -715,17 +921,17 @@ const getChangeClass = (change) => {
 }
 
 const getSignalType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning', ADD_TAG: '' }
   return map[type] || 'info'
 }
 
 const getSignalTimelineType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'primary', NOTE: 'warning' }
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'primary', NOTE: 'warning', ADD_TAG: 'primary' }
   return map[type] || 'primary'
 }
 
 const formatSignal = (type) => {
-  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注' }
+  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注', ADD_TAG: '添加标签' }
   return map[type] || type
 }
 
@@ -800,6 +1006,97 @@ const fetchWatchlistOptions = async () => {
   }
 }
 
+// 加载股票标签
+const loadTags = async () => {
+  try {
+    const response = await stockApi.getTags(props.tsCode)
+    if (response.success) {
+      stockTags.value = response.data?.tags || []
+    }
+  } catch (error) {
+    console.error('Failed to load tags:', error)
+  }
+}
+
+// 加载所有可用标签
+const loadAllTags = async () => {
+  try {
+    const response = await watchlistApi.getAllTags()
+    if (response.success) {
+      allTags.value = response.data?.tags || []
+    }
+  } catch (error) {
+    console.error('Failed to load all tags:', error)
+  }
+}
+
+// 打开标签编辑弹窗
+const openTagPopover = () => {
+  popoverSelectedTags.value = [...stockTags.value]
+  newTagInput.value = ''
+  tagPopoverVisible.value = true
+}
+
+// 添加新标签（通过输入框）
+const addNewTag = () => {
+  const tag = newTagInput.value.trim()
+  if (tag && !popoverSelectedTags.value.includes(tag)) {
+    popoverSelectedTags.value.push(tag)
+  }
+  newTagInput.value = ''
+}
+
+// 添加已有标签（点击可选标签）
+const addSelectedTag = (tag) => {
+  if (!popoverSelectedTags.value.includes(tag)) {
+    popoverSelectedTags.value.push(tag)
+  }
+}
+
+// 移除已选标签
+const removeSelectedTag = (tag) => {
+  const index = popoverSelectedTags.value.indexOf(tag)
+  if (index > -1) {
+    popoverSelectedTags.value.splice(index, 1)
+  }
+}
+
+// 保存股票标签
+const saveStockTags = async () => {
+  try {
+    // 计算新增的标签
+    const newTags = popoverSelectedTags.value.filter(tag => !stockTags.value.includes(tag))
+
+    const response = await stockApi.updateTags(props.tsCode, popoverSelectedTags.value)
+    if (response.success) {
+      stockTags.value = [...popoverSelectedTags.value]
+      tagPopoverVisible.value = false
+      ElMessage.success('标签更新成功')
+      await loadAllTags()
+
+      // 如果有新增标签，发送 ADD_TAG 信号
+      if (newTags.length > 0) {
+        const signalResponse = await signalApi.addTag(props.tsCode, newTags)
+        if (signalResponse.success) {
+          signalList.value.unshift({
+            id: signalResponse.data?.id || Date.now(),
+            ts_code: props.tsCode,
+            signal_type: 'ADD_TAG',
+            note_content: newTags.join(', '),
+            created_at: new Date().toISOString(),
+            signal_date: new Date().toISOString()
+          })
+        }
+      }
+    } else {
+      ElMessage.error(response.error || '标签更新失败')
+    }
+  } catch (error) {
+    console.error('Failed to save tags:', error)
+    ElMessage.error('标签更新失败')
+  }
+}
+
 // 打开切换分组弹窗
 const openSwitchGroupDialog = () => {
   selectedTargetWatchlist.value = null
@@ -844,29 +1141,30 @@ const onNotesDialogOpened = () => {
   notesInputRef.value?.focus()
 }
 
-// 保存股票备注
 const saveStockNotes = async () => {
   if (!stock.value || !stock.value.ts_code) return
 
   notesLoading.value = true
+  const notesContent = stockNotesInput.value.trim()
   try {
-    const response = await signalApi.addNote(
-      stock.value.ts_code,
-      stockNotesInput.value.trim()
-    )
+    const response = await signalApi.addNote(stock.value.ts_code, notesContent)
     if (response.success) {
-      ElMessage.success('备注添加成功')
       showNotesDialog.value = false
 
-      // 新增一条 NOTE 信号到列表顶部
       signalList.value.unshift({
         id: response.data?.id || Date.now(),
         ts_code: stock.value.ts_code,
         signal_type: 'NOTE',
-        note_content: stockNotesInput.value.trim(),
+        note_content: notesContent,
         created_at: new Date().toISOString(),
         signal_date: new Date().toISOString()
       })
+
+      if (watchlistStockInfo.value) {
+        watchlistStockInfo.value.notes = notesContent
+      }
+
+      ElMessage.success('备注添加成功')
     } else {
       ElMessage.error(response.error || '备注更新失败')
     }
@@ -875,6 +1173,80 @@ const saveStockNotes = async () => {
     ElMessage.error('备注更新失败')
   } finally {
     notesLoading.value = false
+  }
+}
+
+// 加载股票信息
+const loadStockInfos = async () => {
+  try {
+    const response = await stockInfoApi.get(props.tsCode)
+    if (response.success) {
+      stockInfos.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load stock infos:', error)
+  }
+}
+
+// 打开添加信息弹窗
+const openCreateInfoDialog = () => {
+  infoDialogMode.value = 'create'
+  editingInfoId.value = null
+  infoMemoInput.value = ''
+  showInfoDialog.value = true
+}
+
+// 打开编辑信息弹窗
+const openEditInfoDialog = (info) => {
+  infoDialogMode.value = 'edit'
+  editingInfoId.value = info.id
+  infoMemoInput.value = info.memo || ''
+  showInfoDialog.value = true
+}
+
+// 保存股票信息
+const saveStockInfo = async () => {
+  if (!stock.value || !stock.value.ts_code) return
+
+  infoLoading.value = true
+  const memoContent = infoMemoInput.value.trim()
+
+  try {
+    let response
+    if (infoDialogMode.value === 'create') {
+      response = await stockInfoApi.create({ ts_code: stock.value.ts_code, memo: memoContent })
+    } else {
+      response = await stockInfoApi.update(editingInfoId.value, { memo: memoContent })
+    }
+
+    if (response.success) {
+      showInfoDialog.value = false
+      ElMessage.success(infoDialogMode.value === 'create' ? '信息添加成功' : '信息更新成功')
+      await loadStockInfos()
+    } else {
+      ElMessage.error(response.error || '保存失败')
+    }
+  } catch (error) {
+    console.error('Failed to save stock info:', error)
+    ElMessage.error('保存失败')
+  } finally {
+    infoLoading.value = false
+  }
+}
+
+// 删除股票信息
+const deleteStockInfo = async (infoId) => {
+  try {
+    const response = await stockInfoApi.delete(infoId)
+    if (response.success) {
+      ElMessage.success('删除成功')
+      await loadStockInfos()
+    } else {
+      ElMessage.error(response.error || '删除失败')
+    }
+  } catch (error) {
+    console.error('Failed to delete stock info:', error)
+    ElMessage.error('删除失败')
   }
 }
 </script>
@@ -1083,6 +1455,15 @@ const saveStockNotes = async () => {
   word-break: break-word;
 }
 
+.signal-tags {
+  padding: 10px 12px;
+  background-color: #f4f4f5;
+  border-radius: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .signal-result {
   padding: 10px 12px;
   background-color: #f4f4f5;
@@ -1222,5 +1603,106 @@ const saveStockNotes = async () => {
 .indicator-guide-card .summary-label {
   font-weight: 600;
   color: #303133;
+}
+
+/* 标签显示 */
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stock-tag {
+  margin-right: 0;
+}
+
+.empty-tag {
+  color: #909399;
+}
+
+/* 已选标签容器 */
+.selected-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  min-height: 32px;
+  width: 100%;
+}
+
+.selected-tag {
+  margin: 0;
+}
+
+.tag-input {
+  width: 120px;
+  flex-shrink: 1;
+}
+
+.tag-input :deep(.el-input__wrapper) {
+  box-shadow: none;
+}
+
+/* 可选标签容器 */
+.available-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.available-tag {
+  margin: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.available-tag:hover {
+  color: #409eff;
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+/* 股票信息列表 */
+.stock-infos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stock-info-item {
+  position: relative;
+  padding: 10px 12px;
+  background-color: #f4f4f5;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.stock-info-item:hover {
+  background-color: #e9e9eb;
+}
+
+.stock-info-item:hover .info-actions {
+  opacity: 1;
+}
+
+.info-content {
+  font-size: 14px;
+  color: #303133;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.info-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 </style>

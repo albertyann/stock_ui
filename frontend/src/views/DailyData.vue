@@ -92,6 +92,11 @@
             {{ formatAmount(row.amount) }}
           </template>
         </el-table-column>
+        <el-table-column prop="updated_at" label="更新时间" width="170" align="center">
+          <template #default="{ row }">
+            {{ formatDateTime(row.updated_at) }}
+          </template>
+        </el-table-column>
       </el-table>
 
       <div class="pagination-wrapper">
@@ -219,6 +224,13 @@ const formatAmount = (val) => {
     return '¥' + (num / 10000).toFixed(2) + '万'
   }
   return '¥' + num.toFixed(2)
+}
+
+const formatDateTime = (val) => {
+  if (!val) return '-'
+  const d = new Date(val)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 onMounted(() => {

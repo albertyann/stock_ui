@@ -43,7 +43,19 @@ CREATE INDEX idx_watchlist_stocks_watchlist ON watchlist_stocks(watchlist_id);
 CREATE INDEX idx_watchlist_stocks_added_date ON watchlist_stocks(added_date);
 
 -- ============================================
--- 3. 买卖信号表
+-- 3. 股票标签表 (全局标签，按 ts_code 存储)
+-- ============================================
+CREATE TABLE IF NOT EXISTS stock_tags (
+    ts_code VARCHAR(20) PRIMARY KEY COMMENT '股票代码，如000001.SZ',
+    tags JSONB DEFAULT '[]'::jsonb NOT NULL COMMENT '标签数组，如["白酒", "龙头"]',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE stock_tags IS '股票标签表，支持全局标签管理';
+CREATE INDEX idx_stock_tags_tags ON stock_tags USING GIN (tags);
+
+-- ============================================
+-- 4. 买卖信号表
 -- ============================================
 CREATE TABLE IF NOT EXISTS signals (
     id SERIAL PRIMARY KEY,
@@ -147,7 +159,21 @@ COMMENT ON TABLE technical_indicators_cache IS '技术指标缓存表';
 CREATE INDEX idx_indicators_code_date ON technical_indicators_cache(ts_code, trade_date DESC);
 
 -- ============================================
--- 6. 初始化数据
+-- 6. 股票信息表 (用户自定义备注)
+-- ============================================
+CREATE TABLE IF NOT EXISTS stock_info (
+    id SERIAL PRIMARY KEY,
+    ts_code VARCHAR(20) NOT NULL COMMENT '股票代码，如000001.SZ',
+    memo TEXT COMMENT '备注内容',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE stock_info IS '股票信息备注表';
+CREATE INDEX idx_stock_info_ts_code ON stock_info(ts_code);
+
+-- ============================================
+-- 7. 初始化数据
 -- ============================================
 
 -- 创建默认分组
@@ -236,3 +262,9 @@ LEFT JOIN LATERAL (
     ORDER BY signal_date DESC
     LIMIT 1
 ) s ON TRUE;
+
+-- ============================================
+-- 10. daily_data 表增加 updated_at 列
+-- ============================================
+ALTER TABLE daily_data
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now() NULL;

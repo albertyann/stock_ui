@@ -1,11 +1,12 @@
 import asyncio
 import shutil
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.models import SyncTask
+from app.models import SyncTask, SyncTaskLog
 
 
 class SyncTaskService:
@@ -138,6 +139,9 @@ class SyncTaskService:
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=600)
 
+            task.last_run_at = datetime.now(timezone.utc)
+            await self.session.commit()
+
             return {
                 "success": process.returncode == 0,
                 "command": cmd_str,
@@ -151,17 +155,70 @@ class SyncTaskService:
                 await process.wait()
             except Exception:
                 pass
+            task.last_run_at = datetime.now(timezone.utc)
+            await self.session.commit()
             return {
                 "success": False,
                 "error": "Task execution timed out after 600 seconds",
                 "command": cmd_str,
             }
         except Exception as e:
+            task.last_run_at = datetime.now(timezone.utc)
+            await self.session.commit()
             return {
                 "success": False,
                 "error": str(e),
                 "command": cmd_str,
             }
+
+    async def get_logs(
+        self,
+        task_name: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Dict:
+        query = select(SyncTaskLog).order_by(desc(SyncTaskLog.id))
+        count_query = select(sa_func.count(SyncTaskLog.id))
+
+        if task_name:
+            query = query.where(SyncTaskLog.task_name == task_name)
+            count_query = count_query.where(SyncTaskLog.task_name == task_name)
+
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar()
+
+        offset = (page - 1) * page_size
+        query = query.offset(offset).limit(page_size)
+
+        result = await self.session.execute(query)
+        logs = result.scalars().all()
+
+        return {
+            "items": [self._log_to_dict(log) for log in logs],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
+
+    def _log_to_dict(self, log: SyncTaskLog) -> Dict:
+        return {
+            "id": log.id,
+            "task_name": log.task_name,
+            "task_type": log.task_type,
+            "status": log.status,
+            "started_at": log.started_at.isoformat() if log.started_at else None,
+            "completed_at": log.completed_at.isoformat() if log.completed_at else None,
+            "duration_seconds": float(log.duration_seconds) if log.duration_seconds else None,
+            "records_processed": log.records_processed or 0,
+            "records_inserted": log.records_inserted or 0,
+            "records_updated": log.records_updated or 0,
+            "error_message": log.error_message,
+            "stack_trace": log.stack_trace,
+            "retry_count": log.retry_count or 0,
+            "trigger_type": log.trigger_type,
+            "triggered_by": log.triggered_by,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        }
 
     def _task_to_dict(self, task: SyncTask) -> Dict:
         return {
@@ -174,6 +231,7 @@ class SyncTaskService:
             "description": task.description,
             "sort_order": task.sort_order,
             "is_active": task.is_active,
+            "last_run_at": task.last_run_at.isoformat() if task.last_run_at else None,
             "created_at": task.created_at.isoformat() if task.created_at else None,
             "updated_at": task.updated_at.isoformat() if task.updated_at else None,
         }

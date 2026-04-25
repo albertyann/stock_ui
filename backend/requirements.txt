@@ -42,8 +42,3 @@ pytest-asyncio==0.21.1
 
 # Stock Data (A股)
 #akshare==1.11.0
-
-# Existing stock_picker integration (relative import)
-# The following are assumed to be available in parent directory:
-# - stock_picker
-# - stock_sync_system

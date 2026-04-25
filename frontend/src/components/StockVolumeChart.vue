@@ -15,7 +15,7 @@ const props = defineProps({
   // 图表高度
   height: {
     type: String,
-    default: '180px'
+    default: '150px'
   }
 })
 
@@ -113,7 +113,7 @@ const renderChart = () => {
       splitLine: { lineStyle: { type: 'dashed', color: '#eee' } }
     },
     dataZoom: [
-      { type: 'inside', start: 50, end: 100, zoomOnMouseWheel: true, moveOnMouseWheel: true }
+      { type: 'inside', start: 50, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }
     ],
     series: [
       {

@@ -165,9 +165,8 @@ const handleSearch = () => {
 // 跳转到板块详情
 const goToSector = (sector) => {
   router.push({
-    path: '/realtime-price',
+    path: `/sector/${sector.code}`,
     query: {
-      sector: sector.code,
       sectorType: sector.type,
       sectorName: sector.name
     }

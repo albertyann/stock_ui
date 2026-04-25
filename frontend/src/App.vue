@@ -63,6 +63,10 @@
               <el-icon><Search /></el-icon>
               <span>股票查询</span>
             </el-menu-item>
+            <el-menu-item index="/stock-calculator">
+              <el-icon><Coin /></el-icon>
+              <span>股票计算器</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-analysis">
             <template #title>
@@ -73,6 +77,10 @@
               <el-icon><Grid /></el-icon>
               <span>看板块</span>
             </el-menu-item>
+            <el-menu-item index="/sector-large-orders">
+              <el-icon><Money /></el-icon>
+              <span>板块大单</span>
+            </el-menu-item>
             <el-menu-item index="/snapshot-manage">
               <el-icon><Camera /></el-icon>
               <span>快照管理</span>
@@ -80,6 +88,10 @@
             <el-menu-item index="/signal-manage">
               <el-icon><Bell /></el-icon>
               <span>信号管理</span>
+            </el-menu-item>
+            <el-menu-item index="/moneyflow-ind-ths">
+              <el-icon><Money /></el-icon>
+              <span>行业资金</span>
             </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-basic-data">
@@ -102,6 +114,14 @@
             <el-menu-item index="/basic-data/weekly">
               <el-icon><TrendCharts /></el-icon>
               <span>周线数据</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/tags">
+              <el-icon><PriceTag /></el-icon>
+              <span>标签管理</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/watchlists">
+              <el-icon><Folder /></el-icon>
+              <span>股票分组</span>
             </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-sync">

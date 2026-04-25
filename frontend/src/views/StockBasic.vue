@@ -33,6 +33,23 @@
             @clear="handleFilterChange"
           />
         </el-form-item>
+        <el-form-item label="行业">
+          <el-select
+            v-model="filter.industry"
+            placeholder="选择行业"
+            clearable
+            filterable
+            @change="handleFilterChange"
+            style="width: 160px"
+          >
+            <el-option
+              v-for="item in industryOptions"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleFilterChange">搜索</el-button>
           <el-button @click="resetFilter">重置</el-button>
@@ -81,7 +98,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { basicDataApi } from '@/api'
+import { basicDataApi, sectorApi } from '@/api'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -89,8 +106,11 @@ const tableData = ref([])
 const filter = reactive({
   name: '',
   ts_code: '',
-  symbol: ''
+  symbol: '',
+  industry: ''
 })
+
+const industryOptions = ref([])
 
 const pagination = reactive({
   page: 1,
@@ -107,7 +127,8 @@ const fetchData = async () => {
       page_size: pagination.page_size,
       name: filter.name || null,
       ts_code: filter.ts_code || null,
-      symbol: filter.symbol || null
+      symbol: filter.symbol || null,
+      industry: filter.industry || null
     })
     if (res.success) {
       tableData.value = res.data || []
@@ -134,8 +155,21 @@ const resetFilter = () => {
   filter.name = ''
   filter.ts_code = ''
   filter.symbol = ''
+  filter.industry = ''
   pagination.page = 1
   fetchData()
+}
+
+const fetchIndustryOptions = async () => {
+  try {
+    const response = await sectorApi.getAllSectors()
+    if (response.success && response.data) {
+      const industries = response.data.map(sector => sector.name).filter(name => name)
+      industryOptions.value = industries.sort()
+    }
+  } catch (error) {
+    console.error('Failed to fetch industry options:', error)
+  }
 }
 
 const handlePageChange = (page) => {
@@ -151,6 +185,7 @@ const handleSizeChange = (size) => {
 
 onMounted(() => {
   fetchData()
+  fetchIndustryOptions()
 })
 </script>
 

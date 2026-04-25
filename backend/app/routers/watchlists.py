@@ -104,18 +104,21 @@ async def get_all_watchlist_stocks(
     search: Optional[str] = Query(None, description="搜索关键词（ts_code或股票名称）"),
     industry: Optional[str] = Query(None, description="板块筛选"),
     watchlist_id: Optional[int] = Query(None, description="分组筛选"),
+    tags: Optional[str] = Query(None, description="标签筛选（逗号分隔）"),
     sort_by_change_pct: Optional[str] = Query(
         None, description="按涨幅排序: asc, desc"
     ),
     db: AsyncSession = Depends(get_db),
 ):
     service = WatchlistService(db)
+    tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
     result = service.get_all_watchlist_stocks(
         page=page,
         page_size=page_size,
         search=search,
         industry=industry,
         watchlist_id=watchlist_id,
+        tags=tags_list,
         sort_by_change_pct=sort_by_change_pct,
     )
 
@@ -241,6 +244,17 @@ async def create_watchlist(
     }
 
 
+@router.get("/tags", response_model=dict)
+async def get_all_tags(db: AsyncSession = Depends(get_db)):
+    """Get all unique tags from stock_tags table"""
+    service = WatchlistService(db)
+    tags = await service.get_all_tags()
+    return {
+        "success": True,
+        "data": {"tags": tags},
+    }
+
+
 @router.get("/{watchlist_id}", response_model=dict)
 async def get_watchlist(watchlist_id: int, db: AsyncSession = Depends(get_db)):
     service = WatchlistService(db)
@@ -333,6 +347,7 @@ async def get_watchlist_stocks(
 
     ts_codes = [s.ts_code for s in stocks]
     industries = service.get_stock_industries(ts_codes)
+    tags = service.get_stock_tags(ts_codes)
 
     stock_data = []
     for s in stocks:
@@ -349,6 +364,7 @@ async def get_watchlist_stocks(
             "notes": s.notes,
             "alert_enabled": s.alert_enabled,
             "status": s.status if s.status else 1,
+            "tags": tags.get(s.ts_code, []),
         }
 
         if signal_date and hasattr(s, "signal"):
@@ -552,6 +568,10 @@ class WatchlistStockNotesUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class StockTagsUpdate(BaseModel):
+    tags: List[str]
+
+
 class MoveStockRequest(BaseModel):
     target_watchlist_id: int
     reason: Optional[str] = None
@@ -696,3 +716,42 @@ async def delete_watchlist_snapshot(
         raise HTTPException(status_code=404, detail="Snapshot not found")
 
     return {"success": True}
+
+
+@router.get("/stocks/{ts_code}/tags", response_model=dict)
+async def get_stock_tags(
+    ts_code: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get tags for a specific stock"""
+    service = WatchlistService(db)
+    tags_map = service.get_stock_tags([ts_code])
+    tags = tags_map.get(ts_code, [])
+    return {
+        "success": True,
+        "data": {
+            "ts_code": ts_code,
+            "tags": tags,
+        },
+    }
+
+
+@router.put("/stocks/{ts_code}/tags", response_model=dict)
+async def update_stock_tags(
+    ts_code: str,
+    data: StockTagsUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    service = WatchlistService(db)
+    try:
+        stock_tag = await service.update_stock_tags(ts_code, data.tags)
+        return {
+            "success": True,
+            "data": {
+                "ts_code": stock_tag.ts_code,
+                "tags": stock_tag.tags,
+            },
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

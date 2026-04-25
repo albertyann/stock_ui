@@ -39,7 +39,7 @@ export const watchlistApi = {
   update: (id, data) => api.put(`/watchlists/${id}`, data),
   delete: (id) => api.delete(`/watchlists/${id}`),
   getAllWatchlistStocks: (params = {}) => {
-    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null } = params
+    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null, tags = [] } = params
     let url = `/watchlists/stocks/all?page=${page}&page_size=${page_size}`
     if (search) {
       url += `&search=${encodeURIComponent(search)}`
@@ -52,6 +52,9 @@ export const watchlistApi = {
     }
     if (sort_by_change_pct) {
       url += `&sort_by_change_pct=${sort_by_change_pct}`
+    }
+    if (tags && tags.length > 0) {
+      url += `&tags=${encodeURIComponent(tags.join(','))}`
     }
     return api.get(url)
   },
@@ -90,6 +93,11 @@ export const watchlistApi = {
   // 更新股票备注
   updateStockNotes: (stockId, notes) =>
     api.put(`/watchlists/stocks/${stockId}/notes`, { notes }),
+  // 获取所有标签
+  getAllTags: () => api.get('/watchlists/tags'),
+  // 更新股票标签
+  updateStockTags: (tsCode, tags) =>
+    api.put(`/watchlists/stocks/${tsCode}/tags`, { tags }),
   checkStocks: (tsCodes) => api.post('/watchlists/check-stocks', { ts_codes: tsCodes }),
   getStockByTsCode: (tsCode) => api.get(`/watchlists/stocks/by-ts-code/${tsCode}`),
   createSnapshot: (id, stocks) => api.post(`/watchlists/${id}/snapshots`, { stocks }),
@@ -101,7 +109,9 @@ export const stockApi = {
   search: (q, limit = 20) => api.get(`/stocks/search?q=${q}&limit=${limit}`),
   getDetail: (tsCode) => api.get(`/stocks/${tsCode}`),
   getKline: (tsCode, period = 'daily', limit = 60) => 
-    api.get(`/stocks/${tsCode}/kline?period=${period}&limit=${limit}`)
+    api.get(`/stocks/${tsCode}/kline?period=${period}&limit=${limit}`),
+  getTags: (tsCode) => api.get(`/watchlists/stocks/${tsCode}/tags`),
+  updateTags: (tsCode, tags) => api.put(`/watchlists/stocks/${tsCode}/tags`, { tags })
 }
 
 export const signalApi = {
@@ -110,6 +120,7 @@ export const signalApi = {
   analyze: (tsCodes) => api.post('/signals/analyze', { ts_codes: tsCodes }),
   analyzeAll: () => api.post('/signals/analyze-all'),
   addNote: (tsCode, noteContent) => api.post('/signals/note', { ts_code: tsCode, note_content: noteContent }),
+  addTag: (tsCode, tags) => api.post('/signals/tag', { ts_code: tsCode, tags: tags }),
   // Signal management (paginated)
   getSignalsManage: (params = {}) => {
     const { page = 1, page_size = 20, ts_code = null, signal_type = null, is_active = null, signal_date = null, signal_date_start = null, signal_date_end = null } = params
@@ -171,7 +182,9 @@ export const sectorApi = {
       url += `&search=${encodeURIComponent(search)}`
     }
     return api.get(url)
-  }
+  },
+  // 获取板块大单交易统计
+  getSectorLargeOrders: (tradeDate) => api.get(`/sectors/large-orders?trade_date=${tradeDate}`)
 }
 
 export const syncTaskApi = {
@@ -180,7 +193,13 @@ export const syncTaskApi = {
   get: (id) => api.get(`/sync-tasks/${id}`),
   update: (id, data) => api.put(`/sync-tasks/${id}`, data),
   delete: (id) => api.delete(`/sync-tasks/${id}`),
-  execute: (id, params = {}) => longRunningApi.post(`/sync-tasks/${id}/execute`, { params })
+  execute: (id, params = {}) => longRunningApi.post(`/sync-tasks/${id}/execute`, { params }),
+  getLogs: (params = {}) => {
+    const { task_name = null, page = 1, page_size = 10 } = params
+    let url = `/sync-tasks/logs?page=${page}&page_size=${page_size}`
+    if (task_name) url += `&task_name=${encodeURIComponent(task_name)}`
+    return api.get(url)
+  }
 }
 
 export const basicDataApi = {
@@ -197,7 +216,7 @@ export const basicDataApi = {
   },
   getExchanges: () => api.get('/basic-data/trade-cal/exchanges'),
   getStockBasic: (params = {}) => {
-    const { page = 1, page_size = 20, name = null, ts_code = null, symbol = null } = params
+    const { page = 1, page_size = 20, name = null, ts_code = null, symbol = null, industry = null } = params
     let url = `/basic-data/stocks?page=${page}&page_size=${page_size}`
     if (name) {
       url += `&name=${encodeURIComponent(name)}`
@@ -207,6 +226,9 @@ export const basicDataApi = {
     }
     if (symbol) {
       url += `&symbol=${encodeURIComponent(symbol)}`
+    }
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
     }
     return api.get(url)
   },
@@ -240,7 +262,50 @@ export const basicDataApi = {
   },
   getMoneyflow: (tsCode, limit = 20) => {
     return api.get(`/basic-data/moneyflow/${tsCode}?limit=${limit}`)
+  },
+  getMoneyflowIndThs: (params = {}) => {
+    const { page = 1, page_size = 20, industry = null, trade_date = null, ts_code = null, sort_field = null, sort_order = null } = params
+    let url = `/basic-data/moneyflow-ind-ths?page=${page}&page_size=${page_size}`
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (trade_date) {
+      url += `&trade_date=${trade_date}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (sort_field) {
+      url += `&sort_field=${encodeURIComponent(sort_field)}`
+    }
+    if (sort_order) {
+      url += `&sort_order=${encodeURIComponent(sort_order)}`
+    }
+    return api.get(url)
   }
+}
+
+export const tagApi = {
+  getAll: (params = {}) => {
+    const { page = 1, page_size = 20, name = null } = params
+    let url = `/tags?page=${page}&page_size=${page_size}`
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    return api.get(url)
+  },
+  getAllTags: () => api.get('/tags/all'),
+  get: (id) => api.get(`/tags/${id}`),
+  create: (data) => api.post('/tags', data),
+  update: (id, data) => api.put(`/tags/${id}`, data),
+  delete: (id) => api.delete(`/tags/${id}`)
+}
+
+export const stockInfoApi = {
+  get: (tsCode) => api.get(`/stock-info/${tsCode}`),
+  create: (data) => api.post('/stock-info/', data),
+  update: (id, data) => api.put(`/stock-info/${id}`, data),
+  delete: (id) => api.delete(`/stock-info/${id}`)
 }
 
 export default api
