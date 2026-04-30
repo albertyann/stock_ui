@@ -1,37 +1,30 @@
 <template>
   <div>
     <div class="stock-detail" v-if="stock">
-      <el-page-header @back="$router.back()" :content="stock.name" />
+      <el-page-header @back="$router.back()" :content="`${stock.name}(${stock.ts_code})${stock.industry ? ' - ' + stock.industry : ''}`" />
 
       <el-row :gutter="20" class="mt-20">
         <el-col :span="16">
           <el-card>
             <template #header>
               <div class="card-header">
-                <span>{{ stock.ts_code }} - K线图</span>
-                <el-radio-group v-model="klinePeriod" size="small" @change="loadKline">
-                  <el-radio-button label="daily">日线</el-radio-button>
-                  <el-radio-button label="weekly">周线</el-radio-button>
-                  <el-radio-button label="monthly">月线</el-radio-button>
-                </el-radio-group>
+                <span>日线</span>
               </div>
             </template>
             
             <StockKlineChart
               ref="klineChartRef"
               :tsCode="props.tsCode"
-              :stockName="stock?.name"
               :klineData="klineData"
-              minHeight="400px"
-              style="height: 400px;"
+              :height="360"
             />
           </el-card>
 
-          <!-- 成交量 -->
+          <!-- 指标 -->
           <el-card class="mt-20">
             <template #header>
               <div class="card-header">
-                <span>成交量</span>
+                <span>指标</span>
                 <span class="volume-legend">
                   <span class="legend-item"><span class="dot" style="background-color:#f56c6c;"></span>阳线</span>
                   <span class="legend-item"><span class="dot" style="background-color:#67c23a;"></span>阴线</span>
@@ -43,38 +36,10 @@
               ref="volumeChartRef"
               :klineData="klineData"
             />
-          </el-card>
-
-          <!-- MACD 指标 -->
-          <el-card class="mt-20">
-            <template #header>
-              <div class="card-header">
-                <span>MACD 指标</span>
-                <span class="macd-legend">
-                  <span class="legend-item"><span class="dot" style="background-color:#f5a623;"></span>DIF</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#5470c6;"></span>DEA</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#f56c6c;"></span>MACD柱</span>
-                </span>
-              </div>
-            </template>
             <StockMacdChart
               ref="macdChartRef"
               :klineData="klineData"
             />
-          </el-card>
-
-          <!-- ADX 趋势强度指标 -->
-          <el-card class="mt-20">
-            <template #header>
-              <div class="card-header">
-                <span>ADX 趋势强度</span>
-                <span class="adx-legend">
-                  <span class="legend-item"><span class="dot" style="background-color:#ee6666;"></span>+DI</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#91cc75;"></span>-DI</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#5470c6;"></span>ADX</span>
-                </span>
-              </div>
-            </template>
             <StockAdxChart
               ref="adxChartRef"
               :klineData="klineData"
@@ -159,7 +124,23 @@
         </el-col>
 
         <el-col :span="8">
-          <el-card v-loading="moneyflowLoading">
+          <!-- 周线K线图 -->
+          <el-card class="weekly-kline-card">
+            <template #header>
+              <div class="card-header">
+                <span>周线</span>
+              </div>
+            </template>
+            <StockKlineChart
+              ref="weeklyKlineChartRef"
+              :tsCode="props.tsCode"
+              :klineData="weeklyKlineData"
+              :height="360"
+              :maPeriods="[5, 20]"
+            />
+          </el-card>
+
+          <el-card class="mt-20" v-loading="moneyflowLoading">
             <template #header>
               <div class="card-header">
                 <span>资金流向</span>
@@ -585,9 +566,10 @@ const props = defineProps(['tsCode'])
 
 const stock = ref(null)
 const klineData = ref([])
-const klinePeriod = ref('daily')
+const weeklyKlineData = ref([])
 const latestSignal = ref(null)
 const klineChartRef = ref(null)
+const weeklyKlineChartRef = ref(null)
 const adxChartRef = ref(null)
 const volumeChartRef = ref(null)
 const macdChartRef = ref(null)
@@ -701,6 +683,7 @@ onUnmounted(() => {
 
 const handleResize = () => {
   klineChartRef.value?.resize()
+  weeklyKlineChartRef.value?.resize()
   adxChartRef.value?.resize()
   volumeChartRef.value?.resize()
   macdChartRef.value?.resize()
@@ -881,10 +864,16 @@ watch(showLargeOnly, () => {
 
 const loadKline = async () => {
   try {
-    const response = await stockApi.getKline(props.tsCode, klinePeriod.value, 120)
-    klineData.value = response.data.data || []
+    const dailyResponse = await stockApi.getKline(props.tsCode, 'daily', 120)
+    klineData.value = dailyResponse.data.data || []
   } catch (error) {
-    console.error('Failed to load kline:', error)
+    console.error('Failed to load daily kline:', error)
+  }
+  try {
+    const weeklyResponse = await stockApi.getKline(props.tsCode, 'weekly', 60)
+    weeklyKlineData.value = weeklyResponse.data.data || []
+  } catch (error) {
+    console.error('Failed to load weekly kline:', error)
   }
 }
 
@@ -1260,6 +1249,10 @@ const deleteStockInfo = async (infoId) => {
   margin-top: 20px;
 }
 
+.weekly-kline-card {
+  width: 100%;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -1403,7 +1396,7 @@ const deleteStockInfo = async (infoId) => {
 
 /* 信号时间线样式 */
 .signal-timeline-card {
-  max-height: 600px;
+  max-height: 1000px;
   overflow-y: auto;
 }
 

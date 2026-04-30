@@ -1,231 +1,14 @@
 import { defineStore } from 'pinia'
 import type { BuySignal, SignalFilter, SignalSorter } from '@/types/buy-reference'
 import { StrategyType, SignalStatus } from '@/types/buy-reference'
-
-// 模拟策略数据
-const MOCK_SIGNALS: BuySignal[] = [
-  {
-    id: '1',
-    stock: {
-      tsCode: '000001.SZ',
-      symbol: '000001',
-      name: '平安银行'
-    },
-    strategy: {
-      id: 'breakout-ma20',
-      name: '突破20日均线策略',
-      type: StrategyType.BREAKOUT
-    },
-    strength: 85,
-    reasons: [
-      {
-        type: 'trend',
-        title: '趋势突破',
-        description: '股价突破20日均线，且成交量放大',
-        indicator: 'MA20',
-        value: 10.92,
-        weight: 0.4,
-        satisfied: true
-      },
-      {
-        type: 'volume',
-        title: '量能配合',
-        description: '成交量较5日均量放大150%',
-        indicator: 'Volume Ratio',
-        value: '1.5x',
-        weight: 0.3,
-        satisfied: true
-      },
-      {
-        type: 'momentum',
-        title: '动量向上',
-        description: 'MACD金叉，动能增强',
-        indicator: 'MACD',
-        value: 0.25,
-        weight: 0.3,
-        satisfied: true
-      }
-    ],
-    indicators: {
-      ma5: 10.85,
-      ma10: 10.78,
-      ma20: 10.68,
-      rsi: 58,
-      macd: 0.25
-    },
-    priceRange: {
-      low: 10.80,
-      high: 11.00,
-      current: 10.92
-    },
-    stopLoss: 10.50,
-    createdAt: new Date('2026-03-16'),
-    status: SignalStatus.ACTIVE
-  },
-  {
-    id: '2',
-    stock: {
-      tsCode: '002415.SZ',
-      symbol: '002415',
-      name: '海康威视'
-    },
-    strategy: {
-      id: 'momentum-rsi',
-      name: '动量反转策略',
-      type: StrategyType.MOMENTUM
-    },
-    strength: 72,
-    reasons: [
-      {
-        type: 'momentum',
-        title: 'RSI超卖反弹',
-        description: 'RSI从超卖区(30以下)反弹，动能转强',
-        indicator: 'RSI',
-        value: 35,
-        weight: 0.5,
-        satisfied: true
-      },
-      {
-        type: 'support_resistance',
-        title: '支撑有效',
-        description: '在30元支撑位获得支撑，未跌破',
-        indicator: 'Support',
-        value: 30.00,
-        weight: 0.5,
-        satisfied: true
-      }
-    ],
-    indicators: {
-      ma5: 31.20,
-      ma10: 31.50,
-      ma20: 32.10,
-      rsi: 35,
-      macd: -0.15
-    },
-    priceRange: {
-      low: 31.00,
-      high: 32.50,
-      current: 31.94
-    },
-    stopLoss: 29.80,
-    createdAt: new Date('2026-03-15'),
-    status: SignalStatus.ACTIVE
-  },
-  {
-    id: '3',
-    stock: {
-      tsCode: '600519.SH',
-      symbol: '600519',
-      name: '贵州茅台'
-    },
-    strategy: {
-      id: 'multi-factor',
-      name: '多因子综合策略',
-      type: StrategyType.MULTI_FACTOR
-    },
-    strength: 90,
-    reasons: [
-      {
-        type: 'fundamental',
-        title: '基本面优秀',
-        description: 'ROE > 20%，毛利率 > 90%',
-        indicator: 'ROE',
-        value: '25%',
-        weight: 0.3,
-        satisfied: true
-      },
-      {
-        type: 'trend',
-        title: '长期趋势向上',
-        description: '股价站稳60日均线，长期趋势良好',
-        indicator: 'MA60',
-        value: 1580,
-        weight: 0.4,
-        satisfied: true
-      },
-      {
-        type: 'pattern',
-        title: '杯柄形态',
-        description: '形成经典杯柄形态，突破颈线',
-        indicator: 'Pattern',
-        value: 'Cup & Handle',
-        weight: 0.3,
-        satisfied: true
-      }
-    ],
-    indicators: {
-      ma5: 1590,
-      ma10: 1585,
-      ma20: 1580,
-      ma60: 1560,
-      rsi: 55,
-      macd: 2.5
-    },
-    priceRange: {
-      low: 1580,
-      high: 1620,
-      current: 1588
-    },
-    stopLoss: 1550,
-    createdAt: new Date('2026-03-14'),
-    status: SignalStatus.ACTIVE
-  },
-  {
-    id: '4',
-    stock: {
-      tsCode: '002594.SZ',
-      symbol: '002594',
-      name: '比亚迪'
-    },
-    strategy: {
-      id: 'technical-breakout',
-      name: '技术形态突破策略',
-      type: StrategyType.TECHNICAL
-    },
-    strength: 78,
-    reasons: [
-      {
-        type: 'pattern',
-        title: '三角形整理突破',
-        description: '收敛三角形整理后向上突破',
-        indicator: 'Pattern',
-        value: 'Triangle Breakout',
-        weight: 0.6,
-        satisfied: true
-      },
-      {
-        type: 'volume',
-        title: '放量突破',
-        description: '突破时成交量放大2倍',
-        indicator: 'Volume',
-        value: '2.1x',
-        weight: 0.4,
-        satisfied: true
-      }
-    ],
-    indicators: {
-      ma5: 268,
-      ma10: 265,
-      ma20: 260,
-      rsi: 62,
-      macd: 1.8
-    },
-    priceRange: {
-      low: 265,
-      high: 275,
-      current: 268.5
-    },
-    stopLoss: 258,
-    createdAt: new Date('2026-03-16'),
-    status: SignalStatus.ACTIVE
-  }
-]
+import { signalApi } from '@/api'
 
 export const useBuyReferenceStore = defineStore('buyReference', {
   state: () => ({
     signals: [] as BuySignal[],
     loading: false,
     selectedSignals: [] as string[],
+    selectedDate: null as string | null,
     filter: {
       strategyTypes: [] as StrategyType[],
       minStrength: 0,
@@ -241,7 +24,6 @@ export const useBuyReferenceStore = defineStore('buyReference', {
   }),
 
   getters: {
-    // 过滤后的信号
     filteredSignals: (state) => {
       let result = [...state.signals]
 
@@ -266,7 +48,6 @@ export const useBuyReferenceStore = defineStore('buyReference', {
         )
       }
 
-      // 应用排序
       result.sort((a, b) => {
         const field = state.sorter.field
         const direction = state.sorter.direction === 'asc' ? 1 : -1
@@ -289,7 +70,6 @@ export const useBuyReferenceStore = defineStore('buyReference', {
       return result
     },
 
-    // 按策略分组
     signalsByStrategy: (state) => {
       const grouped = new Map()
       state.signals.forEach(signal => {
@@ -305,7 +85,6 @@ export const useBuyReferenceStore = defineStore('buyReference', {
       return Array.from(grouped.values())
     },
 
-    // 统计信息
     stats: (state) => {
       return {
         total: state.signals.length,
@@ -320,40 +99,157 @@ export const useBuyReferenceStore = defineStore('buyReference', {
   },
 
   actions: {
-    // 加载信号列表
-    async fetchSignals() {
+    _mapApiSignalToBuySignal(apiSignal: any): BuySignal {
+      const tsCode = apiSignal.ts_code || ''
+      const symbol = tsCode.split('.')[0] || tsCode
+
+      let strategyType = StrategyType.TECHNICAL
+      const signalType = (apiSignal.signal_type || '').toLowerCase()
+      const strategyName = apiSignal.strategy_name || apiSignal.signal_type || '未知策略'
+      
+      switch (signalType) {
+        case 'breakout':
+        case 'buy':
+          strategyType = StrategyType.BREAKOUT
+          break
+        case 'momentum':
+          strategyType = StrategyType.MOMENTUM
+          break
+        case 'reversal':
+          strategyType = StrategyType.REVERSAL
+          break
+        case 'mean_reversion':
+          strategyType = StrategyType.MEAN_REVERSION
+          break
+        case 'multi_factor':
+          strategyType = StrategyType.MULTI_FACTOR
+          break
+        case 'technical':
+          strategyType = StrategyType.TECHNICAL
+          break
+        case 'fundamental':
+          strategyType = StrategyType.FUNDAMENTAL
+          break
+      }
+
+      const reasons = []
+      if (apiSignal.conditions_met && Array.isArray(apiSignal.conditions_met)) {
+        apiSignal.conditions_met.forEach((condition: any, index: number) => {
+          if (typeof condition === 'string') {
+            reasons.push({
+              type: 'indicator' as any,
+              title: condition,
+              description: condition,
+              weight: 1 / apiSignal.conditions_met.length,
+              satisfied: true
+            })
+          } else if (typeof condition === 'object') {
+            reasons.push({
+              type: (condition.type || 'indicator') as any,
+              title: condition.title || condition.name || condition.indicator || `条件${index + 1}`,
+              description: condition.description || condition.detail || condition.title || '',
+              indicator: condition.indicator,
+              value: condition.value,
+              weight: condition.weight || (1 / apiSignal.conditions_met.length),
+              satisfied: condition.satisfied !== false
+            })
+          }
+        })
+      }
+
+      if (reasons.length === 0) {
+        reasons.push({
+          type: 'indicator' as any,
+          title: strategyName,
+          description: `${strategyName} 发出买入信号`,
+          weight: 1,
+          satisfied: true
+        })
+      }
+
+      const currentPrice = apiSignal.current_price
+      const targetPrice = apiSignal.target_price
+      let priceRange = undefined
+      if (currentPrice !== null && currentPrice !== undefined) {
+        priceRange = {
+          low: Math.min(currentPrice, targetPrice ?? currentPrice),
+          high: Math.max(currentPrice, targetPrice ?? currentPrice),
+          current: currentPrice
+        }
+      }
+
+      let status = SignalStatus.ACTIVE
+      if (apiSignal.is_active === false) {
+        status = SignalStatus.EXPIRED
+      }
+
+      return {
+        id: String(apiSignal.id || apiSignal.signal_id || ''),
+        stock: {
+          tsCode: tsCode,
+          symbol: symbol,
+          name: apiSignal.stock_name || symbol || tsCode,
+          industry: apiSignal.industry || undefined,
+          changePct: apiSignal.change_pct !== null && apiSignal.change_pct !== undefined ? Number(apiSignal.change_pct) : undefined
+        },
+        strategy: {
+          id: signalType || 'unknown',
+          name: strategyName,
+          type: strategyType
+        },
+        strength: apiSignal.signal_strength || 0,
+        reasons: reasons,
+        indicators: apiSignal.indicators || undefined,
+        priceRange: priceRange,
+        stopLoss: apiSignal.stop_loss_price || undefined,
+        createdAt: new Date(apiSignal.signal_date || apiSignal.created_at || new Date()),
+        status: status
+      }
+    },
+
+    async fetchSignals(date?: string) {
       this.loading = true
       this.error = null
       
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 500))
-        this.signals = MOCK_SIGNALS
+        const params: any = { page: 1, page_size: 100 }
+        if (date) {
+          params.signal_date = date
+        }
+        const res = await signalApi.getSignalsManage(params)
+        if (res.success) {
+          this.signals = (res.data || [])
+            .filter((s: any) => {
+              const signalType = (s.signal_type || '').toLowerCase()
+              return signalType !== 'note' && signalType !== 'add_tag'
+            })
+            .map((s: any) => this._mapApiSignalToBuySignal(s))
+        } else {
+          this.error = res.error || '加载失败'
+          this.signals = []
+        }
         this.lastUpdated = new Date()
       } catch (err) {
         this.error = '加载失败'
+        this.signals = []
         console.error('Failed to fetch signals:', err)
       } finally {
         this.loading = false
       }
     },
 
-    // 刷新信号
     async refresh() {
-      await this.fetchSignals()
+      await this.fetchSignals(this.selectedDate || undefined)
     },
 
-    // 更新过滤器
     updateFilter(filter: Partial<SignalFilter>) {
       this.filter = { ...this.filter, ...filter }
     },
 
-    // 更新排序
     updateSorter(sorter: SignalSorter) {
       this.sorter = sorter
     },
 
-    // 选择/取消选择信号
     toggleSelection(signalId: string) {
       const index = this.selectedSignals.indexOf(signalId)
       if (index > -1) {
@@ -363,12 +259,10 @@ export const useBuyReferenceStore = defineStore('buyReference', {
       }
     },
 
-    // 全选
     selectAll() {
       this.selectedSignals = this.filteredSignals.map(s => s.id)
     },
 
-    // 取消全选
     deselectAll() {
       this.selectedSignals = []
     },

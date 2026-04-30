@@ -18,10 +18,16 @@ import SyncTasks from '@/views/SyncTasks.vue'
 import SnapshotManage from '@/views/SnapshotManageView.vue'
 import SignalManage from '@/views/SignalManage.vue'
 import StockCalculator from '@/views/StockCalculator.vue'
+import MovingAverageSlope from '@/views/MovingAverageSlope.vue'
 import TagManage from '@/views/TagManage.vue'
 import WatchlistManage from '@/views/WatchlistManage.vue'
 import MoneyflowIndThs from '@/views/MoneyflowIndThs.vue'
+import IndustryMoneyflowChart from '@/views/IndustryMoneyflowChart.vue'
 import SectorDetail from '@/views/SectorDetail.vue'
+import CapitalFlow from '@/views/CapitalFlow.vue'
+import IndustryDailyFlow from '@/views/IndustryDailyFlow.vue'
+import IncrementalIndustry from '@/views/IncrementalIndustry.vue'
+import HotIndustries from '@/views/HotIndustries.vue'
 
 const routes = [
   {
@@ -68,10 +74,9 @@ const routes = [
     component: SectorList
   },
   {
-    path: '/sector/:code',
+    path: '/sector/detail',
     name: 'SectorDetail',
     component: SectorDetail,
-    props: true,
     meta: { title: '板块详情' }
   },
   {
@@ -134,6 +139,12 @@ const routes = [
     meta: { title: '股票计算器' }
   },
   {
+    path: '/moving-average-slope',
+    name: 'MovingAverageSlope',
+    component: MovingAverageSlope,
+    meta: { title: '均线斜率' }
+  },
+  {
     path: '/basic-data/tags',
     name: 'TagManage',
     component: TagManage,
@@ -150,6 +161,36 @@ const routes = [
     name: 'MoneyflowIndThs',
     component: MoneyflowIndThs,
     meta: { title: '行业资金' }
+  },
+  {
+    path: '/industry-moneyflow-chart',
+    name: 'IndustryMoneyflowChart',
+    component: IndustryMoneyflowChart,
+    meta: { title: '资金图表' }
+  },
+  {
+    path: '/capital-flow',
+    name: 'CapitalFlow',
+    component: CapitalFlow,
+    meta: { title: '资金流向' }
+  },
+  {
+    path: '/industry-daily-flow',
+    name: 'IndustryDailyFlow',
+    component: IndustryDailyFlow,
+    meta: { title: '行业每日净流入' }
+  },
+  {
+    path: '/incremental-industry',
+    name: 'IncrementalIndustry',
+    component: IncrementalIndustry,
+    meta: { title: '增量行业' }
+  },
+  {
+    path: '/hot-industries',
+    name: 'HotIndustries',
+    component: HotIndustries,
+    meta: { title: '火热行业' }
   }
 ]
 

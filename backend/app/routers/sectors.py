@@ -82,7 +82,8 @@ async def get_sector_stocks(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（股票名称或代码）"),
-    sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序)"),
+    sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)"),
+    trend: Optional[str] = Query(None, description="趋势过滤: up(上升), down(下降)"),
 ):
     """
     获取板块内的股票列表
@@ -105,7 +106,7 @@ async def get_sector_stocks(
     if not sector:
         raise HTTPException(status_code=404, detail="Sector not found")
 
-    all_stocks = service.get_sector_stocks(sector_code, sector_type, sort=sort)
+    all_stocks = service.get_sector_stocks(sector_code, sector_type, sort=sort, trend=trend)
 
     # 搜索过滤
     if search:

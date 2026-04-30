@@ -119,7 +119,7 @@ const renderChart = () => {
     },
     legend: { show: false },
     grid: {
-      left: '10%',
+      left: '2%',
       right: '5%',
       top: '8%',
       bottom: '18%',

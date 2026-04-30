@@ -192,9 +192,6 @@
             </div>
             
             <div class="stock-footer">
-              <el-button size="small" @click="viewDetail(stock)">
-                <el-icon><View /></el-icon>详情
-              </el-button>
               <el-button
                 size="small"
                 type="warning"
@@ -202,7 +199,10 @@
                 :loading="stock.addingToWatchlist"
                 :disabled="stock.isWatched"
               >
-                <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
+                {{ stock.isWatched ? '已关注' : '关注' }}
+              </el-button>
+              <el-button size="small" type="primary" link @click="viewDetail(stock)">
+                详情
               </el-button>
               <el-button size="small" type="primary" link @click="openXueqiu(stock)">
                 雪球
@@ -215,7 +215,6 @@
             <StockKlineChart
               :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
               :ts-code="stock.ts_code"
-              :stock-name="stock.name"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-m-a-c-d="true"
               min-height="260px"

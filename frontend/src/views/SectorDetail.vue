@@ -40,18 +40,33 @@
         />
         <el-select
           v-model="sortOrder"
-          placeholder="涨幅排序"
-          style="width: 140px;"
+          placeholder="排序方式"
+          style="width: 150px; margin-right: 10px;"
           @change="handleSortChange"
         >
           <el-option label="默认排序" value="default" />
           <el-option label="涨幅升序" value="asc" />
           <el-option label="涨幅降序" value="desc" />
+          <el-option label="成交量升序" value="volume_asc" />
+          <el-option label="成交量降序" value="volume_desc" />
+        </el-select>
+        <el-select
+          v-model="trendFilter"
+          placeholder="趋势筛选"
+          style="width: 120px;"
+          @change="handleTrendChange"
+        >
+          <el-option label="全部趋势" value="all" />
+          <el-option label="上升趋势" value="up" />
+          <el-option label="下降趋势" value="down" />
         </el-select>
       </div>
-      <div v-if="searchQuery.trim()" class="search-info">
-        <el-tag type="info">
-          搜索结果: {{ stocks.length }} 条 / 共 {{ totalStocks }} 条
+      <div v-if="searchQuery.trim() || trendFilter !== 'all'" class="search-info">
+        <el-tag v-if="searchQuery.trim()" type="info">
+          搜索: {{ stocks.length }} 条 / 共 {{ totalStocks }} 条
+        </el-tag>
+        <el-tag v-if="trendFilter !== 'all'" :type="trendFilter === 'up' ? 'danger' : 'success'" style="margin-left: 8px;">
+          趋势: {{ trendFilter === 'up' ? '上升' : '下降' }}
         </el-tag>
       </div>
     </el-card>
@@ -152,9 +167,7 @@
               </div>
               
               <div class="stock-footer">
-                <el-button size="small" @click="viewDetail(stock)">
-                  <el-icon><View /></el-icon>详情
-                </el-button>
+                
                 <el-button
                   size="small"
                   type="warning"
@@ -162,7 +175,10 @@
                   :loading="stock.addingToWatchlist"
                   :disabled="stock.isWatched"
                 >
-                  <el-icon><Star /></el-icon>{{ stock.isWatched ? '已关注' : '关注' }}
+                  {{ stock.isWatched ? '已关注' : '关注' }}
+                </el-button>
+                <el-button size="small" type="primary" link @click="viewDetail(stock)">
+                  详情
                 </el-button>
                 <el-button size="small" type="primary" link @click="openXueqiu(stock)">
                   雪球
@@ -175,7 +191,6 @@
               <StockKlineChart
                 :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
                 :ts-code="stock.ts_code"
-                :stock-name="stock.name"
                 :kline-data="klineDataCache.get(stock.ts_code) || []"
                 :show-m-a-c-d="true"
                 min-height="260px"
@@ -322,7 +337,8 @@ const stocks = ref([])
 const loading = ref(false)
 const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
-const sortOrder = ref('default') // 'default' | 'asc' | 'desc'
+const sortOrder = ref('default') // 'default' | 'asc' | 'desc' | 'volume_asc' | 'volume_desc'
+const trendFilter = ref('up') // 'all' | 'up' | 'down'
 
 // 股票列表（后端已按选定规则排序）
 const displayStocks = computed(() => {
@@ -347,6 +363,13 @@ const handlePageChange = (page, skipScroll = false) => {
 
 // 排序变化处理
 const handleSortChange = () => {
+  selectedStockIndex.value = 0
+  currentPage.value = 1
+  fetchSectorStocks()
+}
+
+// 趋势筛选变化处理
+const handleTrendChange = () => {
   selectedStockIndex.value = 0
   currentPage.value = 1
   fetchSectorStocks()
@@ -387,7 +410,7 @@ const handleFollowSuccess = () => {
 
 // 获取板块股票列表
 const fetchSectorStocks = async () => {
-  const sectorCode = route.params.code
+  const sectorCode = route.query.code
   const sectorType = route.query.sectorType || 'industry'
 
   if (!sectorCode) return
@@ -406,7 +429,8 @@ const fetchSectorStocks = async () => {
         page: currentPage.value,
         page_size: 20, // 固定每页20条
         search: searchQuery.value.trim() || undefined,
-        sort: sortOrder.value !== 'default' ? sortOrder.value : undefined
+        sort: sortOrder.value !== 'default' ? sortOrder.value : undefined,
+        trend: trendFilter.value !== 'all' ? trendFilter.value : undefined
       }
     })
 
@@ -474,7 +498,7 @@ const checkWatchStatus = async (stockList) => {
 }
 
 // 监听路由参数变化
-watch(() => route.params.code, (newCode) => {
+watch(() => route.query.code, (newCode) => {
   if (newCode) {
     fetchSectorStocks()
   } else {
@@ -482,13 +506,14 @@ watch(() => route.params.code, (newCode) => {
     sectorInfo.value = null
     searchQuery.value = ''
     currentPage.value = 1
+    trendFilter.value = 'all'
   }
   selectedStockIndex.value = 0
 }, { immediate: true })
 
 // 页面加载时检查路由参数
 onMounted(() => {
-  if (route.params.code) {
+  if (route.query.code) {
     fetchSectorStocks()
   }
   // 注册键盘事件监听

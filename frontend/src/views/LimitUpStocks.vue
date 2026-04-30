@@ -187,7 +187,6 @@
             <StockKlineChart
               :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
               :ts-code="stock.ts_code"
-              :stock-name="stock.name"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-m-a-c-d="true"
             />

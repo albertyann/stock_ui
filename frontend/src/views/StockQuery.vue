@@ -306,7 +306,8 @@ const getChangeClass = (val) => {
 const getXueqiuUrl = (tsCode) => {
   // ts_code 格式: 002342.SZ → 雪球格式: SZ002342
   const [code, exchange] = tsCode.split('.')
-  return `https://xueqiu.com/S/${exchange}${code}`
+  //return `https://xueqiu.com/S/${exchange}${code}`
+  return `/stock/${tsCode}`
 }
 
 const selectRow = (row) => {

@@ -25,12 +25,17 @@ const props = defineProps({
   // 图表高度
   height: {
     type: String,
-    default: '300px'
+    default: '200px'
   },
   // 图表最小高度
   minHeight: {
     type: String,
-    default: '300px'
+    default: '200px'
+  },
+  // 移动平均线周期数组
+  maPeriods: {
+    type: Array,
+    default: () => [5, 20, 30, 60]
   }
 })
 
@@ -62,14 +67,22 @@ const renderChart = () => {
   const dates = data.map(item => item.date)
   const values = data.map(item => [item.open, item.close, item.low, item.high])
 
-  // 计算移动平均线
-  const ma5 = calculateMA(data, 5)
-  const ma20 = calculateMA(data, 20)
-  const ma30 = calculateMA(data, 30)
-  const ma60 = calculateMA(data, 60)
+  // 根据 maPeriods 动态计算移动平均线
+  const maMap = {}
+  const maColors = {
+    5: '#ee6666',
+    10: '#fac858',
+    20: '#3ba272',
+    30: '#5470c6',
+    60: '#ea7ccc',
+    120: '#91cc75'
+  }
+  props.maPeriods.forEach(period => {
+    maMap[period] = calculateMA(data, period)
+  })
 
   // 构建图例数据
-  const legendData = ['日K', 'MA5', 'MA20', 'MA30', 'MA60']
+  const legendData = [...props.maPeriods.map(p => `MA${p}`)]
 
   // 构建tooltip formatter
   const tooltipFormatter = (params) => {
@@ -97,10 +110,10 @@ const renderChart = () => {
   // 构建grid配置
   const grids = [
     {
-      left: '10%',
-      right: '8%',
-      top: '12%',
-      bottom: '15%'
+      left: '8%',
+      right: '5%',
+      top: '8%',
+      bottom: '18%'
     }
   ]
 
@@ -147,49 +160,22 @@ const renderChart = () => {
         borderColor0: '#67c23a'
       }
     },
-    {
-      name: 'MA5',
+    ...props.maPeriods.map(period => ({
+      name: `MA${period}`,
       type: 'line',
-      data: ma5,
+      data: maMap[period],
       smooth: true,
-      lineStyle: { width: 1.5, color: '#ee6666' },
-      itemStyle: { color: '#ee6666' },
+      lineStyle: { width: 1.5, color: maColors[period] || '#5470c6' },
+      itemStyle: { color: maColors[period] || '#5470c6' },
       symbol: 'none'
-    },
-    {
-      name: 'MA20',
-      type: 'line',
-      data: ma20,
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#3ba272' },
-      itemStyle: { color: '#3ba272' },
-      symbol: 'none'
-    },
-    {
-      name: 'MA30',
-      type: 'line',
-      data: ma30,
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#5470c6' },
-      itemStyle: { color: '#5470c6' },
-      symbol: 'none'
-    },
-    {
-      name: 'MA60',
-      type: 'line',
-      data: ma60,
-      smooth: true,
-      lineStyle: { width: 1.5, color: '#ea7ccc' },
-      itemStyle: { color: '#ea7ccc' },
-      symbol: 'none'
-    }
+    }))
   ]
 
   const option = {
     title: {
       text: props.stockName || '',
       left: 'center',
-      top: 5,
+      top: 0,
       textStyle: {
         fontSize: 14,
         fontWeight: 'normal'
@@ -197,7 +183,7 @@ const renderChart = () => {
     },
     legend: {
       data: legendData,
-      top: 28,
+      top: 0,
       textStyle: { fontSize: 10 }
     },
     tooltip: {

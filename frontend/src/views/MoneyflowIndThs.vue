@@ -90,7 +90,13 @@
         <el-table-column type="index" label="序号" width="60" align="center" />
         <el-table-column prop="trade_date" label="交易日期" width="120" sortable align="center" />
         <el-table-column prop="ts_code" label="行业代码" width="120" sortable />
-        <el-table-column prop="industry" label="行业名称" min-width="140" sortable />
+        <el-table-column prop="industry" label="行业名称" min-width="140" sortable>
+          <template #default="{ row }">
+            <router-link :to="{ path: '/sector/detail', query: { code: row.ts_code, sectorType: 'industry', sectorName: row.industry } }" class="sector-link">
+              {{ row.industry }}
+            </router-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="lead_stock" label="领涨股" min-width="120" />
         <el-table-column prop="net_amount" label="净流入" min-width="120" sortable align="right">
           <template #default="{ row }">
@@ -165,7 +171,7 @@ const getToday = () => {
 
 const filter = reactive({
   industry: '',
-  trade_date: getToday(),
+  trade_date: '',
   ts_code: ''
 })
 
@@ -229,13 +235,28 @@ const handleFilterChange = () => {
   fetchData()
 }
 
+// 获取最后交易日期
+const initLastTradeDate = async () => {
+  try {
+    const res = await basicDataApi.getLastTradeDate()
+    if (res.success && res.data) {
+      filter.trade_date = res.data
+    } else {
+      filter.trade_date = getToday()
+    }
+  } catch (err) {
+    console.error('Failed to get last trade date:', err)
+    filter.trade_date = getToday()
+  }
+}
+
 // 重置筛选
 const resetFilter = () => {
   filter.industry = ''
-  filter.trade_date = getToday()
+  filter.trade_date = ''
   filter.ts_code = ''
   pagination.page = 1
-  fetchData()
+  initLastTradeDate().then(() => fetchData())
 }
 
 // 分页变化
@@ -303,7 +324,8 @@ const formatNumber = (value) => {
   return value.toFixed(2)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await initLastTradeDate()
   fetchData()
 })
 </script>
@@ -402,6 +424,18 @@ onMounted(() => {
 
 .amount-flat {
   color: #909399;
+}
+
+.sector-link {
+  color: #409eff;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sector-link:hover {
+  text-decoration: underline;
+  color: #66b1ff;
 }
 
 @media (max-width: 768px) {

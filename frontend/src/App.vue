@@ -67,6 +67,10 @@
               <el-icon><Coin /></el-icon>
               <span>股票计算器</span>
             </el-menu-item>
+            <el-menu-item index="/moving-average-slope">
+              <el-icon><TrendCharts /></el-icon>
+              <span>均线斜率</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-analysis">
             <template #title>
@@ -92,6 +96,26 @@
             <el-menu-item index="/moneyflow-ind-ths">
               <el-icon><Money /></el-icon>
               <span>行业资金</span>
+            </el-menu-item>
+            <el-menu-item index="/industry-moneyflow-chart">
+              <el-icon><Histogram /></el-icon>
+              <span>资金图表</span>
+            </el-menu-item>
+            <el-menu-item index="/capital-flow">
+              <el-icon><Money /></el-icon>
+              <span>资金流向</span>
+            </el-menu-item>
+            <el-menu-item index="/industry-daily-flow">
+              <el-icon><Histogram /></el-icon>
+              <span>行业每日净流入</span>
+            </el-menu-item>
+            <el-menu-item index="/incremental-industry">
+              <el-icon><TrendCharts /></el-icon>
+              <span>增量行业</span>
+            </el-menu-item>
+            <el-menu-item index="/hot-industries">
+              <el-icon><Histogram /></el-icon>
+              <span>火热行业</span>
             </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-basic-data">

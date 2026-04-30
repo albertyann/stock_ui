@@ -165,8 +165,9 @@ const handleSearch = () => {
 // 跳转到板块详情
 const goToSector = (sector) => {
   router.push({
-    path: `/sector/${sector.code}`,
+    path: '/sector/detail',
     query: {
+      code: sector.code,
       sectorType: sector.type,
       sectorName: sector.name
     }

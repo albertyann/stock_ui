@@ -61,7 +61,7 @@ class SectorService:
             return []
 
     def get_sector_stocks(
-        self, sector_code: str, sector_type: str = "industry", sort: str = "default"
+        self, sector_code: str, sector_type: str = "industry", sort: str = "default", trend: Optional[str] = None
     ) -> List[Dict]:
         """
         获取板块内的股票列表（包含实时价格数据）
@@ -85,12 +85,25 @@ class SectorService:
                     order_clause = "dd.pct_chg ASC NULLS LAST"
                 elif sort == "desc":
                     order_clause = "dd.pct_chg DESC NULLS LAST"
+                elif sort == "volume_asc":
+                    order_clause = "dd.vol ASC NULLS LAST"
+                elif sort == "volume_desc":
+                    order_clause = "dd.vol DESC NULLS LAST"
+
+                # 构建趋势过滤条件
+                trend_params = {"industry": sector_name}
+                trend_clause = ""
+                if trend == "up":
+                    trend_clause = "AND sb.trend = 1"
+                elif trend == "down":
+                    trend_clause = "AND sb.trend = -1"
 
                 query = f"""
                     SELECT
                         sb.ts_code,
                         sb.symbol,
                         sb.name,
+                        sb.industry,
                         sb.market,
                         sb.list_date,
                         dd.open,
@@ -110,10 +123,10 @@ class SectorService:
                         ORDER BY trade_date DESC
                         LIMIT 1
                     ) dd ON true
-                    WHERE sb.industry = :industry
+                    WHERE sb.industry = :industry {trend_clause}
                     ORDER BY {order_clause}
                 """
-                result = conn.execute(text(query), {"industry": sector_name})
+                result = conn.execute(text(query), trend_params)
 
                 stocks = []
                 for row in result:
@@ -127,6 +140,7 @@ class SectorService:
                             "ts_code": row.ts_code,
                             "symbol": row.symbol,
                             "name": row.name,
+                            "industry": row.industry,
                             "price": price,
                             "pre_close": pre_close,
                             "open": float(row.open or 0),

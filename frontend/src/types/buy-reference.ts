@@ -15,12 +15,13 @@ export interface BuySignal {
   // 唯一标识
   id: string;
   
-  // 股票信息
   stock: {
-    tsCode: string;      // 股票代码，如 "000001.SZ"
-    symbol: string;      // 股票代码，如 "000001"
-    name: string;        // 股票名称
-    exchange?: string;   // 交易所
+    tsCode: string;
+    symbol: string;
+    name: string;
+    industry?: string;
+    changePct?: number;
+    exchange?: string;
   };
   
   // 策略信息

@@ -6,9 +6,48 @@ from pydantic import BaseModel
 
 from app.database import get_db
 from app.services.signal_service import SignalService
+from app.models import StockBasic, StockPriceCache
+from sqlalchemy import select, func
 
 
 router = APIRouter(prefix="/signals", tags=["signals"])
+
+
+async def _get_stock_info(db, ts_codes):
+    if not ts_codes:
+        return {}
+
+    basic_result = await db.execute(
+        select(StockBasic.ts_code, StockBasic.name, StockBasic.industry)
+        .where(StockBasic.ts_code.in_(ts_codes))
+    )
+    info = {}
+    for row in basic_result.all():
+        info[row[0]] = {"name": row[1], "industry": row[2]}
+
+    subq = (
+        select(
+            StockPriceCache.ts_code,
+            func.max(StockPriceCache.trade_date).label("max_date")
+        )
+        .where(StockPriceCache.ts_code.in_(ts_codes))
+        .group_by(StockPriceCache.ts_code)
+        .subquery()
+    )
+
+    latest_prices = await db.execute(
+        select(StockPriceCache.ts_code, StockPriceCache.change_pct)
+        .join(
+            subq,
+            (StockPriceCache.ts_code == subq.c.ts_code)
+            & (StockPriceCache.trade_date == subq.c.max_date)
+        )
+    )
+    for row in latest_prices.all():
+        if row[0] in info:
+            info[row[0]]["change_pct"] = float(row[1]) if row[1] is not None else None
+
+    return info
 
 
 class SignalAnalyzeRequest(BaseModel):
@@ -42,12 +81,18 @@ async def get_signals(
         ts_code=ts_code, signal_type=signal_type, active_only=active_only, limit=limit
     )
 
+    ts_codes = list({s.ts_code for s in signals})
+    stock_info = await _get_stock_info(db, ts_codes)
+
     return {
         "success": True,
         "data": [
             {
                 "id": s.id,
                 "ts_code": s.ts_code,
+                "stock_name": stock_info.get(s.ts_code, {}).get("name"),
+                "industry": stock_info.get(s.ts_code, {}).get("industry"),
+                "change_pct": stock_info.get(s.ts_code, {}).get("change_pct"),
                 "signal_type": s.signal_type,
                 "signal_strength": s.signal_strength,
                 "signal_date": s.signal_date.isoformat() if s.signal_date else None,
@@ -69,10 +114,14 @@ async def get_signals(
     }
 
 
-def _serialize_signal(s) -> dict:
+def _serialize_signal(s, stock_info: dict = None) -> dict:
+    info = stock_info or {}
     return {
         "id": s.id,
         "ts_code": s.ts_code,
+        "stock_name": info.get("name"),
+        "industry": info.get("industry"),
+        "change_pct": info.get("change_pct"),
         "signal_type": s.signal_type,
         "signal_strength": s.signal_strength,
         "signal_date": s.signal_date.isoformat() if s.signal_date else None,
@@ -114,9 +163,12 @@ async def get_signals_manage(
         signal_date_end=signal_date_end,
     )
 
+    ts_codes = list({s.ts_code for s in signals})
+    stock_info_map = await _get_stock_info(db, ts_codes)
+
     return {
         "success": True,
-        "data": [_serialize_signal(s) for s in signals],
+        "data": [_serialize_signal(s, stock_info_map.get(s.ts_code)) for s in signals],
         "pagination": {
             "page": page,
             "page_size": page_size,

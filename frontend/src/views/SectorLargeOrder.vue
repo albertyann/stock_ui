@@ -110,11 +110,26 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { sectorApi } from '@/api'
+import { sectorApi, basicDataApi } from '@/api'
 
 const loading = ref(false)
 const data = ref([])
 const selectedDate = ref('')
+
+// 获取最后交易日期
+const initLastTradeDate = async () => {
+  try {
+    const res = await basicDataApi.getLastTradeDate()
+    if (res.success && res.data) {
+      selectedDate.value = res.data
+    } else {
+      selectedDate.value = getToday()
+    }
+  } catch (err) {
+    console.error('Failed to get last trade date:', err)
+    selectedDate.value = getToday()
+  }
+}
 
 // 获取今天的日期字符串 YYYY-MM-DD
 const getToday = () => {
@@ -188,8 +203,8 @@ const getAmountClass = (amount) => {
   return 'amount-flat'
 }
 
-onMounted(() => {
-  selectedDate.value = getToday()
+onMounted(async () => {
+  await initLastTradeDate()
   fetchData()
 })
 </script>

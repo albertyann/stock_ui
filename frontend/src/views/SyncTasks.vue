@@ -168,6 +168,8 @@
             <el-option label="weekly_data (周线数据)" value="weekly_data" />
             <el-option label="stock_basic (股票基本信息)" value="stock_basic" />
             <el-option label="moneyflow (资金流动)" value="moneyflow" />
+            <el-option label="moneyflow_hsgt (北向资金)" value="moneyflow_hsgt" />
+            <el-option label="moneyflow_ind_ths (同花顺行业资金流)" value="moneyflow_ind_ths" />
           </el-select>
         </el-form-item>
         <el-form-item label="命令">

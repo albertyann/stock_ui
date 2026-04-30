@@ -215,6 +215,7 @@ export const basicDataApi = {
     return api.get(url)
   },
   getExchanges: () => api.get('/basic-data/trade-cal/exchanges'),
+  getLastTradeDate: (exchange = 'SSE') => api.get(`/basic-data/trade-cal/last?exchange=${exchange}`),
   getStockBasic: (params = {}) => {
     const { page = 1, page_size = 20, name = null, ts_code = null, symbol = null, industry = null } = params
     let url = `/basic-data/stocks?page=${page}&page_size=${page_size}`
@@ -280,6 +281,73 @@ export const basicDataApi = {
     }
     if (sort_order) {
       url += `&sort_order=${encodeURIComponent(sort_order)}`
+    }
+    return api.get(url)
+  },
+  getMoneyflowIndThsHistory: (tsCodes, days = 60) => {
+    const codes = Array.isArray(tsCodes) ? tsCodes.join(',') : tsCodes
+    return api.get(`/basic-data/moneyflow-ind-ths/history?ts_codes=${encodeURIComponent(codes)}&days=${days}`)
+  },
+  getMoneyflowIndThsIndustries: () => api.get('/basic-data/moneyflow-ind-ths/industries'),
+  getCapitalFlow: (params = {}) => {
+    const { days = 20, industry = null, ts_code = null, sort_field = null, sort_order = null } = params
+    let url = `/basic-data/capital-flow?days=${days}`
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (sort_field) {
+      url += `&sort_field=${encodeURIComponent(sort_field)}`
+    }
+    if (sort_order) {
+      url += `&sort_order=${encodeURIComponent(sort_order)}`
+    }
+    return api.get(url)
+  },
+  getIndustryDailyFlow: (params = {}) => {
+    const { trade_date = null, days = 30, industry = null, sort_field = null, sort_order = null } = params
+    let url = `/basic-data/industry-daily-flow?days=${days}`
+    if (trade_date) {
+      url += `&trade_date=${trade_date}`
+    }
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (sort_field) {
+      url += `&sort_field=${encodeURIComponent(sort_field)}`
+    }
+    if (sort_order) {
+      url += `&sort_order=${encodeURIComponent(sort_order)}`
+    }
+    return api.get(url)
+  },
+  getIncrementalIndustry: (days = 20, min_growth_days = 3, end_date = null) => {
+    let url = `/basic-data/incremental-industry?days=${days}&min_growth_days=${min_growth_days}`
+    if (end_date) {
+      url += `&end_date=${end_date}`
+    }
+    return api.get(url)
+  },
+  getHotIndustries: (params = {}) => {
+    const { trade_date = null, min_amount = null, sort_field = null, sort_order = null } = params
+    let url = `/basic-data/hot-industries`
+    const queryParams = []
+    if (trade_date) {
+      queryParams.push(`trade_date=${encodeURIComponent(trade_date)}`)
+    }
+    if (min_amount !== null) {
+      queryParams.push(`min_amount=${min_amount}`)
+    }
+    if (sort_field) {
+      queryParams.push(`sort_field=${encodeURIComponent(sort_field)}`)
+    }
+    if (sort_order) {
+      queryParams.push(`sort_order=${encodeURIComponent(sort_order)}`)
+    }
+    if (queryParams.length > 0) {
+      url += `?${queryParams.join('&')}`
     }
     return api.get(url)
   }

@@ -228,6 +228,7 @@ class RealtimePriceService:
                         {"ts_code": ts_code, "limit": limit},
                     )
 
+                stock_name = self._get_stock_name(ts_code)
                 kline_data = []
                 for row in result:
                     kline_data.append(
@@ -235,6 +236,7 @@ class RealtimePriceService:
                             "date": row.date.strftime("%Y-%m-%d")
                             if hasattr(row.date, "strftime")
                             else str(row.date)[:10],
+                            "name": stock_name,
                             "open": float(row.open or 0),
                             "high": float(row.high or 0),
                             "low": float(row.low or 0),

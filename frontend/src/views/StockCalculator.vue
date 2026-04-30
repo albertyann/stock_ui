@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>股票计算器</span>
+          <span>计算器</span>
         </div>
       </template>
 
@@ -11,23 +11,27 @@
         <el-form-item label="价格 A">
           <el-input-number
             v-model="priceA"
+            ref="priceARef"
             :precision="2"
             :step="0.01"
             :min="0"
             placeholder="输入价格 A"
             controls-position="right"
             style="width: 300px"
+            @keyup.enter="focusPriceB"
           />
         </el-form-item>
         <el-form-item label="价格 B">
           <el-input-number
             v-model="priceB"
+            ref="priceBRef"
             :precision="2"
             :step="0.01"
             :min="0"
             placeholder="输入价格 B"
             controls-position="right"
             style="width: 300px"
+            @keyup.enter="calculate"
           />
         </el-form-item>
         <el-form-item>
@@ -61,12 +65,22 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+
+onMounted(() => {
+  document.title = '计算器'
+})
 
 const priceA = ref(null)
 const priceB = ref(null)
 const result = ref(null)
+const priceARef = ref(null)
+const priceBRef = ref(null)
+
+const focusPriceB = () => {
+  priceBRef.value?.focus()
+}
 
 const calculate = () => {
   if (priceA.value === null || priceB.value === null) {

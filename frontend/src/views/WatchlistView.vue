@@ -46,10 +46,6 @@
             :value="tag"
           />
         </el-select>
-        <el-radio-group v-model="showAllStocks" size="small" style="margin-right: 10px;">
-          <el-radio-button :label="false">仅热点</el-radio-button>
-          <el-radio-button :label="true">全部</el-radio-button>
-        </el-radio-group>
         <el-button v-if="props.id == 2" type="warning" @click="handleSnapshot" :loading="snapshotLoading">
           <el-icon><Camera /></el-icon>快照
         </el-button>
@@ -75,162 +71,135 @@
 
     <el-empty v-if="currentWatchlist && !filteredStocks.length" :description="selectedDate ? '所选日期暂无信号数据' : '暂无股票，点击上方按钮添加'" />
 
-    <el-row :gutter="20" v-if="currentWatchlist && filteredStocks.length">
-      <el-col 
-        :xs="24" :sm="12" :md="8" :lg="6" 
-        v-for="stock in filteredStocks" 
+    <div v-if="currentWatchlist && filteredStocks.length" class="stock-list">
+      <div
+        v-for="(stock, index) in filteredStocks"
         :key="stock.id"
-        class="stock-card-col"
+        class="stock-card"
+        :class="[getChangeClass(stockPrices[stock.ts_code]?.change_pct), { selected: index === selectedStockIndex }]"
       >
-        <el-card class="stock-card" shadow="hover">
+        <!-- 左侧：股票信息 -->
+        <div class="stock-info-section">
           <div class="stock-header">
-            <div class="stock-info">
-              <div class="stock-title">
-                <h3>{{ stock.name || stock.symbol }}</h3>
+            <div class="stock-title">
+              <div class="stock-name">{{ stock.name || stock.symbol }}</div>
+              <div class="stock-code">{{ stock.ts_code }}</div>
+              <el-tag
+                :type="stock.status === 2 ? 'info' : 'danger'"
+                size="small"
+                class="status-tag"
+                effect="light"
+              >
+                {{ stock.status === 2 ? '静默' : '热点' }}
+              </el-tag>
+            </div>
+            <div
+              class="change-badge"
+              :class="getChangeClass(stockPrices[stock.ts_code]?.change_pct)"
+            >
+              {{ stockPrices[stock.ts_code] ? formatChange(stockPrices[stock.ts_code].change_pct) : '0.00%' }}
+            </div>
+          </div>
+
+          <div class="stock-body">
+            <!-- 当前价格 -->
+            <div class="price-section">
+              <div
+                class="current-price"
+                :class="getChangeClass(stockPrices[stock.ts_code]?.change_pct)"
+              >
+                ¥{{ stockPrices[stock.ts_code]?.price?.toFixed(2) || '-' }}
+              </div>
+              <div class="change-info">
+                <span :class="getChangeClass(stockPrices[stock.ts_code]?.change_pct)">
+                  {{ stockPrices[stock.ts_code] ? (stockPrices[stock.ts_code].change_pct > 0 ? '+' : '') + stockPrices[stock.ts_code].change_pct?.toFixed(2) + '%' : '0.00%' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 市值信息 -->
+            <div class="volume-section">
+              <div class="volume-row">
+                <span class="label">市值</span>
+                <span class="value">{{ formatMarketCap(stockPrices[stock.ts_code]?.market_cap) }}</span>
+              </div>
+            </div>
+
+            <!-- 信号信息 -->
+            <div class="signal-section" v-if="stockSignals[stock.ts_code]">
+              <div class="signal-row">
+                <span class="label">信号</span>
                 <el-tag
-                  :type="stock.status === 2 ? 'info' : 'danger'"
+                  :type="getSignalType(stockSignals[stock.ts_code].signal_type)"
                   size="small"
-                  class="status-tag"
-                  effect="light"
                 >
-                  {{ stock.status === 2 ? '静默' : '热点' }}
+                  {{ formatSignal(stockSignals[stock.ts_code].signal_type) }}
                 </el-tag>
-                <el-button
-                  type="success"
-                  size="small"
-                  circle
-                  @click="openSwitchGroupDialog(stock)"
-                  title="切换分组"
+                <span
+                  class="signal-strength"
+                  v-if="stockSignals[stock.ts_code].signal_strength"
                 >
-                  <el-icon><Switch /></el-icon>
-                </el-button>
+                  强度: {{ stockSignals[stock.ts_code].signal_strength }}/5
+                </span>
               </div>
-              <span class="stock-code">{{ stock.ts_code }}</span>
             </div>
 
-          </div>
-
-          <div class="stock-price" v-if="stockPrices[stock.ts_code]">
-            <div class="current-price">
-              ¥{{ stockPrices[stock.ts_code].price?.toFixed(2) }}
+            <!-- 添加时间 -->
+            <div class="time-section">
+              <span class="time-label">添加时间：</span>
+              <span class="time-value">{{ formatDate(stock.added_at) }}</span>
             </div>
-            <div 
-              class="change-pct"
-              :class="getChangeClass(stockPrices[stock.ts_code].change_pct)"
-            >
-              {{ stockPrices[stock.ts_code].change_pct > 0 ? '+' : '' }}
-              {{ stockPrices[stock.ts_code].change_pct?.toFixed(2) }}%
-            </div>
-          </div>
-
-          <div class="stock-price" v-if="stockPrices[stock.ts_code]">
-            <div v-if="stockPrices[stock.ts_code].market_cap">
-              {{ formatMarketCap(stockPrices[stock.ts_code].market_cap) }}
-            </div>
-          </div>
-
-          
-          <div class="stock-signal" v-if="stockSignals[stock.ts_code]">
-            <el-tag 
-              :type="getSignalType(stockSignals[stock.ts_code].signal_type)"
-              size="small"
-              class="signal-tag"
-            >
-              {{ formatSignal(stockSignals[stock.ts_code].signal_type) }}
-            </el-tag>
-            <span class="signal-strength" v-if="stockSignals[stock.ts_code].signal_strength">
-              强度: {{ stockSignals[stock.ts_code].signal_strength }}/5
-            </span>
-          </div>
-
-          <div class="stock-notes" v-if="stock.notes">
-            <el-text type="info" size="small">{{ stock.notes }}</el-text>
-          </div>
-
-          <div class="stock-watch-reason" v-if="stock.watch_reason">
-            <el-tag type="warning" size="small" effect="plain">
-              {{ stock.watch_reason }}
-            </el-tag>
-          </div>
-
-          <div class="stock-tags">
-            <el-popover
-              :width="280"
-              trigger="click"
-              v-model:visible="tagPopoverVisible[stock.id]"
-              @show="popoverSelectedTags = [...(stock.tags || [])]"
-            >
-              <template #reference>
-                <div class="tags-display" v-if="stock.tags && stock.tags.length">
-                  <el-tag
-                    v-for="tag in stock.tags"
-                    :key="tag"
-                    size="small"
-                    effect="plain"
-                    class="stock-tag"
-                  >
-                    {{ tag }}
-                  </el-tag>
-                </div>
-                <el-tag v-else size="small" effect="plain" type="info" class="stock-tag-add">+ 标签</el-tag>
-              </template>
-              <div class="tag-edit-content">
-                <el-select
-                  v-model="popoverSelectedTags"
-                  multiple
-                  filterable
-                  allow-create
-                  placeholder="选择或输入标签"
-                  style="width: 100%"
-                >
-                  <el-option
-                    v-for="tag in allTags"
-                    :key="tag"
-                    :label="tag"
-                    :value="tag"
-                  />
-                </el-select>
-                <div class="tag-edit-actions">
-                  <el-button size="small" @click="tagPopoverVisible[stock.id] = false">取消</el-button>
-                  <el-button size="small" type="primary" @click="saveStockTags(stock)">保存</el-button>
-                </div>
-              </div>
-            </el-popover>
           </div>
 
           <div class="stock-footer">
-            <span class="added-time">{{ formatDate(stock.added_at) }}</span>
-            
             <el-button
-              type="primary"
               size="small"
+              type="primary"
+              link
+              @click="openSwitchGroupDialog(stock)"
+            >
+              换组
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
               link
               @click="openNotesDialog(stock)"
             >
               备注
             </el-button>
-
             <el-button
-              type="primary"
               size="small"
+              type="primary"
               link
               @click="openXueqiu(stock.ts_code)"
             >
               雪球
             </el-button>
-
             <el-button
-              type="primary"
               size="small"
-              text
-              @click="$router.push(`/stock/${stock.ts_code}`)"
+              type="primary"
+              link
+              @click="openStockDetail(stock.ts_code)"
             >
               详情
             </el-button>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+
+        </div>
+
+        <!-- 右侧：K线图 -->
+        <div class="stock-chart-section">
+          <StockKlineChart
+            :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
+            :ts-code="stock.ts_code"
+            :kline-data="klineDataCache.get(stock.ts_code) || []"
+            :show-m-a-c-d="true"
+            min-height="260px"
+          />
+        </div>
+      </div>
+    </div>
 
     <el-dialog v-model="showAddDialog" title="批量添加股票" width="500px">
       <el-input
@@ -364,13 +333,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWatchlistStore } from '@/stores/watchlist'
-import { watchlistApi, stockApi, signalApi } from '@/api'
+import { watchlistApi, stockApi, signalApi, realtimeApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Refresh, Switch, Camera } from '@element-plus/icons-vue'
 import { useWebSocket } from '@/composables/useWebSocket'
+import StockKlineChart from '@/components/StockKlineChart.vue'
 
 const route = useRoute()
 const store = useWatchlistStore()
@@ -386,7 +356,6 @@ const addLoading = ref(false)
 const loading = ref(false)
 const selectedDate = ref('')
 const availableDates = ref([])
-const showAllStocks = ref(false)  // false = 只显示热点股票, true = 显示全部
 const selectedWatchReason = ref('')  // 选中的关注原因
 const availableWatchReasons = ref([])  // 可用的关注原因列表
 const selectedTags = ref([])  // 选中的标签筛选
@@ -414,6 +383,16 @@ const snapshotLoading = ref(false)
 const showSnapshotHistoryDialog = ref(false)
 const snapshots = ref([])
 
+// K线图相关
+const klineDataCache = ref(new Map())
+const chartRefs = ref(new Map())
+
+// 选中股票索引（用于键盘导航）
+const selectedStockIndex = ref(0)
+
+// Ctrl+x 前缀键状态
+const ctrlXPressed = ref(false)
+
 let priceRefreshInterval = null
 const { onMessageType, offMessageType } = useWebSocket()
 
@@ -425,14 +404,66 @@ const handleNotesUpdated = ({ ts_code, notes }) => {
   }
 }
 
+// 键盘事件处理
+const handleKeydown = (event) => {
+  // 如果焦点在输入框或文本框中，不处理快捷键
+  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
+    return
+  }
+
+  const maxIndex = filteredStocks.value.length - 1
+
+  // 处理 Ctrl+x 前缀键
+  if (event.ctrlKey && event.key === 'x') {
+    event.preventDefault()
+    ctrlXPressed.value = true
+    return
+  }
+
+  // 处理 Ctrl+x 后的子命令
+  if (ctrlXPressed.value) {
+    ctrlXPressed.value = false
+
+    if (event.key === 'o') {
+      // Ctrl+x+o: 打开雪球
+      event.preventDefault()
+      const selectedStock = filteredStocks.value[selectedStockIndex.value]
+      if (selectedStock) {
+        openXueqiu(selectedStock.ts_code)
+      }
+      return
+    }
+  }
+
+  // j/k 导航
+  if (event.key === 'j') {
+    event.preventDefault()
+    if (selectedStockIndex.value < maxIndex) {
+      selectedStockIndex.value++
+      scrollToSelectedStock()
+    }
+  } else if (event.key === 'k') {
+    event.preventDefault()
+    if (selectedStockIndex.value > 0) {
+      selectedStockIndex.value--
+      scrollToSelectedStock()
+    }
+  }
+}
+
+// 滚动到选中的股票（居中显示）
+const scrollToSelectedStock = () => {
+  nextTick(() => {
+    const stockCards = document.querySelectorAll('.stock-card')
+    if (stockCards[selectedStockIndex.value]) {
+      stockCards[selectedStockIndex.value].scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  })
+}
+
 const filteredStocks = computed(() => {
   if (!currentWatchlist.value?.stocks) return []
   let stocks = currentWatchlist.value.stocks
-  
-  // 筛选热点/全部
-  if (!showAllStocks.value) {
-    stocks = stocks.filter(stock => stock.status === 1 || !stock.status)
-  }
   
   // 筛选关注原因
   if (selectedWatchReason.value) {
@@ -454,6 +485,8 @@ onMounted(async () => {
   await loadWatchlist(selectedDate.value || null)
   await loadAllTags()
   onMessageType('notes_updated', handleNotesUpdated)
+  // 注册键盘事件监听
+  window.addEventListener('keydown', handleKeydown)
 })
 
 // 监听路由参数变化，当切换到不同的 watchlist 时重新加载
@@ -462,8 +495,14 @@ watch(() => props.id, (newId, oldId) => {
     selectedDate.value = ''
     selectedWatchReason.value = ''
     selectedTags.value = []
+    selectedStockIndex.value = 0
     loadWatchlist()
   }
+})
+
+// 筛选条件变化时重置选中索引
+watch([selectedWatchReason, selectedTags], () => {
+  selectedStockIndex.value = 0
 })
 
 onUnmounted(() => {
@@ -471,6 +510,8 @@ onUnmounted(() => {
     clearInterval(priceRefreshInterval)
   }
   offMessageType('notes_updated', handleNotesUpdated)
+  // 注销键盘事件监听
+  window.removeEventListener('keydown', handleKeydown)
 })
 
 const loadLastTradingDay = async () => {
@@ -486,6 +527,7 @@ const loadLastTradingDay = async () => {
 
 const loadWatchlist = async (watchDate = null) => {
   loading.value = true
+  selectedStockIndex.value = 0
   try {
     const response = await watchlistApi.getStocksByWatchDate(
       props.id, 
@@ -497,6 +539,12 @@ const loadWatchlist = async (watchDate = null) => {
     if (currentWatchlist.value?.stocks?.length > 0) {
       await loadPrices()
       await loadSignals()
+      // 加载K线数据
+      nextTick(() => {
+        currentWatchlist.value.stocks.forEach(stock => {
+          fetchKlineData(stock.ts_code)
+        })
+      })
     }
     
     await loadAvailableDates()
@@ -525,6 +573,19 @@ const loadPrices = async () => {
     } catch (error) {
       console.error(`Failed to load price for ${stock.ts_code}:`, error)
     }
+  }
+}
+
+const fetchKlineData = async (tsCode) => {
+  if (klineDataCache.value.has(tsCode)) return
+
+  try {
+    const response = await realtimeApi.getKline(tsCode, 'daily', 180)
+    if (response.success && response.data && response.data.data) {
+      klineDataCache.value.set(tsCode, response.data.data)
+    }
+  } catch (error) {
+    console.error('Failed to load kline for', tsCode, error)
   }
 }
 
@@ -699,8 +760,15 @@ const switchStockGroup = async () => {
 }
 
 const getChangeClass = (change) => {
-  if (!change) return ''
-  return change > 0 ? 'up' : change < 0 ? 'down' : ''
+  if (!change) return 'flat'
+  return change > 0 ? 'up' : change < 0 ? 'down' : 'flat'
+}
+
+const formatChange = (changePct) => {
+  if (!changePct) return '0.00%'
+  if (changePct > 0) return `+${changePct.toFixed(2)}%`
+  if (changePct < 0) return `${changePct.toFixed(2)}%`
+  return '0.00%'
 }
 
 const getSignalType = (type) => {
@@ -734,6 +802,11 @@ const openXueqiu = (tsCode) => {
   const [code, exchange] = tsCode.split('.')
   const xueqiuCode = exchange + code
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
+}
+
+const openStockDetail = (tsCode) => {
+  const url = window.location.origin + `/stock/${tsCode}`
+  window.open(url, '_blank')
 }
 
 // 打开股票备注弹窗
@@ -770,18 +843,6 @@ const saveStockNotes = async () => {
   }
 }
 
-// 保存股票标签
-const saveStockTags = async (stock) => {
-  try {
-    await watchlistApi.updateStockTags(stock.ts_code, popoverSelectedTags.value)
-    stock.tags = [...popoverSelectedTags.value]
-    ElMessage.success('标签更新成功')
-    tagPopoverVisible.value[stock.id] = false
-  } catch (error) {
-    console.error('Failed to update stock tags:', error)
-    ElMessage.error('标签更新失败')
-  }
-}
 
 const handleSnapshot = async () => {
   if (!currentWatchlist.value?.stocks?.length) {
@@ -850,100 +911,250 @@ const loadSnapshots = async () => {
   align-items: center;
 }
 
-.stock-card-col {
-  margin-bottom: 20px;
+/* 股票列表 - 纵向排列 */
+.stock-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
+/* 股票卡片 - 横向布局 */
 .stock-card {
-  height: 100%;
+  display: flex;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.stock-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.stock-card.up {
+  border-color: #f56c6c;
+}
+
+.stock-card.down {
+  border-color: #67c23a;
+}
+
+.stock-card.flat {
+  border-color: #dcdfe6;
+}
+
+.stock-card.selected {
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
+  border-color: #409eff !important;
+  transform: translateY(-2px);
+  position: relative;
+}
+
+.stock-card.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #409eff 0%, #66b1ff 100%);
+  border-radius: 12px 0 0 12px;
+}
+
+/* 左侧信息区域 */
+.stock-info-section {
+  flex: 0 0 320px;
+  padding: 20px;
+  background: #fafbfc;
+  border-right: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
 }
 
 .stock-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 15px;
-}
-
-.stock-info h3 {
-  margin: 0 0 5px 0;
-  font-size: 18px;
+  margin-bottom: 16px;
 }
 
 .stock-title {
+  flex: 1;
+}
+
+.stock-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.stock-code {
+  font-size: 13px;
+  color: #909399;
+}
+
+.status-tag {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.change-badge {
+  width: 72px;
+  height: 36px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+}
+
+.change-badge.up {
+  background: linear-gradient(135deg, #f56c6c 0%, #ff8c8c 100%);
+}
+
+.change-badge.down {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+}
+
+.change-badge.flat {
+  background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%);
+}
+
+.stock-body {
+  flex: 1;
+}
+
+.price-section {
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.current-price {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.current-price.up {
+  color: #f56c6c;
+}
+
+.current-price.down {
+  color: #67c23a;
+}
+
+.current-price.flat {
+  color: #909399;
+}
+
+.change-info {
+  font-size: 13px;
+}
+
+.change-info .up {
+  color: #f56c6c;
+}
+
+.change-info .down {
+  color: #67c23a;
+}
+
+.change-info .flat {
+  color: #909399;
+}
+
+.volume-section {
+  margin-bottom: 12px;
+}
+
+.volume-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.volume-row:last-child {
+  margin-bottom: 0;
+}
+
+.volume-row .label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.volume-row .value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.signal-section {
+  margin-bottom: 12px;
+}
+
+.signal-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.status-tag {
-  font-size: 11px;
-}
-
-.stock-code {
-  color: #909399;
+.signal-row .label {
   font-size: 12px;
-}
-
-.stock-price {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.current-price {
-  font-size: 28px;
-  font-weight: bold;
-  color: #303133;
-}
-
-.change-pct {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.change-pct.up {
-  color: #f56c6c;
-}
-
-.change-pct.down {
-  color: #67c23a;
-}
-
-.market-cap {
-  margin-left: auto;
-  font-size: 14px;
-  color: #606266;
-  font-weight: 500;
-}
-
-.stock-signal {
-  margin-bottom: 15px;
-}
-
-.signal-tag {
-  margin-right: 10px;
+  color: #909399;
 }
 
 .signal-strength {
-  color: #606266;
   font-size: 12px;
+  color: #606266;
 }
 
-.stock-notes {
-  margin-bottom: 15px;
-  padding: 10px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+.watch-reason-section {
+  margin-bottom: 12px;
 }
 
-.stock-watch-reason {
-  margin-bottom: 15px;
+.reason-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reason-row .label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.time-section {
+  font-size: 11px;
+  color: #909399;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.time-label {
+  margin-right: 4px;
+}
+
+.stock-footer {
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .stock-tags {
-  margin-bottom: 15px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
 }
 
 .tags-display {
@@ -971,38 +1182,91 @@ const loadSnapshots = async () => {
   gap: 8px;
 }
 
-.stock-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 15px;
-  border-top: 1px solid #ebeef5;
-}
-
-.added-time {
-  color: #909399;
-  font-size: 12px;
-}
-
-.stock-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.stock-option-code {
-  color: #909399;
-  font-size: 12px;
-}
-
-.stock-kline-actions {
-  margin-bottom: 15px;
-}
-
 .input-hint {
   margin-top: 10px;
   padding: 8px;
   background-color: #f5f7fa;
   border-radius: 4px;
+}
+
+/* 右侧图表区域 */
+.stock-chart-section {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  min-height: 280px;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .stock-info-section {
+    flex: 0 0 280px;
+  }
+}
+
+@media (max-width: 992px) {
+  .stock-card {
+    flex-direction: column;
+  }
+
+  .stock-info-section {
+    flex: none;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .stock-chart-section {
+    min-height: 260px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .watchlist-view {
+    padding: 12px;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .header-right {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stock-info-section {
+    padding: 16px;
+  }
+
+  .stock-chart-section {
+    padding: 12px;
+  }
+
+  .current-price {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stock-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .change-badge {
+    width: 100%;
+    height: 32px;
+  }
+
+  .stock-footer {
+    justify-content: center;
+  }
 }
 </style>
