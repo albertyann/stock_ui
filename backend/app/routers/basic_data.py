@@ -88,7 +88,7 @@ async def get_weekly_data(
 @router.get("/moneyflow/{ts_code}", response_model=dict)
 async def get_moneyflow(
     ts_code: str,
-    limit: int = Query(20, ge=1, le=100, description="最近N个交易日"),
+    limit: int = Query(20, ge=1, le=200, description="最近N个交易日"),
 ):
     service = BasicDataService()
     result = service.get_moneyflow(ts_code, limit)
