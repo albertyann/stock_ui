@@ -323,6 +323,15 @@ export const basicDataApi = {
     }
     return api.get(url)
   },
+  getIndustryStockMoneyflow: (params = {}) => {
+    const { industry, trade_date = null, limit = 100 } = params
+    let url = `/basic-data/industry-stock-moneyflow?industry=${encodeURIComponent(industry)}`
+    if (trade_date) {
+      url += `&trade_date=${trade_date}`
+    }
+    url += `&limit=${limit}`
+    return api.get(url)
+  },
   getIncrementalIndustry: (days = 20, min_growth_days = 3, end_date = null) => {
     let url = `/basic-data/incremental-industry?days=${days}&min_growth_days=${min_growth_days}`
     if (end_date) {
@@ -348,6 +357,16 @@ export const basicDataApi = {
     }
     if (queryParams.length > 0) {
       url += `?${queryParams.join('&')}`
+    }
+    return api.get(url)
+  },
+  getStockCapitalFlow: (days = 30, limit = 20, end_date = null, ts_codes = null) => {
+    let url = `/basic-data/stock-capital-flow?days=${days}&limit=${limit}`
+    if (end_date) {
+      url += `&end_date=${end_date}`
+    }
+    if (ts_codes && ts_codes.length > 0) {
+      url += `&ts_codes=${encodeURIComponent(ts_codes.join(','))}`
     }
     return api.get(url)
   }

@@ -190,3 +190,31 @@ async def get_hot_industries(
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": [], "meta": {}}
     return result
+
+
+@router.get("/industry-stock-moneyflow", response_model=dict)
+async def get_industry_stock_moneyflow(
+    industry: str = Query(..., description="行业名称"),
+    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"),
+    limit: int = Query(100, ge=1, le=500, description="返回条数限制"),
+):
+    service = BasicDataService()
+    result = service.get_industry_stock_moneyflow(industry, trade_date, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": [], "meta": {}}
+    return result
+
+
+@router.get("/stock-capital-flow", response_model=dict)
+async def get_stock_capital_flow(
+    days: int = Query(30, ge=1, le=90, description="统计天数"),
+    limit: int = Query(20, ge=1, le=100, description="返回条数限制"),
+    end_date: Optional[str] = Query(None, description="截止日期，格式YYYY-MM-DD"),
+    ts_codes: Optional[str] = Query(None, description="指定股票代码，逗号分隔"),
+):
+    service = BasicDataService()
+    code_list = [c.strip() for c in ts_codes.split(",") if c.strip()] if ts_codes else None
+    result = service.get_stock_capital_flow(days, limit, end_date, code_list)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": {"dates": [], "stocks": []}}
+    return result

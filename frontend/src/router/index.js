@@ -28,6 +28,8 @@ import CapitalFlow from '@/views/CapitalFlow.vue'
 import IndustryDailyFlow from '@/views/IndustryDailyFlow.vue'
 import IncrementalIndustry from '@/views/IncrementalIndustry.vue'
 import HotIndustries from '@/views/HotIndustries.vue'
+import IndustryStockMoneyflow from '@/views/IndustryStockMoneyflow.vue'
+import StockFundAnalysis from '@/views/StockFundAnalysis.vue'
 
 const routes = [
   {
@@ -191,6 +193,18 @@ const routes = [
     name: 'HotIndustries',
     component: HotIndustries,
     meta: { title: '火热行业' }
+  },
+  {
+    path: '/industry-stock-moneyflow',
+    name: 'IndustryStockMoneyflow',
+    component: IndustryStockMoneyflow,
+    meta: { title: '行业个股资金流' }
+  },
+  {
+    path: '/stock-fund-analysis',
+    name: 'StockFundAnalysis',
+    component: StockFundAnalysis,
+    meta: { title: '个股资金分析' }
   }
 ]
 

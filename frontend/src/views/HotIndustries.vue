@@ -101,7 +101,7 @@
         <el-table-column prop="industry" label="行业名称" min-width="160" sortable>
           <template #default="{ row }">
             <router-link
-              :to="{ path: '/sector/detail', query: { code: getIndustryCode(row.industry), sectorType: 'industry', sectorName: row.industry } }"
+              :to="{ path: '/industry-stock-moneyflow', query: { industry: row.industry, trade_date: meta.trade_date } }"
               class="sector-link"
             >
               {{ row.industry }}
