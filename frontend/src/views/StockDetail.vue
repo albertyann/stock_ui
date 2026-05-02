@@ -32,7 +32,6 @@
                 </span>
               </div>
             </template>
-            <div ref="cumulativeMoneyflowChart" style="height: 200px; margin-top: 16px;"></div>
             <StockVolumeChart
               ref="volumeChartRef"
               :klineData="klineData"
@@ -581,10 +580,6 @@ const showLargeOnly = ref(true)
 const moneyflowChart = ref(null)
 let moneyflowChartInstance = null
 
-// 30日累计净资金流动图表
-const cumulativeMoneyflowChart = ref(null)
-let cumulativeMoneyflowChartInstance = null
-
 // 信号时间线数据
 const signalsLoading = ref(false)
 const signalList = ref([])
@@ -684,10 +679,7 @@ onUnmounted(() => {
     moneyflowChartInstance.dispose()
     moneyflowChartInstance = null
   }
-  if (cumulativeMoneyflowChartInstance) {
-    cumulativeMoneyflowChartInstance.dispose()
-    cumulativeMoneyflowChartInstance = null
-  }
+
 })
 
 const handleResize = () => {
@@ -699,9 +691,7 @@ const handleResize = () => {
   if (moneyflowChartInstance) {
     moneyflowChartInstance.resize()
   }
-  if (cumulativeMoneyflowChartInstance) {
-    cumulativeMoneyflowChartInstance.resize()
-  }
+
 }
 
 const loadStockDetail = async () => {
@@ -735,7 +725,6 @@ const loadMoneyflow = async () => {
       moneyflowData.value = response.data || []
       if (moneyflowData.value.length > 0) {
         renderMoneyflowChart()
-        renderCumulativeMoneyflowChart()
       }
     } else {
       ElMessage.error(response.error || '获取资金流向失败')
@@ -836,163 +825,6 @@ const renderMoneyflowChart = () => {
   }
 
   moneyflowChartInstance.setOption(option, true)
-}
-
-// 渲染30日累计净资金流动图表
-const renderCumulativeMoneyflowChart = () => {
-  if (!cumulativeMoneyflowChart.value || moneyflowData.value.length === 0) return
-
-  if (!cumulativeMoneyflowChartInstance) {
-    cumulativeMoneyflowChartInstance = echarts.init(cumulativeMoneyflowChart.value)
-  }
-
-  const allData = moneyflowData.value
-
-  // 参考 StockFundAnalysis.vue 计算逻辑：
-  // 每日净流入 = net_mf_amount / 10000 (单位：亿)
-  // 修正逻辑：如果当日股价上涨(close > open)但净流入为负，则取绝对值
-  const klineMap = new Map(klineData.value.map(item => [item.date, item]))
-  const dailyNetAll = allData.map(item => {
-    let net = item.net_mf_amount ? parseFloat(item.net_mf_amount) / 10000 : 0
-    
-    const kline = klineMap.get(item.trade_date)
-    if (kline && net < 0 && kline.close >= kline.open) {
-        net = Math.abs(net)
-    }
-    if (kline && net > 0 && kline.close < kline.open) {
-      net = -Math.abs(net)
-    }
-    return +net.toFixed(2)
-  })
-
-  // 计算累计净流入（先基于全部90日数据累计）
-  const cumulativeNetAll = []
-  let sum = 0
-  for (let i = 0; i < dailyNetAll.length; i++) {
-    sum += dailyNetAll[i]
-    cumulativeNetAll.push(+sum.toFixed(2))
-  }
-
-  // 计算每日大单净流入（lg + elg），单位：亿
-  const dailyLargeNetAll = allData.map(item => {
-    const net = (item.buy_lg_amount - item.sell_lg_amount + item.buy_elg_amount - item.sell_elg_amount) / 10000
-    return +net.toFixed(2)
-  })
-
-  // 计算累计大单净流入
-  const cumulativeLargeNetAll = []
-  let largeSum = 0
-  for (let i = 0; i < dailyLargeNetAll.length; i++) {
-    largeSum += dailyLargeNetAll[i]
-    cumulativeLargeNetAll.push(+largeSum.toFixed(2))
-  }
-
-  // 截取近60日数据用于画图
-  const data = allData.slice(-60)
-  const dates = data.map(item => item.trade_date)
-  const cumulativeNet = cumulativeNetAll.slice(-60)
-  const dailyNet = dailyNetAll.slice(-60)
-  const cumulativeLargeNet = cumulativeLargeNetAll.slice(-60)
-  const dailyLargeNet = dailyLargeNetAll.slice(-60)
-
-  const colorPos = '#f56c6c'
-  const colorNeg = '#67c23a'
-
-  const option = {
-    tooltip: {
-      trigger: 'axis',
-      confine: false,
-      appendToBody: true,
-      className: 'moneyflow-tooltip',
-      formatter: (params) => {
-        const idx = params[0].dataIndex
-        const val = cumulativeNet[idx]
-        const daily = dailyNet[idx]
-        const largeVal = cumulativeLargeNet[idx]
-        const dailyLarge = dailyLargeNet[idx]
-        const color = val >= 0 ? colorPos : colorNeg
-        const dailyColor = daily >= 0 ? colorPos : colorNeg
-        const largeColor = '#409eff'
-        const dailyLargeColor = dailyLarge >= 0 ? colorPos : colorNeg
-        let html = `<div style="font-weight:bold;margin-bottom:5px">${dates[idx]}</div>`
-        html += `<div>当日净流入: <span style="color:${dailyColor};font-weight:bold">${daily >= 0 ? '+' : ''}${daily.toFixed(2)}亿</span></div>`
-        html += `<div>当日大单流入: <span style="color:${dailyLargeColor};font-weight:bold">${dailyLarge >= 0 ? '+' : ''}${dailyLarge.toFixed(2)}亿</span></div>`
-        html += `<div style="margin-top:3px">累计净流入: <span style="color:${color};font-weight:bold">${val >= 0 ? '+' : ''}${val.toFixed(2)}亿</span></div>`
-        html += `<div>累计大单流入: <span style="color:${largeColor};font-weight:bold">${largeVal >= 0 ? '+' : ''}${largeVal.toFixed(2)}亿</span></div>`
-        return html
-      }
-    },
-    legend: {
-      data: ['累计净流入', '累计大单流入'],
-      top: 0,
-      textStyle: { fontSize: 11 }
-    },
-    grid: {
-      left: '0%',
-      right: '4%',
-      bottom: '15%',
-      top: '36px',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      axisLabel: {
-        formatter: (value) => value.substring(5),
-        fontSize: 9,
-        rotate: 30
-      }
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: {
-        formatter: (value) => {
-          return value.toFixed(0) + '亿'
-        },
-        fontSize: 9
-      },
-      splitLine: {
-        lineStyle: { type: 'dashed', color: '#eee' }
-      }
-    },
-    dataZoom: [{ type: 'inside', start: 0, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }],
-    series: [
-      {
-        name: '累计净流入',
-        type: 'line',
-        data: cumulativeNet,
-        smooth: true,
-        lineStyle: { width: 2 },
-        itemStyle: {
-          color: (params) => params.value >= 0 ? colorPos : colorNeg
-        },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(245,108,108,0.15)' },
-            { offset: 1, color: 'rgba(245,108,108,0)' }
-          ])
-        },
-        symbol: 'none',
-        markLine: {
-          silent: true,
-          symbol: 'none',
-          lineStyle: { type: 'dashed', color: '#ccc', width: 1 },
-          data: [{ yAxis: 0 }]
-        }
-      },
-      {
-        name: '累计大单流入',
-        type: 'line',
-        data: cumulativeLargeNet,
-        smooth: true,
-        lineStyle: { width: 2, color: '#409eff' },
-        itemStyle: { color: '#409eff' },
-        symbol: 'none'
-      }
-    ]
-  }
-
-  cumulativeMoneyflowChartInstance.setOption(option, true)
 }
 
 // 资金流向汇总：5日/10日/20日净流入
