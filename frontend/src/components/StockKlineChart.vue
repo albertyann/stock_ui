@@ -94,7 +94,7 @@ const renderChart = () => {
       <div>收: ${item.close.toFixed(2)}</div>
       <div>高: ${item.high.toFixed(2)}</div>
       <div>低: ${item.low.toFixed(2)}</div>
-      <div>涨跌: ${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</div>
+      <div>涨跌: ${item.change_pct > 0 ? '+' : ''}${(item.change_pct * 100).toFixed(2)}%</div>
     `
     
     // 添加均线信息

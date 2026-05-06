@@ -24,6 +24,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['hoverDate', 'mouseleave'])
+
 const chartRef = ref(null)
 let chart = null
 
@@ -238,6 +240,24 @@ const renderChart = () => {
 const initChart = () => {
   if (!chartRef.value) return
   chart = echarts.init(chartRef.value)
+
+  // 监听 axis pointer 变化（鼠标悬停时触发）
+  chart.on('updateAxisPointer', (event) => {
+    const xAxisInfo = event.axesInfo?.[0]
+    if (xAxisInfo && xAxisInfo.value != null) {
+      const data = props.klineData
+      const idx = xAxisInfo.value
+      if (data && idx >= 0 && idx < data.length) {
+        emit('hoverDate', data[idx].date)
+      }
+    }
+  })
+
+  // 监听鼠标离开图表
+  chart.getZr().on('globalout', () => {
+    emit('mouseleave')
+  })
+
   if (props.klineData && props.klineData.length > 0) {
     renderChart()
   }

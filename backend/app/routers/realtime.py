@@ -280,12 +280,13 @@ async def get_batch_kline(
 class StockQueryRequest(BaseModel):
     ts_codes: List[str]
     query_date: str
+    days: Optional[List[int]] = None
 
 
 @router.post("/query-by-date", response_model=dict)
 async def query_stock_prices_by_date(request: StockQueryRequest):
     """
-    查询指定股票在指定日期的价格，以及 T+1, T+3, T+7, T+30 交易日的价格和涨幅
+    查询指定股票在指定日期的价格，以及 T+N 交易日的价格和涨幅
     """
     service = RealtimePriceService()
 
@@ -304,7 +305,7 @@ async def query_stock_prices_by_date(request: StockQueryRequest):
     if not normalized_codes:
         raise HTTPException(status_code=400, detail="No valid stock codes provided")
 
-    result = service.query_stock_prices_by_date(normalized_codes, request.query_date)
+    result = service.query_stock_prices_by_date(normalized_codes, request.query_date, request.days)
 
     if not result.get("success"):
         raise HTTPException(

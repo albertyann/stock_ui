@@ -32,6 +32,10 @@
                 </span>
               </div>
             </template>
+            <StockRsiChart
+              ref="rsiChartRef"
+              :klineData="klineData"
+            />
             <StockVolumeChart
               ref="volumeChartRef"
               :klineData="klineData"
@@ -44,6 +48,7 @@
               ref="adxChartRef"
               :klineData="klineData"
             />
+            
           </el-card>
 
           <!-- 信号时间线 -->
@@ -136,7 +141,7 @@
               :tsCode="props.tsCode"
               :klineData="weeklyKlineData"
               :height="360"
-              :maPeriods="[5, 20]"
+              :maPeriods="[5, 10]"
             />
           </el-card>
 
@@ -172,6 +177,39 @@
               </div>
             </div>
             <div ref="moneyflowChart" style="height: 300px;"></div>
+          </el-card>
+
+          <!-- 筹码分布 -->
+          <el-card class="mt-20" v-loading="chipLoading">
+            <template #header>
+              <div class="card-header">
+                <span>筹码分布</span>
+                <el-date-picker
+                  v-model="selectedChipDate"
+                  type="date"
+                  placeholder="选择日期"
+                  size="small"
+                  style="width: 140px"
+                  value-format="YYYY-MM-DD"
+                  @change="onChipDateChange"
+                />
+              </div>
+            </template>
+            <div v-if="chipData.chips && chipData.chips.length > 0">
+              <div class="chip-summary" v-if="chipConcentration !== null">
+                <div class="summary-item">
+                  <span class="summary-label">筹码集中度</span>
+                  <span class="summary-value">{{ chipConcentration.toFixed(2) }}%</span>
+                </div>
+              </div>
+              <StockChipChart
+                ref="chipChartRef"
+                :chipData="chipData.chips"
+                :currentPrice="chipData.current_price"
+                height="280px"
+              />
+            </div>
+            <el-empty v-else description="暂无筹码数据" :image-size="60" />
           </el-card>
 
           <!-- 标签管理 -->
@@ -561,6 +599,8 @@ import StockKlineChart from '@/components/StockKlineChart.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockVolumeChart from '@/components/StockVolumeChart.vue'
 import StockMacdChart from '@/components/StockMacdChart.vue'
+import StockRsiChart from '@/components/StockRsiChart.vue'
+import StockChipChart from '@/components/StockChipChart.vue'
 
 const props = defineProps(['tsCode'])
 
@@ -573,12 +613,18 @@ const weeklyKlineChartRef = ref(null)
 const adxChartRef = ref(null)
 const volumeChartRef = ref(null)
 const macdChartRef = ref(null)
+const rsiChartRef = ref(null)
 
 const moneyflowLoading = ref(false)
 const moneyflowData = ref([])
 const showLargeOnly = ref(true)
 const moneyflowChart = ref(null)
 let moneyflowChartInstance = null
+
+const chipLoading = ref(false)
+const chipData = ref({ chips: [], current_price: null, trade_date: null })
+const chipChartRef = ref(null)
+const selectedChipDate = ref(null)
 
 // 信号时间线数据
 const signalsLoading = ref(false)
@@ -617,6 +663,18 @@ const infoLoading = ref(false)
 // 可选标签列表（排除已选中的）
 const availableTagsList = computed(() => {
   return allTags.value.filter(tag => !popoverSelectedTags.value.includes(tag))
+})
+
+// 筹码集中度 = (有筹码的最高价 - 有筹码的最低价) / (有筹码的最高价 + 有筹码的最低价)
+const chipConcentration = computed(() => {
+  const chips = chipData.value?.chips
+  if (!chips || chips.length === 0) return null
+  const prices = chips.filter(c => c.percent > 0).map(c => c.price)
+  if (prices.length === 0) return null
+  const minPrice = Math.min(...prices)
+  const maxPrice = Math.max(...prices)
+  if (maxPrice + minPrice === 0) return null
+  return ((maxPrice - minPrice) / (maxPrice + minPrice)) * 100
 })
 
 // Ctrl+X 按键序列状态
@@ -688,10 +746,11 @@ const handleResize = () => {
   adxChartRef.value?.resize()
   volumeChartRef.value?.resize()
   macdChartRef.value?.resize()
+  rsiChartRef.value?.resize()
+  chipChartRef.value?.resize()
   if (moneyflowChartInstance) {
     moneyflowChartInstance.resize()
   }
-
 }
 
 const loadStockDetail = async () => {
@@ -705,6 +764,7 @@ const loadStockDetail = async () => {
     await loadKline()
     await loadSignal()
     await loadMoneyflow()
+    await loadCyqChips()
     await loadSignals()
     await loadWatchlistStockInfo()
     await fetchWatchlistOptions()
@@ -720,7 +780,7 @@ const loadStockDetail = async () => {
 const loadMoneyflow = async () => {
   moneyflowLoading.value = true
   try {
-    const response = await basicDataApi.getMoneyflow(props.tsCode, 90)
+    const response = await basicDataApi.getMoneyflow(props.tsCode, 60)
     if (response.success) {
       moneyflowData.value = response.data || []
       if (moneyflowData.value.length > 0) {
@@ -733,6 +793,33 @@ const loadMoneyflow = async () => {
     console.error('Failed to load moneyflow:', error)
   } finally {
     moneyflowLoading.value = false
+  }
+}
+
+const loadCyqChips = async (date = null) => {
+  chipLoading.value = true
+  try {
+    const response = await basicDataApi.getCyqChips(props.tsCode, date)
+    if (response.success && response.data) {
+      chipData.value = {
+        chips: response.data.chips || [],
+        current_price: response.data.current_price || null,
+        trade_date: response.data.trade_date || null
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load cyq chips:', error)
+  } finally {
+    chipLoading.value = false
+  }
+}
+
+// 日期选择变化时加载对应日期的筹码分布
+const onChipDateChange = (date) => {
+  if (date) {
+    loadCyqChips(date)
+  } else {
+    loadCyqChips()
   }
 }
 
@@ -1598,6 +1685,37 @@ const deleteStockInfo = async (infoId) => {
 .indicator-guide-card .summary-label {
   font-weight: 600;
   color: #303133;
+}
+
+/* 筹码分布 */
+.chip-date {
+  font-size: 12px;
+  color: #909399;
+}
+
+.chip-summary {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 6px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 8px;
+}
+
+.chip-summary .summary-item {
+  text-align: center;
+}
+
+.chip-summary .summary-label {
+  display: block;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.chip-summary .summary-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #409eff;
 }
 
 /* 标签显示 */

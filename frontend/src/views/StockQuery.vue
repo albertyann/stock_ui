@@ -4,6 +4,14 @@
       <template #header>
         <div class="card-header">
           <span>股票价格查询</span>
+          <div class="header-actions">
+            <el-button size="small" @click="openConfigDialog">
+              配置
+            </el-button>
+            <span v-if="selectedDays.length" class="config-summary">
+              当前: {{ selectedDays.map(d => 'T+' + d).join(', ') }}
+            </span>
+          </div>
         </div>
       </template>
 
@@ -33,6 +41,21 @@
           </el-button>
         </el-form-item>
       </el-form>
+      <div v-if="queryHistory.length" class="query-history">
+        <div class="history-label">查询记录：</div>
+        <div class="history-list">
+          <el-tag
+            v-for="record in queryHistory"
+            :key="record.id"
+            class="history-tag"
+            closable
+            @click="applyHistory(record)"
+            @close="deleteHistory(record)"
+          >
+            {{ record.date }} ({{ record.codes.length }}只)
+          </el-tag>
+        </div>
+      </div>
     </el-card>
 
     <el-card v-if="queryResult" class="mt-20">
@@ -41,10 +64,13 @@
           <span>查询结果</span>
           <div class="trading-dates" v-if="tradingDates">
             <el-tag size="small" type="info">T日: {{ tradingDates['T+0'] }}</el-tag>
-            <el-tag size="small">T+1: {{ tradingDates['T+1'] }}</el-tag>
-            <el-tag size="small">T+3: {{ tradingDates['T+3'] }}</el-tag>
-            <el-tag size="small">T+7: {{ tradingDates['T+7'] }}</el-tag>
-            <el-tag size="small">T+30: {{ tradingDates['T+30'] }}</el-tag>
+            <el-tag
+              v-for="day in selectedDays"
+              :key="day"
+              size="small"
+            >
+              T+{{ day }}: {{ tradingDates['T+' + day] }}
+            </el-tag>
           </div>
         </div>
       </template>
@@ -78,54 +104,16 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="T+1 收盘" width="110" align="right">
+        <el-table-column
+          v-for="day in selectedDays"
+          :key="day"
+          :label="'T+' + day + ' 涨幅'"
+          width="110"
+          align="right"
+        >
           <template #default="{ row }">
-            {{ formatPrice(row['close_T+1']) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="T+1 涨幅" width="110" align="right">
-          <template #default="{ row }">
-            <span :class="getChangeClass(row['change_T+1'])">
-              {{ formatPct(row['change_T+1']) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="T+3 收盘" width="110" align="right">
-          <template #default="{ row }">
-            {{ formatPrice(row['close_T+3']) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="T+3 涨幅" width="110" align="right">
-          <template #default="{ row }">
-            <span :class="getChangeClass(row['change_T+3'])">
-              {{ formatPct(row['change_T+3']) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="T+7 收盘" width="110" align="right">
-          <template #default="{ row }">
-            {{ formatPrice(row['close_T+7']) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="T+7 涨幅" width="110" align="right">
-          <template #default="{ row }">
-            <span :class="getChangeClass(row['change_T+7'])">
-              {{ formatPct(row['change_T+7']) }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="T+30 收盘" width="110" align="right">
-          <template #default="{ row }">
-            {{ formatPrice(row['close_T+30']) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="T+30 涨幅" width="110" align="right">
-          <template #default="{ row }">
-            <span :class="getChangeClass(row['change_T+30'])">
-              {{ formatPct(row['change_T+30']) }}
+            <span :class="getChangeClass(row['change_T+' + day])">
+              {{ formatPct(row['change_T+' + day]) }}
             </span>
           </template>
         </el-table-column>
@@ -152,6 +140,41 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <el-dialog
+      v-model="configDialogVisible"
+      title="查询配置"
+      width="400px"
+      :close-on-click-modal="false"
+    >
+      <el-form label-width="100px">
+        <el-form-item label="T+N 天数">
+          <el-select
+            v-model="configDays"
+            multiple
+            allow-create
+            filterable
+            default-first-option
+            placeholder="选择或输入天数"
+            style="width: 220px"
+          >
+            <el-option
+              v-for="day in dayOptions"
+              :key="day"
+              :label="'T+' + day"
+              :value="day"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="configDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveConfig">
+          确认
+        </el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog
       v-model="followDialogVisible"
@@ -225,7 +248,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { realtimeApi, watchlistApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -235,6 +258,42 @@ const loading = ref(false)
 const queryResult = ref(null)
 const tradingDates = ref(null)
 const selectedRow = ref(null)
+
+const selectedDays = ref([1, 3, 7, 30])
+const dayOptions = ref([1, 2, 3, 4, 7, 15, 30])
+const configDialogVisible = ref(false)
+const configDays = ref([1, 3, 7, 30])
+const DAYS_CONFIG_KEY = 'stock_query_days_config'
+
+const openConfigDialog = () => {
+  configDays.value = [...selectedDays.value]
+  configDialogVisible.value = true
+}
+
+const saveConfig = () => {
+  const sorted = [...configDays.value].sort((a, b) => a - b)
+  selectedDays.value = sorted
+  localStorage.setItem(DAYS_CONFIG_KEY, JSON.stringify(sorted))
+  configDialogVisible.value = false
+}
+
+const loadDaysConfig = () => {
+  const stored = localStorage.getItem(DAYS_CONFIG_KEY)
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      if (Array.isArray(parsed) && parsed.length) {
+        selectedDays.value = parsed
+      }
+    } catch (e) {
+      console.error('Failed to load days config:', e)
+    }
+  }
+}
+
+const queryHistory = ref([])
+const HISTORY_KEY = 'stock_query_history'
+const MAX_HISTORY = 20
 
 const followDialogVisible = ref(false)
 const followLoading = ref(false)
@@ -252,6 +311,40 @@ const getTodayDate = () => {
 
 const disabledDate = (time) => {
   return time.getTime() > Date.now()
+}
+
+const saveQueryHistory = (codes, date) => {
+  const record = {
+    id: Date.now(),
+    codes: [...codes],
+    date,
+    timestamp: new Date().toISOString()
+  }
+  const existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]')
+  const filtered = existing.filter(
+    item => !(item.date === date && item.codes.join(',') === codes.join(','))
+  )
+  const updated = [record, ...filtered].slice(0, MAX_HISTORY)
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated))
+  queryHistory.value = updated
+}
+
+const loadQueryHistory = () => {
+  const stored = localStorage.getItem(HISTORY_KEY)
+  if (stored) {
+    queryHistory.value = JSON.parse(stored)
+  }
+}
+
+const applyHistory = (record) => {
+  tsCodesInput.value = record.codes.join('\n')
+  queryDate.value = record.date
+  handleQuery()
+}
+
+const deleteHistory = (record) => {
+  queryHistory.value = queryHistory.value.filter(item => item.id !== record.id)
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(queryHistory.value))
 }
 
 const handleQuery = async () => {
@@ -272,12 +365,14 @@ const handleQuery = async () => {
 
   loading.value = true
   try {
-    const result = await realtimeApi.queryByDate(codes, queryDate.value)
+    const result = await realtimeApi.queryByDate(codes, queryDate.value, selectedDays.value)
     queryResult.value = result.data || []
     tradingDates.value = result.trading_dates || null
 
     if (!queryResult.value.length) {
       ElMessage.info('未查询到数据')
+    } else {
+      saveQueryHistory(codes, queryDate.value)
     }
   } catch (error) {
     console.error('Query failed:', error)
@@ -324,6 +419,11 @@ const getRowClassName = ({ row }) => {
   }
   return ''
 }
+
+onMounted(() => {
+  loadQueryHistory()
+  loadDaysConfig()
+})
 
 const loadWatchReasons = async () => {
   try {
@@ -414,6 +514,12 @@ const handleDelete = async (row) => {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .trading-dates {
   display: flex;
   gap: 8px;
@@ -464,5 +570,39 @@ const handleDelete = async (row) => {
 
 .follow-form {
   margin-top: 20px;
+}
+
+.query-history {
+  margin-top: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.history-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+  line-height: 32px;
+}
+
+.history-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-tag {
+  cursor: pointer;
+}
+
+.history-tag:hover {
+  background-color: #ecf5ff;
+}
+
+.config-summary {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #909399;
 }
 </style>

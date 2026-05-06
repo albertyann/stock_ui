@@ -164,9 +164,9 @@ export const realtimeApi = {
     }
     return api.get(url)
   },
-  // 按日期查询股票价格 (T, T+1, T+3, T+7)
-  queryByDate: (tsCodes, queryDate) =>
-    api.post('/realtime/query-by-date', { ts_codes: tsCodes, query_date: queryDate })
+  // 按日期查询股票价格 (T, T+N)
+  queryByDate: (tsCodes, queryDate, days = null) =>
+    api.post('/realtime/query-by-date', { ts_codes: tsCodes, query_date: queryDate, days })
 }
 
 export const sectorApi = {
@@ -367,6 +367,13 @@ export const basicDataApi = {
     }
     if (ts_codes && ts_codes.length > 0) {
       url += `&ts_codes=${encodeURIComponent(ts_codes.join(','))}`
+    }
+    return api.get(url)
+  },
+  getCyqChips: (tsCode, tradeDate = null) => {
+    let url = `/basic-data/cyq-chips/${tsCode}`
+    if (tradeDate) {
+      url += `?trade_date=${tradeDate}`
     }
     return api.get(url)
   }

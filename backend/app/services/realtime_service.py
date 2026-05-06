@@ -483,25 +483,30 @@ class RealtimePriceService:
 
         return result
 
-    def query_stock_prices_by_date(self, ts_codes: List[str], query_date: str) -> Dict:
+    def query_stock_prices_by_date(self, ts_codes: List[str], query_date: str, days: List[int] = None) -> Dict:
         """
-        查询指定股票在指定日期的价格，以及 T+1, T+3, T+7, T+30 交易日的价格和涨幅
+        查询指定股票在指定日期的价格，以及 T+N 交易日的价格和涨幅
 
         Args:
             ts_codes: 股票代码列表
             query_date: 查询日期，格式 YYYY-MM-DD
+            days: T+N 的天数列表，默认 [1, 3, 7, 30]
 
         Returns:
-            包含各股票 T, T+1, T+3, T+7, T+30 价格及涨幅的字典
+            包含各股票 T, T+N 价格及涨幅的字典
         """
         try:
             from datetime import datetime
 
             parsed_date = datetime.strptime(query_date, "%Y-%m-%d").date()
 
+            if days is None:
+                days = [1, 3, 7, 30]
+
             with self.engine.connect() as conn:
                 trading_dates = {}
-                for offset in [0, 1, 3, 7, 30]:
+                all_offsets = [0] + sorted(set(days))
+                for offset in all_offsets:
                     result = conn.execute(
                         text("""
                             SELECT cal_date trade_date FROM trade_cal
@@ -577,7 +582,8 @@ class RealtimePriceService:
                             row_data[f"pct_chg_{label}"] = None
 
                     if base_price and base_price > 0:
-                        for label in ["T+1", "T+3", "T+7", "T+30"]:
+                        for day in days:
+                            label = f"T+{day}"
                             close_val = row_data.get(f"close_{label}")
                             if close_val is not None:
                                 row_data[f"change_{label}"] = round(
@@ -586,7 +592,8 @@ class RealtimePriceService:
                             else:
                                 row_data[f"change_{label}"] = None
                     else:
-                        for label in ["T+1", "T+3", "T+7", "T+30"]:
+                        for day in days:
+                            label = f"T+{day}"
                             row_data[f"change_{label}"] = None
 
                     results.append(row_data)

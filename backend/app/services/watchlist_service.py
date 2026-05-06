@@ -536,7 +536,7 @@ class WatchlistService:
                     ) dd ON TRUE
                     LEFT JOIN LATERAL (
                         SELECT total_mv
-                        FROM daily_indicators
+                        FROM daily_basic
                         WHERE ts_code = ws.ts_code
                         ORDER BY trade_date DESC
                         LIMIT 1

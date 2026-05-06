@@ -205,6 +205,18 @@ async def get_industry_stock_moneyflow(
     return result
 
 
+@router.get("/cyq-chips/{ts_code}", response_model=dict)
+async def get_cyq_chips(
+    ts_code: str,
+    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新有数据日期"),
+):
+    service = BasicDataService()
+    result = service.get_cyq_chips(ts_code, trade_date)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": {"trade_date": None, "chips": [], "current_price": None}}
+    return result
+
+
 @router.get("/stock-capital-flow", response_model=dict)
 async def get_stock_capital_flow(
     days: int = Query(30, ge=1, le=90, description="统计天数"),

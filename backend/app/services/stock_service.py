@@ -83,7 +83,6 @@ class StockService:
                 )
                 daily_data_row = daily_data_result.fetchone()
 
-                # 从 daily_indicators 获取指标数据
                 indicators_result = conn.execute(
                     text("""
                     SELECT 
@@ -92,7 +91,7 @@ class StockService:
                         pb,
                         total_mv,
                         trade_date
-                    FROM daily_indicators
+                    FROM daily_basic
                     WHERE ts_code = :ts_code
                     ORDER BY trade_date DESC
                     LIMIT 1

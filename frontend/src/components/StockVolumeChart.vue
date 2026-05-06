@@ -67,7 +67,7 @@ const renderChart = () => {
           : vol.toString()
         let html = `<div style="font-weight:bold;margin-bottom:5px;">${dates[idx]}</div>`
         html += `<div>成交量: <span style="font-weight:bold;">${volStr}</span></div>`
-        html += `<div>涨跌: <span style="color:${item.change_pct >= 0 ? '#f56c6c' : '#67c23a'};">${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</span></div>`
+        html += `<div>涨跌: <span style="color:${item.change_pct >= 0 ? '#f56c6c' : '#67c23a'};">${item.change_pct > 0 ? '+' : ''}${(item.change_pct * 100).toFixed(2)}%</span></div>`
         if (ma5Vol[idx] !== null) {
           const ma5Str = ma5Vol[idx] >= 100000000 ? (ma5Vol[idx] / 100000000).toFixed(2) + '亿'
             : ma5Vol[idx] >= 10000 ? (ma5Vol[idx] / 10000).toFixed(2) + '万'
