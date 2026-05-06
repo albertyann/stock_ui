@@ -317,7 +317,7 @@ class BasicDataService:
                             "change": float(row.change)
                             if row.change is not None
                             else None,
-                            "pct_chg": float(row.pct_chg)
+                            "pct_chg": float(row.pct_chg) * 100
                             if row.pct_chg is not None
                             else None,
                             "vol": float(row.vol) if row.vol is not None else None,

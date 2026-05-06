@@ -45,7 +45,7 @@
         <div class="history-label">查询记录：</div>
         <div class="history-list">
           <el-tag
-            v-for="record in queryHistory"
+            v-for="record in displayedHistory"
             :key="record.id"
             class="history-tag"
             closable
@@ -54,6 +54,15 @@
           >
             {{ record.date }} ({{ record.codes.length }}只)
           </el-tag>
+          <el-button
+            v-if="queryHistory.length > 3"
+            size="small"
+            text
+            type="primary"
+            @click="openHistoryDialog"
+          >
+            更多
+          </el-button>
         </div>
       </div>
     </el-card>
@@ -177,6 +186,53 @@
     </el-dialog>
 
     <el-dialog
+      v-model="historyDialogVisible"
+      title="查询历史记录"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <el-table :data="queryHistory" style="width: 100%" stripe border>
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="date" label="查询日期" width="120" />
+        <el-table-column prop="codes" label="股票代码">
+          <template #default="{ row }">
+            <el-tag
+              v-for="(code, idx) in row.codes.slice(0, 5)"
+              :key="idx"
+              size="small"
+              class="code-tag"
+            >
+              {{ code }}
+            </el-tag>
+            <span v-if="row.codes.length > 5" class="more-codes">
+              +{{ row.codes.length - 5 }} 只
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" align="center">
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="applyHistory(row); historyDialogVisible = false"
+            >
+              应用
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="deleteHistory(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <el-dialog
       v-model="followDialogVisible"
       title="关注股票"
       width="450px"
@@ -248,7 +304,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { realtimeApi, watchlistApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -294,6 +350,15 @@ const loadDaysConfig = () => {
 const queryHistory = ref([])
 const HISTORY_KEY = 'stock_query_history'
 const MAX_HISTORY = 20
+const historyDialogVisible = ref(false)
+
+const displayedHistory = computed(() => {
+  return queryHistory.value.slice(0, 3)
+})
+
+const openHistoryDialog = () => {
+  historyDialogVisible.value = true
+}
 
 const followDialogVisible = ref(false)
 const followLoading = ref(false)
@@ -604,5 +669,16 @@ const handleDelete = async (row) => {
   margin-left: 8px;
   font-size: 13px;
   color: #909399;
+}
+
+.code-tag {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.more-codes {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 4px;
 }
 </style>

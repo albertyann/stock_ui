@@ -293,8 +293,8 @@ async def query_stock_prices_by_date(request: StockQueryRequest):
     if not request.ts_codes:
         raise HTTPException(status_code=400, detail="No stock codes provided")
 
-    if len(request.ts_codes) > 50:
-        raise HTTPException(status_code=400, detail="Too many stock codes (max 50)")
+    if len(request.ts_codes) > 120:
+        raise HTTPException(status_code=400, detail="Too many stock codes (max 120)")
 
     normalized_codes = []
     for code in request.ts_codes:

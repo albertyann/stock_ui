@@ -208,6 +208,10 @@ class StockService:
 
                 kline_data = []
                 for row in result:
+                    change_pct = float(row.change_pct) if row.change_pct else 0
+                    # weekly_data 中 pct_chg 存储为小数(如0.05表示5%)，需乘以100
+                    if period == "weekly":
+                        change_pct = change_pct * 100
                     kline_data.append(
                         {
                             "date": row.date.strftime("%Y-%m-%d"),
@@ -217,9 +221,7 @@ class StockService:
                             "close": float(row.close),
                             "volume": int(row.volume),
                             "amount": float(row.amount),
-                            "change_pct": float(row.change_pct)
-                            if row.change_pct
-                            else 0,
+                            "change_pct": change_pct,
                         }
                     )
 

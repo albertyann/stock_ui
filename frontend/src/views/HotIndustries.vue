@@ -3,9 +3,6 @@
     <div class="page-header">
       <h2>火热行业</h2>
       <div class="header-actions">
-        <el-button type="success" @click="copyIndustries">
-          <el-icon><CopyDocument /></el-icon>拷贝
-        </el-button>
         <el-button type="warning" @click="generateCommand">
           <el-icon><Document /></el-icon>命令
         </el-button>
@@ -126,13 +123,44 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 命令弹窗 -->
+    <el-dialog
+      v-model="commandDialogVisible"
+      title="可用命令"
+      width="700px"
+      destroy-on-close
+    >
+      <el-table :data="commandList" style="width: 100%" border stripe>
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="command" label="命令名称" min-width="180" />
+        <el-table-column prop="description" label="描述" min-width="250" />
+        <el-table-column label="行业参数" width="90" align="center">
+          <template #default="{ row }">
+            <el-checkbox v-model="row.useIndustry" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              @click="copySingleCommand(row)"
+            >
+              <el-icon><CopyDocument /></el-icon>
+              拷贝
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh, CopyDocument, Document } from '@element-plus/icons-vue'
+import { Refresh, Document, CopyDocument } from '@element-plus/icons-vue'
 import { basicDataApi } from '@/api'
 
 const loading = ref(false)
@@ -231,6 +259,62 @@ const getChangeClass = (value) => {
 
 const industryCodeMap = ref(new Map())
 
+// 命令弹窗相关
+const commandDialogVisible = ref(false)
+
+  // 命令列表
+const commandList = ref([
+  {
+    command: 'watchlist-large-order',
+    description: 'Watchlist大单流入筛选器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: false
+  },
+  {
+    command: 'watchlist-decline-shrink',
+    description: 'Watchlist缩量下跌筛选器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: false
+  },
+  {
+    command: 'watchlist-continuous-shrink',
+    description: 'Watchlist持续缩量筛选器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: false
+  },
+  {
+    command: 'weekly-ma5-cross10-vol2x',
+    description: '周线MA5上穿MA10+倍量+MA60趋势策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma20-proximity',
+    description: 'MA20回踩策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma30-proximity',
+    description: 'MA30回踩策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi6-rising',
+    description: 'RSI6上升缩量策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  }
+])
+
 const getIndustryCode = (industry) => {
   if (industryCodeMap.value.has(industry)) {
     return industryCodeMap.value.get(industry)
@@ -238,28 +322,26 @@ const getIndustryCode = (industry) => {
   return industry
 }
 
-const copyIndustries = async () => {
-  if (tableData.value.length === 0) {
-    ElMessage.warning('暂无数据可拷贝')
-    return
-  }
-  const text = tableData.value.map(row => row.industry).join(',')
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('行业名称已拷贝到剪贴板')
-  } catch (err) {
-    console.error('Failed to copy:', err)
-    ElMessage.error('拷贝失败')
-  }
+const generateCommand = () => {
+  commandDialogVisible.value = true
 }
 
-const generateCommand = async () => {
-  const industries = '元器件,电气设备,半导体,通信设备,专用机械,软件服务'
-  const date = filter.trade_date || '2026-04-14'
-  const command = `python screener_cli.py ma20-proximity --industry ${industries} --date ${date}`
+const copySingleCommand = async (item) => {
+  let command = ''
+  // 从页面表格中获取行业列表，优先使用行业代码
+  const industries = tableData.value.map(row => getIndustryCode(row.industry)).join(',')
+  // 优先使用统计日期(meta.trade_date)，如果没有则使用筛选日期
+  const date = meta.trade_date || filter.trade_date || ''
+  if (item.type === 'screener' && item.needsParams) {
+    const industryParam = item.useIndustry && industries ? ` --industry ${industries}` : ''
+    command = `python screener_cli.py ${item.command}${industryParam} --date ${date}`
+  } else {
+    command = item.command
+  }
+
   try {
     await navigator.clipboard.writeText(command)
-    ElMessage.success('命令已拷贝到剪贴板')
+    ElMessage.success(`命令已拷贝: ${item.command}`)
   } catch (err) {
     console.error('Failed to copy command:', err)
     ElMessage.error('命令拷贝失败')
