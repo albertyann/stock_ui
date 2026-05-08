@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from app.services.basic_data_service import BasicDataService
+from app.services.basic_data import BasicDataService
 
 
 router = APIRouter(prefix="/basic-data", tags=["basic-data"])
@@ -80,6 +80,19 @@ async def get_weekly_data(
 ):
     service = BasicDataService()
     result = service.get_weekly_data(page, page_size, name, ts_code, trade_date)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/stk-weekly-monthly/{ts_code}", response_model=dict)
+async def get_stk_weekly_monthly(
+    ts_code: str,
+    freq: str = Query("week", description="频率: week=周线, month=月线"),
+    limit: int = Query(60, ge=1, le=500, description="最近N条"),
+):
+    service = BasicDataService()
+    result = service.get_stk_weekly_monthly(ts_code, freq, limit)
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result

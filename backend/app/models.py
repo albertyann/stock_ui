@@ -201,6 +201,25 @@ class WeeklyData(Base):
     amount = Column(Numeric(15, 2))
 
 
+class StkWeeklyMonthly(Base):
+    __tablename__ = "stk_weekly_monthly"
+
+    ts_code = Column(String(20), primary_key=True)
+    trade_date = Column(Date, primary_key=True)
+    end_date = Column(Date)
+    freq = Column(String(10), primary_key=True)
+    open = Column(Numeric(10, 2))
+    high = Column(Numeric(10, 2))
+    low = Column(Numeric(10, 2))
+    close = Column(Numeric(10, 2))
+    pre_close = Column(Numeric(10, 2))
+    vol = Column(Numeric(15, 2))
+    amount = Column(Numeric(15, 2))
+    change = Column(Numeric(10, 2))
+    pct_chg = Column(Numeric(10, 2))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class WatchlistSnapshot(Base):
     __tablename__ = "watchlist_snapshots"
 

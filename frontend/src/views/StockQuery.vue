@@ -71,7 +71,12 @@
       <template #header>
         <div class="card-header">
           <span>查询结果</span>
-          <div class="trading-dates" v-if="tradingDates">
+          <div class="header-actions">
+            <el-radio-group v-model="displayMode" size="small" @change="saveDisplayMode">
+              <el-radio-button label="daily">当天涨幅</el-radio-button>
+              <el-radio-button label="cumulative">累计涨幅</el-radio-button>
+            </el-radio-group>
+            <div class="trading-dates" v-if="tradingDates">
             <el-tag size="small" type="info">T日: {{ tradingDates['T+0'] }}</el-tag>
             <el-tag
               v-for="day in selectedDays"
@@ -82,6 +87,7 @@
             </el-tag>
           </div>
         </div>
+      </div>
       </template>
 
       <el-table
@@ -92,7 +98,7 @@
         :row-class-name="getRowClassName"
         @row-click="handleRowClick"
       >
-        <el-table-column label="股票代码" width="130" fixed>
+        <el-table-column label="股票代码" width="130" fixed="left">
           <template #default="{ row }">
             <a
               :href="getXueqiuUrl(row.ts_code)"
@@ -104,7 +110,7 @@
             </a>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="名称" width="100" fixed />
+        <el-table-column prop="name" label="名称" width="100" fixed="left" />
         <el-table-column prop="industry" label="板块" width="120" />
 
         <el-table-column label="T日收盘" width="110" align="right">
@@ -116,13 +122,15 @@
         <el-table-column
           v-for="day in selectedDays"
           :key="day"
-          :label="'T+' + day + ' 涨幅'"
-          width="110"
+          :prop="displayMode === 'cumulative' ? 'cumulative_change_T+' + day : 'change_T+' + day"
+          :label="displayMode === 'cumulative' ? 'T+' + day + ' 累计涨幅' : 'T+' + day + ' 涨幅'"
+          width="120"
           align="right"
+          sortable
         >
           <template #default="{ row }">
-            <span :class="getChangeClass(row['change_T+' + day])">
-              {{ formatPct(row['change_T+' + day]) }}
+            <span :class="getChangeClass(displayMode === 'cumulative' ? getCumulativeChange(row, day) : row['change_T+' + day])">
+              {{ formatPct(displayMode === 'cumulative' ? getCumulativeChange(row, day) : row['change_T+' + day]) }}
             </span>
           </template>
         </el-table-column>
@@ -321,6 +329,30 @@ const configDialogVisible = ref(false)
 const configDays = ref([1, 3, 7, 30])
 const DAYS_CONFIG_KEY = 'stock_query_days_config'
 
+const displayMode = ref('daily')
+const DISPLAY_MODE_KEY = 'stock_query_display_mode'
+
+const getCumulativeChange = (row, day) => {
+  const basePrice = row['close_T+0']
+  const targetPrice = row['close_T+' + day]
+  if (basePrice === null || basePrice === undefined || targetPrice === null || targetPrice === undefined) {
+    return null
+  }
+  return ((targetPrice - basePrice) / basePrice) * 100
+}
+
+const loadDisplayMode = () => {
+  const stored = localStorage.getItem(DISPLAY_MODE_KEY)
+  if (stored) {
+    displayMode.value = stored
+  }
+}
+
+const saveDisplayMode = (mode) => {
+  displayMode.value = mode
+  localStorage.setItem(DISPLAY_MODE_KEY, mode)
+}
+
 const openConfigDialog = () => {
   configDays.value = [...selectedDays.value]
   configDialogVisible.value = true
@@ -460,7 +492,9 @@ const formatPct = (pct) => {
 
 const getChangeClass = (val) => {
   if (val === null || val === undefined) return ''
-  return val > 0 ? 'up' : val < 0 ? 'down' : ''
+  if (val > 0) return 'up'
+  if (val < 0) return 'down'
+  return 'flat'
 }
 
 const getXueqiuUrl = (tsCode) => {
@@ -488,7 +522,10 @@ const getRowClassName = ({ row }) => {
 onMounted(() => {
   loadQueryHistory()
   loadDaysConfig()
+  loadDisplayMode()
 })
+
+
 
 const loadWatchReasons = async () => {
   try {
@@ -592,12 +629,14 @@ const handleDelete = async (row) => {
 
 .up {
   color: #f56c6c;
-  font-weight: 500;
 }
 
 .down {
   color: #67c23a;
-  font-weight: 500;
+}
+
+.flat {
+  color: #909399;
 }
 
 .stock-link {
@@ -608,12 +647,30 @@ const handleDelete = async (row) => {
 .stock-link:hover {
   text-decoration: underline;
 }
-:deep(.selected-row) {
-  background-color: #e6f7ff !important;
+
+/* 选中行 */
+:deep(.el-table .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
 }
 
-:deep(.selected-row:hover > td) {
-  background-color: #e6f7ff !important;
+:deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
 }
 
 .follow-dialog-content {

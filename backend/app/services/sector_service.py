@@ -1,11 +1,15 @@
 """
 板块服务 - 获取行业板块数据（从 stock_basic 表 industry 字段）
+概念板块数据来源: dc_index（板块列表）+ dc_member（板块成分股）
 """
 
+import logging
 from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class SectorService:
@@ -253,6 +257,289 @@ class SectorService:
         except Exception as e:
             print(f"Get sector name from code error: {e}")
             return sector_code
+
+    SECTOR_TYPE_MAP = {
+        "concept": "概念板块",
+        "industry": "行业板块",
+        "region": "地域板块",
+    }
+
+    def get_concept_sectors(self, trade_date: Optional[str] = None, sector_type: Optional[str] = None) -> List[Dict]:
+        """
+        获取板块列表（从 dc_index 表获取数据）
+
+        Args:
+            trade_date: 交易日期，格式 YYYY-MM-DD，为 None 时返回最新日期数据
+            sector_type: 板块类型 (concept/industry/region)，为 None 时返回所有类型
+
+        Returns:
+            板块列表
+        """
+        try:
+            idx_type = self.SECTOR_TYPE_MAP.get(sector_type) if sector_type else None
+
+            with self.engine.connect() as conn:
+                if trade_date:
+                    from datetime import datetime as dt
+                    query_date = dt.strptime(trade_date, "%Y-%m-%d").date()
+                else:
+                    if idx_type:
+                        date_query = "SELECT MAX(trade_date) as latest_date FROM dc_index WHERE idx_type = :idx_type"
+                        date_result = conn.execute(text(date_query), {"idx_type": idx_type})
+                    else:
+                        date_query = "SELECT MAX(trade_date) as latest_date FROM dc_index"
+                        date_result = conn.execute(text(date_query))
+                    latest_date_row = date_result.fetchone()
+                    if not latest_date_row or not latest_date_row.latest_date:
+                        return []
+                    query_date = latest_date_row.latest_date
+
+                where_clause = "trade_date = :trade_date"
+                params = {"trade_date": query_date}
+                if idx_type:
+                    where_clause += " AND idx_type = :idx_type"
+                    params["idx_type"] = idx_type
+
+                query = f"""
+                    SELECT
+                        ts_code,
+                        name,
+                        "leading",
+                        leading_code,
+                        pct_change,
+                        leading_pct,
+                        total_mv,
+                        turnover_rate,
+                        up_num,
+                        down_num,
+                        idx_type,
+                        "level"
+                    FROM dc_index
+                    WHERE {where_clause}
+                    ORDER BY ABS(COALESCE(pct_change, 0)) DESC
+                """
+                result = conn.execute(text(query), params)
+
+                sectors = []
+                for row in result:
+                    row_type = self._map_idx_type_to_sector_type(row.idx_type)
+                    sectors.append({
+                        "code": row.ts_code,
+                        "name": row.name,
+                        "type": row_type,
+                        "change_pct": float(row.pct_change or 0),
+                        "leading": row.leading,
+                        "leading_code": row.leading_code,
+                        "leading_pct": float(row.leading_pct or 0),
+                        "total_mv": float(row.total_mv or 0),
+                        "turnover_rate": float(row.turnover_rate or 0),
+                        "up_num": int(row.up_num or 0),
+                        "down_num": int(row.down_num or 0),
+                        "idx_type": row.idx_type,
+                        "level": row.level,
+                        "trade_date": query_date.strftime("%Y-%m-%d") if hasattr(query_date, 'strftime') else str(query_date),
+                        "stock_count": int(row.up_num or 0) + int(row.down_num or 0),
+                    })
+
+                return sectors
+
+        except Exception as e:
+            print(f"Get concept sectors error: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+
+    @staticmethod
+    def _map_idx_type_to_sector_type(idx_type: str) -> str:
+        mapping = {"概念板块": "concept", "行业板块": "industry", "地域板块": "region"}
+        return mapping.get(idx_type, "concept")
+
+    def get_concept_sector_detail(self, ts_code: str) -> Optional[Dict]:
+        """
+        获取概念板块详情
+
+        Args:
+            ts_code: 板块代码
+
+        Returns:
+            板块详情
+        """
+        try:
+            with self.engine.connect() as conn:
+                ts_code_variants = [ts_code]
+                if ts_code.endswith('.DC'):
+                    ts_code_variants.append(ts_code[:-3])
+                else:
+                    ts_code_variants.append(ts_code + '.DC')
+
+                latest_date = None
+                matched_ts_code = None
+                for variant in ts_code_variants:
+                    date_query = "SELECT MAX(trade_date) as latest_date FROM dc_index WHERE ts_code = :ts_code"
+                    date_result = conn.execute(text(date_query), {"ts_code": variant})
+                    row = date_result.fetchone()
+                    if row and row.latest_date:
+                        latest_date = row.latest_date
+                        matched_ts_code = variant
+                        break
+
+                if not latest_date:
+                    return None
+
+                query = """
+                    SELECT 
+                        ts_code,
+                        name,
+                        "leading",
+                        leading_code,
+                        pct_change,
+                        leading_pct,
+                        total_mv,
+                        turnover_rate,
+                        up_num,
+                        down_num,
+                        idx_type,
+                        "level"
+                    FROM dc_index
+                    WHERE ts_code = :ts_code AND trade_date = :trade_date
+                """
+                result = conn.execute(text(query), {"ts_code": matched_ts_code, "trade_date": latest_date})
+                row = result.fetchone()
+
+                if not row:
+                    return None
+
+                return {
+                    "code": row.ts_code,
+                    "name": row.name,
+                    "type": "concept",
+                    "change_pct": float(row.pct_change or 0),
+                    "leading": row.leading,
+                    "leading_code": row.leading_code,
+                    "leading_pct": float(row.leading_pct or 0),
+                    "total_mv": float(row.total_mv or 0),
+                    "turnover_rate": float(row.turnover_rate or 0),
+                    "up_num": int(row.up_num or 0),
+                    "down_num": int(row.down_num or 0),
+                    "idx_type": row.idx_type,
+                    "level": row.level,
+                    "trade_date": latest_date.strftime("%Y-%m-%d") if hasattr(latest_date, 'strftime') else str(latest_date),
+                    "stock_count": int(row.up_num or 0) + int(row.down_num or 0),
+                }
+
+        except Exception as e:
+            print(f"Get concept sector detail error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def get_concept_sector_stocks(
+        self, ts_code: str, sort: str = "default", trend: Optional[str] = None
+    ) -> List[Dict]:
+        try:
+            with self.engine.connect() as conn:
+                ts_code_variants = [ts_code]
+                if ts_code.endswith('.DC'):
+                    ts_code_variants.append(ts_code[:-3])
+                else:
+                    ts_code_variants.append(ts_code + '.DC')
+
+                latest_date = None
+                matched_ts_code = None
+                for variant in ts_code_variants:
+                    date_query = "SELECT MAX(trade_date) as latest_date FROM dc_member WHERE ts_code = :ts_code"
+                    date_result = conn.execute(text(date_query), {"ts_code": variant})
+                    row = date_result.fetchone()
+                    if row and row.latest_date:
+                        latest_date = row.latest_date
+                        matched_ts_code = variant
+                        break
+
+                if not latest_date:
+                    logger.warning(f"dc_member no data found for ts_code variants: {ts_code_variants}")
+                    return []
+
+                logger.info(f"dc_member query: ts_code={matched_ts_code}, trade_date={latest_date}")
+
+                order_clause = "sb.symbol"
+                if sort == "asc":
+                    order_clause = "dd.pct_chg ASC NULLS LAST"
+                elif sort == "desc":
+                    order_clause = "dd.pct_chg DESC NULLS LAST"
+                elif sort == "volume_asc":
+                    order_clause = "dd.vol ASC NULLS LAST"
+                elif sort == "volume_desc":
+                    order_clause = "dd.vol DESC NULLS LAST"
+
+                trend_clause = ""
+                trend_params = {"ts_code": matched_ts_code, "trade_date": latest_date}
+                if trend == "up":
+                    trend_clause = "AND sb.trend = 1"
+                elif trend == "down":
+                    trend_clause = "AND sb.trend = -1"
+
+                query = f"""
+                    SELECT
+                        sb.ts_code,
+                        sb.symbol,
+                        sb.name,
+                        sb.industry,
+                        sb.market,
+                        sb.list_date,
+                        dd.open,
+                        dd.high,
+                        dd.low,
+                        dd.close as price,
+                        dd.pre_close,
+                        dd.vol as volume,
+                        dd.amount,
+                        dd.pct_chg as change_pct,
+                        dd.trade_date
+                    FROM dc_member dm
+                    JOIN stock_basic sb ON sb.ts_code = dm.con_code
+                    LEFT JOIN LATERAL (
+                        SELECT *
+                        FROM daily_data
+                        WHERE ts_code = sb.ts_code
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    ) dd ON true
+                    WHERE dm.ts_code = :ts_code 
+                      AND dm.trade_date = :trade_date
+                      {trend_clause}
+                    ORDER BY {order_clause}
+                """
+                result = conn.execute(text(query), trend_params)
+
+                stocks = []
+                for row in result:
+                    price = float(row.price or 0)
+                    pre_close = float(row.pre_close or 0)
+                    change = price - pre_close if pre_close > 0 else 0
+
+                    stocks.append({
+                        "ts_code": row.ts_code,
+                        "symbol": row.symbol,
+                        "name": row.name,
+                        "industry": row.industry,
+                        "price": price,
+                        "pre_close": pre_close,
+                        "open": float(row.open or 0),
+                        "high": float(row.high or 0),
+                        "low": float(row.low or 0),
+                        "change_pct": float(row.change_pct or 0),
+                        "change": round(change, 2),
+                        "volume": int(row.volume or 0),
+                        "amount": float(row.amount or 0),
+                        "trade_date": row.trade_date.strftime("%Y-%m-%d") if row.trade_date else "",
+                        "update_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+
+                return stocks
+
+        except Exception as e:
+            logger.error(f"Get concept sector stocks error: {e}", exc_info=True)
+            return []
 
     def get_sector_large_orders(self, trade_date: str) -> List[Dict]:
         """

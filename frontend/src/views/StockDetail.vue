@@ -959,8 +959,8 @@ const loadKline = async () => {
     console.error('Failed to load daily kline:', error)
   }
   try {
-    const weeklyResponse = await stockApi.getKline(props.tsCode, 'weekly', 60)
-    weeklyKlineData.value = weeklyResponse.data.data || []
+    const weeklyResponse = await basicDataApi.getStkWeeklyMonthly(props.tsCode, 'week', 60)
+    weeklyKlineData.value = weeklyResponse.data || []
   } catch (error) {
     console.error('Failed to load weekly kline:', error)
   }

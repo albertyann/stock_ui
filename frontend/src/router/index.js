@@ -30,6 +30,8 @@ import IncrementalIndustry from '@/views/IncrementalIndustry.vue'
 import HotIndustries from '@/views/HotIndustries.vue'
 import IndustryStockMoneyflow from '@/views/IndustryStockMoneyflow.vue'
 import StockFundAnalysis from '@/views/StockFundAnalysis.vue'
+import ConceptSectors from '@/views/ConceptSectors.vue'
+import ConceptDetail from '@/views/ConceptDetail.vue'
 
 const routes = [
   {
@@ -205,6 +207,18 @@ const routes = [
     name: 'StockFundAnalysis',
     component: StockFundAnalysis,
     meta: { title: '个股资金分析' }
+  },
+  {
+    path: '/concept-sectors',
+    name: 'ConceptSectors',
+    component: ConceptSectors,
+    meta: { title: '概念板块' }
+  },
+  {
+    path: '/concept/detail',
+    name: 'ConceptDetail',
+    component: ConceptDetail,
+    meta: { title: '板块明细' }
   }
 ]
 

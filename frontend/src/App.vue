@@ -40,20 +40,6 @@
               <span>今日涨停</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="group-watchlists">
-            <template #title>
-              <el-icon><FolderOpened /></el-icon>
-              <span>关注股票</span>
-            </template>
-            <el-menu-item 
-              v-for="wl in watchlists" 
-              :key="wl.id" 
-              :index="`/watchlist/${wl.id}`"
-            >
-              <el-icon><Folder /></el-icon>
-              <span>{{ wl.name }}</span>
-            </el-menu-item>
-          </el-sub-menu>
           <el-sub-menu index="group-tools">
             <template #title>
               <el-icon><Tools /></el-icon>
@@ -80,6 +66,10 @@
             <el-menu-item index="/sectors">
               <el-icon><Grid /></el-icon>
               <span>看板块</span>
+            </el-menu-item>
+            <el-menu-item index="/concept-sectors">
+              <el-icon><Flag /></el-icon>
+              <span>概念板块</span>
             </el-menu-item>
             <el-menu-item index="/sector-large-orders">
               <el-icon><Money /></el-icon>
@@ -187,20 +177,6 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useWatchlistStore } from '@/stores/watchlist'
-import { storeToRefs } from 'pinia'
-
-const store = useWatchlistStore()
-const { watchlists } = storeToRefs(store)
-
-const showCreateDialog = ref(false)
-const newWatchlist = ref({ name: '', description: '' })
-
-onMounted(() => {
-  store.fetchWatchlists()
-})
-
 </script>
 
 <style scoped>

@@ -76,9 +76,9 @@
       <el-table :data="tableData" stripe border @sort-change="handleSortChange" @row-click="handleRowClick" :row-class-name="tableRowClassName">
         <el-table-column prop="ts_code" label="TS代码" width="130" fixed="left">
           <template #default="{ row }">
-            <a :href="getXueqiuLink(row.ts_code)" target="_blank" rel="noopener noreferrer">
+            <router-link :to="`/stock/${row.ts_code}`">
               {{ row.ts_code }}
-            </a>
+            </router-link>
           </template>
         </el-table-column>
         <el-table-column prop="name" label="股票名称" width="120" fixed="left" />

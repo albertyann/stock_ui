@@ -183,8 +183,29 @@ export const sectorApi = {
     }
     return api.get(url)
   },
-  // 获取板块大单交易统计
-  getSectorLargeOrders: (tradeDate) => api.get(`/sectors/large-orders?trade_date=${tradeDate}`)
+  getSectorLargeOrders: (tradeDate) => api.get(`/sectors/large-orders?trade_date=${tradeDate}`),
+  getConceptSectors: (tradeDate = null, sectorType = null) => {
+    const params = new URLSearchParams()
+    if (tradeDate) {
+      params.append('trade_date', tradeDate)
+    }
+    if (sectorType) {
+      params.append('sector_type', sectorType)
+    }
+    const queryString = params.toString()
+    return api.get(`/sectors/concepts${queryString ? '?' + queryString : ''}`)
+  },
+  getConceptSectorDetail: (tsCode) => api.get(`/sectors/concepts/${tsCode}`),
+  getConceptSectorStocks: (tsCode, page = 1, pageSize = 20, search = null, sort = 'default', trend = null) => {
+    let url = `/sectors/concepts/${tsCode}/stocks?page=${page}&page_size=${pageSize}&sort=${sort}`
+    if (search) {
+      url += `&search=${encodeURIComponent(search)}`
+    }
+    if (trend) {
+      url += `&trend=${trend}`
+    }
+    return api.get(url)
+  }
 }
 
 export const syncTaskApi = {
@@ -260,6 +281,9 @@ export const basicDataApi = {
       url += `&trade_date=${trade_date}`
     }
     return api.get(url)
+  },
+  getStkWeeklyMonthly: (tsCode, freq = 'week', limit = 60) => {
+    return api.get(`/basic-data/stk-weekly-monthly/${tsCode}?freq=${freq}&limit=${limit}`)
   },
   getMoneyflow: (tsCode, limit = 20) => {
     return api.get(`/basic-data/moneyflow/${tsCode}?limit=${limit}`)

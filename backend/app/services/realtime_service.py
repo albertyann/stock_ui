@@ -581,20 +581,10 @@ class RealtimePriceService:
                             row_data[f"close_{label}"] = None
                             row_data[f"pct_chg_{label}"] = None
 
-                    if base_price and base_price > 0:
-                        for day in days:
-                            label = f"T+{day}"
-                            close_val = row_data.get(f"close_{label}")
-                            if close_val is not None:
-                                row_data[f"change_{label}"] = round(
-                                    (close_val - base_price) / base_price * 100, 2
-                                )
-                            else:
-                                row_data[f"change_{label}"] = None
-                    else:
-                        for day in days:
-                            label = f"T+{day}"
-                            row_data[f"change_{label}"] = None
+                    for day in days:
+                        label = f"T+{day}"
+                        pct_chg_val = row_data.get(f"pct_chg_{label}")
+                        row_data[f"change_{label}"] = pct_chg_val if pct_chg_val is not None else None
 
                     results.append(row_data)
 

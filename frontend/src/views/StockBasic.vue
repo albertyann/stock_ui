@@ -59,9 +59,21 @@
 
     <el-card v-loading="loading">
       <el-table :data="tableData" stripe border>
-        <el-table-column prop="ts_code" label="TS代码" width="130" />
+        <el-table-column prop="ts_code" label="TS代码" width="130">
+          <template #default="{ row }">
+            <router-link :to="`/stock/${row.ts_code}`" class="stock-link">
+              {{ row.ts_code }}
+            </router-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="symbol" label="股票代码" width="100" />
-        <el-table-column prop="name" label="股票名称" width="120" />
+        <el-table-column prop="name" label="股票名称" width="120">
+          <template #default="{ row }">
+            <router-link :to="`/stock/${row.ts_code}`" class="stock-link">
+              {{ row.name }}
+            </router-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="area" label="地区" width="100" />
         <el-table-column prop="industry" label="行业" width="140" />
         <el-table-column prop="market" label="市场" width="100" />
@@ -208,5 +220,13 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+.stock-link {
+  color: #409eff;
+  text-decoration: none;
+  cursor: pointer;
+}
+.stock-link:hover {
+  text-decoration: underline;
 }
 </style>

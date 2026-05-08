@@ -329,7 +329,7 @@ const generateCommand = () => {
 const copySingleCommand = async (item) => {
   let command = ''
   // 从页面表格中获取行业列表，优先使用行业代码
-  const industries = tableData.value.map(row => getIndustryCode(row.industry)).join(',')
+  const industries = tableData.value.map(row => row.industry).join(',')
   // 优先使用统计日期(meta.trade_date)，如果没有则使用筛选日期
   const date = meta.trade_date || filter.trade_date || ''
   if (item.type === 'screener' && item.needsParams) {
