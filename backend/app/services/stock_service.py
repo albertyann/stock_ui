@@ -225,6 +225,42 @@ class StockService:
                         }
                     )
 
+                # weekly_data 最晚截止上周，从 stk_weekly_monthly 补充本周数据
+                if period == "weekly" and kline_data:
+                    last_weekly_date = kline_data[0]["date"]
+                    supp_result = conn.execute(
+                        text("""
+                        SELECT
+                            trade_date as date,
+                            open, high, low, close,
+                            vol as volume,
+                            amount,
+                            pct_chg as change_pct
+                        FROM stk_weekly_monthly
+                        WHERE ts_code = :ts_code AND freq = 'week'
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    """),
+                        {"ts_code": ts_code},
+                    )
+                    supp_row = supp_result.fetchone()
+                    if supp_row and supp_row.date:
+                        supp_date_str = supp_row.date.strftime("%Y-%m-%d")
+                        if not last_weekly_date or supp_date_str > last_weekly_date:
+                            supp_pct = float(supp_row.change_pct) if supp_row.change_pct else 0
+                            # stk_weekly_monthly 的 pct_chg 也是小数，需乘以100
+                            # supp_pct = supp_pct
+                            kline_data.insert(0, {
+                                "date": supp_date_str,
+                                "open": float(supp_row.open) if supp_row.open is not None else None,
+                                "high": float(supp_row.high) if supp_row.high is not None else None,
+                                "low": float(supp_row.low) if supp_row.low is not None else None,
+                                "close": float(supp_row.close) if supp_row.close is not None else None,
+                                "volume": int(supp_row.volume) if supp_row.volume is not None else None,
+                                "amount": float(supp_row.amount) if supp_row.amount is not None else None,
+                                "change_pct": supp_pct,
+                            })
+
                 return list(reversed(kline_data))
 
         except Exception as e:
