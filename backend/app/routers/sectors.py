@@ -25,6 +25,17 @@ async def get_all_sectors():
     }
 
 
+@router.get("/stock-concepts/{ts_code}", response_model=dict)
+async def get_stock_concepts(ts_code: str):
+    service = SectorService()
+    concepts = service.get_stock_concepts(ts_code)
+    return {
+        "success": True,
+        "data": concepts,
+        "count": len(concepts),
+    }
+
+
 @router.get("/concepts", response_model=dict)
 async def get_concept_sectors(
     trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"),
@@ -81,6 +92,7 @@ async def get_concept_sector_stocks(
     search: Optional[str] = Query(None, description="搜索关键词（股票名称或代码）"),
     sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)"),
     trend: Optional[str] = Query(None, description="趋势过滤: up(上升), down(下降)"),
+    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"),
 ):
     """
     获取概念板块内的股票列表
@@ -92,17 +104,18 @@ async def get_concept_sector_stocks(
         search: 搜索关键词
         sort: 排序方式
         trend: 趋势过滤
+        trade_date: 交易日期
 
     Returns:
         股票列表及分页信息
     """
     service = SectorService()
 
-    sector = service.get_concept_sector_detail(ts_code)
+    sector = service.get_concept_sector_detail(ts_code, trade_date=trade_date)
     if not sector:
         raise HTTPException(status_code=404, detail="Concept sector not found")
 
-    all_stocks = service.get_concept_sector_stocks(ts_code, sort=sort, trend=trend)
+    all_stocks = service.get_concept_sector_stocks(ts_code, sort=sort, trend=trend, trade_date=trade_date)
 
     if search:
         search_lower = search.lower()

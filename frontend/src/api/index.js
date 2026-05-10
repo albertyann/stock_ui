@@ -111,7 +111,8 @@ export const stockApi = {
   getKline: (tsCode, period = 'daily', limit = 60) => 
     api.get(`/stocks/${tsCode}/kline?period=${period}&limit=${limit}`),
   getTags: (tsCode) => api.get(`/watchlists/stocks/${tsCode}/tags`),
-  updateTags: (tsCode, tags) => api.put(`/watchlists/stocks/${tsCode}/tags`, { tags })
+  updateTags: (tsCode, tags) => api.put(`/watchlists/stocks/${tsCode}/tags`, { tags }),
+  syncKline: (tsCode) => longRunningApi.post(`/stocks/${tsCode}/sync-kline`)
 }
 
 export const signalApi = {
@@ -170,7 +171,7 @@ export const realtimeApi = {
 }
 
 export const sectorApi = {
-  // 获取所有板块列表（行业）
+  getStockConcepts: (tsCode) => api.get(`/sectors/stock-concepts/${tsCode}`),
   getAllSectors: () => api.get('/sectors'),
   // 获取板块详情
   getSectorDetail: (sectorCode, sectorType = 'industry') => 
@@ -196,13 +197,16 @@ export const sectorApi = {
     return api.get(`/sectors/concepts${queryString ? '?' + queryString : ''}`)
   },
   getConceptSectorDetail: (tsCode) => api.get(`/sectors/concepts/${tsCode}`),
-  getConceptSectorStocks: (tsCode, page = 1, pageSize = 20, search = null, sort = 'default', trend = null) => {
+  getConceptSectorStocks: (tsCode, page = 1, pageSize = 20, search = null, sort = 'default', trend = null, tradeDate = null) => {
     let url = `/sectors/concepts/${tsCode}/stocks?page=${page}&page_size=${pageSize}&sort=${sort}`
     if (search) {
       url += `&search=${encodeURIComponent(search)}`
     }
     if (trend) {
       url += `&trend=${trend}`
+    }
+    if (tradeDate) {
+      url += `&trade_date=${tradeDate}`
     }
     return api.get(url)
   }

@@ -222,12 +222,14 @@ const handleSearch = () => {
 
 const goToSector = (sector) => {
   const type = sector.type || sectorType.value
+  const date = selectedDate.value || tradeDate.value || ''
   router.push({
     path: '/concept/detail',
     query: {
       code: sector.code,
       sectorType: type,
-      sectorName: sector.name
+      sectorName: sector.name,
+      tradeDate: date
     }
   })
 }

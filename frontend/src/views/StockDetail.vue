@@ -3,6 +3,55 @@
     <div class="stock-detail" v-if="stock">
       <el-page-header @back="$router.back()" :content="`${stock.name}(${stock.ts_code})${stock.industry ? ' - ' + stock.industry : ''}`" />
 
+      <!-- 股票信息顶栏 -->
+      <el-card class="stock-info-top mt-20">
+        <div class="stock-info-top__inner">
+          <div class="stock-info-top__price-block">
+            <span class="stock-info-top__price">¥{{ stock.current_price?.toFixed(2) }}</span>
+            <span class="stock-info-top__change" :class="getChangeClass(stock.change_pct)">
+              {{ stock.change_pct > 0 ? '+' : '' }}{{ stock.change_pct?.toFixed(2) }}%
+            </span>
+          </div>
+          <div class="stock-info-top__metrics">
+            <div class="stock-info-top__metric">
+              <span class="metric-label">成交量</span>
+              <span class="metric-value">{{ formatVolume(stock.volume) }}</span>
+            </div>
+            <div class="stock-info-top__metric">
+              <span class="metric-label">成交额</span>
+              <span class="metric-value">{{ formatAmount(stock.amount) }}</span>
+            </div>
+            <div class="stock-info-top__metric">
+              <span class="metric-label">换手率</span>
+              <span class="metric-value">{{ stock.turnover_rate?.toFixed(2) }}%</span>
+            </div>
+            <div class="stock-info-top__metric">
+              <span class="metric-label">市盈率</span>
+              <span class="metric-value">{{ stock.pe?.toFixed(2) || '-' }}</span>
+            </div>
+            <div class="stock-info-top__metric">
+              <span class="metric-label">市净率</span>
+              <span class="metric-value">{{ stock.pb?.toFixed(2) || '-' }}</span>
+            </div>
+            <div class="stock-info-top__metric">
+              <span class="metric-label">总市值</span>
+              <span class="metric-value">{{ formatMarketCap(stock.market_cap) }}</span>
+            </div>
+          </div>
+          <div class="stock-info-top__actions">
+            <el-button size="small" :type="isWatched ? 'info' : 'warning'" link @click="openFollowDialog" :disabled="isWatched">
+              {{ isWatched ? '已关注' : '关注' }}
+            </el-button>
+            <el-button size="small" type="primary" link @click="openXueqiu(stock)">
+              雪球
+            </el-button>
+            <el-button size="small" link @click="showSettingsDialog = true">
+              <el-icon><Setting /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </el-card>
+
       <el-row :gutter="20" class="mt-20">
         <el-col :span="16">
           <el-card>
@@ -145,6 +194,36 @@
             />
           </el-card>
 
+          <!-- 概念板块 -->
+          <el-card class="mt-20" v-loading="conceptLoading">
+            <template #header>
+              <div class="card-header">
+                <span>概念板块</span>
+                <span v-if="conceptList.length > 0" class="signal-count">{{ conceptList.length }}个</span>
+              </div>
+            </template>
+            <div v-if="conceptList.length > 0" class="concept-tags">
+              <router-link
+                v-for="c in conceptList"
+                :key="c.ts_code"
+                :to="{ path: '/concept/detail', query: { code: c.ts_code, sectorType: 'concept', sectorName: c.name } }"
+                custom
+                v-slot="{ navigate }"
+              >
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  class="concept-tag"
+                  :type="c.change_pct > 0 ? 'danger' : c.change_pct < 0 ? 'success' : 'info'"
+                  @click="navigate"
+                >
+                  {{ c.name }}
+                </el-tag>
+              </router-link>
+            </div>
+            <el-empty v-else description="暂无概念板块数据" :image-size="60" />
+          </el-card>
+
           <el-card class="mt-20" v-loading="moneyflowLoading">
             <template #header>
               <div class="card-header">
@@ -247,57 +326,7 @@
             </div>
           </el-card>
 
-          <el-card class="mt-20">
-            <template #header>
-              <div class="card-header">
-                <span>实时行情</span>
-                <el-button size="small" type="primary" link @click="openXueqiu(stock)">
-                  雪球
-                </el-button>
-              </div>
-            </template>
 
-            <div class="price-display">
-              <div class="current-price">
-                ¥{{ stock.current_price?.toFixed(2) }}
-              </div>
-              <div 
-                class="change-pct"
-                :class="getChangeClass(stock.change_pct)"
-              >
-                {{ stock.change_pct > 0 ? '+' : '' }}{{ stock.change_pct?.toFixed(2) }}%
-              </div>
-            </div>
-
-            <el-divider />
-
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="label">成交量:</span>
-                <span>{{ formatVolume(stock.volume) }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">成交额:</span>
-                <span>{{ formatAmount(stock.amount) }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">换手率:</span>
-                <span>{{ stock.turnover_rate?.toFixed(2) }}%</span>
-              </div>
-              <div class="info-item">
-                <span class="label">市盈率:</span>
-                <span>{{ stock.pe?.toFixed(2) || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">市净率:</span>
-                <span>{{ stock.pb?.toFixed(2) || '-' }}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">总市值:</span>
-                <span>{{ formatMarketCap(stock.market_cap) }}</span>
-              </div>
-            </div>
-          </el-card>
 
           <el-card class="mt-20" v-if="watchlistStockInfo">
             <template #header>
@@ -586,21 +615,63 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 关注股票弹窗 -->
+    <FollowStockDialog
+      v-model="followDialogVisible"
+      :stock="currentFollowStock"
+      @success="handleFollowSuccess"
+    />
+
+    <!-- 设置弹窗 -->
+    <el-dialog v-model="showSettingsDialog" title="设置" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="股票">
+          <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
+        </el-form-item>
+        <el-form-item label="数据同步">
+          <div class="sync-kline-section">
+            <div class="sync-kline-desc">
+              删除当前股票已有K线数据，从2018年至今全量重新拉取日线数据。
+            </div>
+            <el-button
+              type="danger"
+              :loading="syncKlineLoading"
+              :disabled="syncKlineLoading"
+              @click="handleSyncKline"
+            >
+              同步K线数据
+            </el-button>
+            <div v-if="syncKlineResult" class="sync-result" :class="syncKlineResult.success ? 'sync-success' : 'sync-error'">
+              {{ syncKlineResult.success
+                ? `同步完成：删除日线 ${syncKlineResult.deleted_daily || 0} 条，周线 ${syncKlineResult.deleted_weekly || 0} 条`
+                : `同步失败：${syncKlineResult.error}`
+              }}
+            </div>
+          </div>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showSettingsDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi } from '@/api'
+import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { EditPen, Plus, Edit, Delete } from '@element-plus/icons-vue'
+import { EditPen, Plus, Edit, Delete, Setting } from '@element-plus/icons-vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockVolumeChart from '@/components/StockVolumeChart.vue'
 import StockMacdChart from '@/components/StockMacdChart.vue'
 import StockRsiChart from '@/components/StockRsiChart.vue'
 import StockChipChart from '@/components/StockChipChart.vue'
+import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
 const props = defineProps(['tsCode'])
 
@@ -659,6 +730,18 @@ const infoDialogMode = ref('create')
 const editingInfoId = ref(null)
 const infoMemoInput = ref('')
 const infoLoading = ref(false)
+
+// 关注弹窗相关
+const followDialogVisible = ref(false)
+const currentFollowStock = ref(null)
+const isWatched = ref(false)
+
+const conceptList = ref([])
+const conceptLoading = ref(false)
+
+const showSettingsDialog = ref(false)
+const syncKlineLoading = ref(false)
+const syncKlineResult = ref(null)
 
 // 可选标签列表（排除已选中的）
 const availableTagsList = computed(() => {
@@ -771,6 +854,7 @@ const loadStockDetail = async () => {
     await loadTags()
     await loadAllTags()
     await loadStockInfos()
+    await loadConcepts()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
     ElMessage.error('加载失败')
@@ -1029,7 +1113,8 @@ const formatAmount = (amount) => {
 
 const formatMarketCap = (cap) => {
   if (!cap) return '-'
-  return (cap / 100000000).toFixed(2) + '亿'
+  // total_mv from tushare daily_basic is in 万元, 10000万 = 1亿
+  return (cap / 10000).toFixed(2) + '亿'
 }
 
 const formatDate = (dateStr) => {
@@ -1058,17 +1143,33 @@ const openXueqiu = (stock) => {
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
+// 关注股票
+const openFollowDialog = () => {
+  if (!stock.value) return
+  currentFollowStock.value = stock.value
+  followDialogVisible.value = true
+}
+
+const handleFollowSuccess = () => {
+  followDialogVisible.value = false
+  isWatched.value = true
+  loadWatchlistStockInfo()
+}
+
 // 加载股票所属分组信息
 const loadWatchlistStockInfo = async () => {
   try {
     const response = await watchlistApi.getStockByTsCode(props.tsCode)
     if (response.success && response.data) {
       watchlistStockInfo.value = response.data
+      isWatched.value = true
     } else {
       watchlistStockInfo.value = null
+      isWatched.value = false
     }
   } catch (error) {
     watchlistStockInfo.value = null
+    isWatched.value = false
   }
 }
 
@@ -1274,6 +1375,41 @@ const openCreateInfoDialog = () => {
   showInfoDialog.value = true
 }
 
+const loadConcepts = async () => {
+  conceptLoading.value = true
+  try {
+    const response = await sectorApi.getStockConcepts(props.tsCode)
+    if (response.success) {
+      conceptList.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load concepts:', error)
+  } finally {
+    conceptLoading.value = false
+  }
+}
+
+const handleSyncKline = async () => {
+  syncKlineLoading.value = true
+  syncKlineResult.value = null
+  try {
+    const response = await stockApi.syncKline(props.tsCode)
+    syncKlineResult.value = response
+    if (response.success) {
+      ElMessage.success('K线数据同步完成')
+      await loadKline()
+    } else {
+      ElMessage.error(response.error || '同步失败')
+    }
+  } catch (error) {
+    console.error('Failed to sync kline:', error)
+    syncKlineResult.value = { success: false, error: error.message || '请求失败' }
+    ElMessage.error('同步请求失败')
+  } finally {
+    syncKlineLoading.value = false
+  }
+}
+
 // 打开编辑信息弹窗
 const openEditInfoDialog = (info) => {
   infoDialogMode.value = 'edit'
@@ -1348,29 +1484,72 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
 }
 
-.price-display {
-  text-align: center;
-  padding: 20px 0;
+/* 顶部股票信息栏 */
+.stock-info-top :deep(.el-card__body) {
+  padding: 16px 24px;
 }
 
-.current-price {
-  font-size: 36px;
-  font-weight: bold;
+.stock-info-top__inner {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.stock-info-top__price-block {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.stock-info-top__price {
+  font-size: 28px;
+  font-weight: 700;
   color: #303133;
-  margin-bottom: 10px;
 }
 
-.change-pct {
-  font-size: 20px;
-  font-weight: 500;
+.stock-info-top__change {
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.change-pct.up {
+.stock-info-top__change.up {
   color: #f56c6c;
 }
 
-.change-pct.down {
+.stock-info-top__change.down {
   color: #67c23a;
+}
+
+.stock-info-top__metrics {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.stock-info-top__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-info-top__metric .metric-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.stock-info-top__metric .metric-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.stock-info-top__actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .info-grid {
@@ -1817,5 +1996,49 @@ const deleteStockInfo = async (infoId) => {
   gap: 4px;
   opacity: 0;
   transition: opacity 0.2s;
+}
+
+.concept-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.concept-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.concept-tag:hover {
+  opacity: 0.8;
+}
+
+.sync-kline-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-kline-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.5;
+}
+
+.sync-result {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.sync-result.sync-success {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.sync-result.sync-error {
+  background-color: #fef0f0;
+  color: #f56c6c;
 }
 </style>

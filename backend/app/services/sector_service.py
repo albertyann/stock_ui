@@ -354,12 +354,13 @@ class SectorService:
         mapping = {"概念板块": "concept", "行业板块": "industry", "地域板块": "region"}
         return mapping.get(idx_type, "concept")
 
-    def get_concept_sector_detail(self, ts_code: str) -> Optional[Dict]:
+    def get_concept_sector_detail(self, ts_code: str, trade_date: Optional[str] = None) -> Optional[Dict]:
         """
         获取概念板块详情
 
         Args:
             ts_code: 板块代码
+            trade_date: 交易日期，格式 YYYY-MM-DD，为 None 时返回最新日期数据
 
         Returns:
             板块详情
@@ -372,16 +373,30 @@ class SectorService:
                 else:
                     ts_code_variants.append(ts_code + '.DC')
 
-                latest_date = None
-                matched_ts_code = None
-                for variant in ts_code_variants:
-                    date_query = "SELECT MAX(trade_date) as latest_date FROM dc_index WHERE ts_code = :ts_code"
-                    date_result = conn.execute(text(date_query), {"ts_code": variant})
-                    row = date_result.fetchone()
-                    if row and row.latest_date:
-                        latest_date = row.latest_date
-                        matched_ts_code = variant
-                        break
+                if trade_date:
+                    from datetime import datetime as dt
+                    query_date = dt.strptime(trade_date, "%Y-%m-%d").date()
+                    matched_ts_code = None
+                    for variant in ts_code_variants:
+                        check_query = "SELECT 1 FROM dc_index WHERE ts_code = :ts_code AND trade_date = :trade_date LIMIT 1"
+                        check_result = conn.execute(text(check_query), {"ts_code": variant, "trade_date": query_date})
+                        if check_result.fetchone():
+                            matched_ts_code = variant
+                            break
+                    if not matched_ts_code:
+                        return None
+                    latest_date = query_date
+                else:
+                    latest_date = None
+                    matched_ts_code = None
+                    for variant in ts_code_variants:
+                        date_query = "SELECT MAX(trade_date) as latest_date FROM dc_index WHERE ts_code = :ts_code"
+                        date_result = conn.execute(text(date_query), {"ts_code": variant})
+                        row = date_result.fetchone()
+                        if row and row.latest_date:
+                            latest_date = row.latest_date
+                            matched_ts_code = variant
+                            break
 
                 if not latest_date:
                     return None
@@ -434,7 +449,7 @@ class SectorService:
             return None
 
     def get_concept_sector_stocks(
-        self, ts_code: str, sort: str = "default", trend: Optional[str] = None
+        self, ts_code: str, sort: str = "default", trend: Optional[str] = None, trade_date: Optional[str] = None
     ) -> List[Dict]:
         try:
             with self.engine.connect() as conn:
@@ -444,20 +459,35 @@ class SectorService:
                 else:
                     ts_code_variants.append(ts_code + '.DC')
 
-                latest_date = None
-                matched_ts_code = None
-                for variant in ts_code_variants:
-                    date_query = "SELECT MAX(trade_date) as latest_date FROM dc_member WHERE ts_code = :ts_code"
-                    date_result = conn.execute(text(date_query), {"ts_code": variant})
-                    row = date_result.fetchone()
-                    if row and row.latest_date:
-                        latest_date = row.latest_date
-                        matched_ts_code = variant
-                        break
+                if trade_date:
+                    from datetime import datetime as dt
+                    query_date = dt.strptime(trade_date, "%Y-%m-%d").date()
+                    matched_ts_code = None
+                    for variant in ts_code_variants:
+                        check_query = "SELECT 1 FROM dc_member WHERE ts_code = :ts_code AND trade_date = :trade_date LIMIT 1"
+                        check_result = conn.execute(text(check_query), {"ts_code": variant, "trade_date": query_date})
+                        if check_result.fetchone():
+                            matched_ts_code = variant
+                            break
+                    if not matched_ts_code:
+                        logger.warning(f"dc_member no data found for ts_code={ts_code}, trade_date={trade_date}")
+                        return []
+                    latest_date = query_date
+                else:
+                    latest_date = None
+                    matched_ts_code = None
+                    for variant in ts_code_variants:
+                        date_query = "SELECT MAX(trade_date) as latest_date FROM dc_member WHERE ts_code = :ts_code"
+                        date_result = conn.execute(text(date_query), {"ts_code": variant})
+                        row = date_result.fetchone()
+                        if row and row.latest_date:
+                            latest_date = row.latest_date
+                            matched_ts_code = variant
+                            break
 
-                if not latest_date:
-                    logger.warning(f"dc_member no data found for ts_code variants: {ts_code_variants}")
-                    return []
+                    if not latest_date:
+                        logger.warning(f"dc_member no data found for ts_code variants: {ts_code_variants}")
+                        return []
 
                 logger.info(f"dc_member query: ts_code={matched_ts_code}, trade_date={latest_date}")
 
@@ -471,18 +501,13 @@ class SectorService:
                 elif sort == "volume_desc":
                     order_clause = "dd.vol DESC NULLS LAST"
 
-                trend_clause = ""
                 trend_params = {"ts_code": matched_ts_code, "trade_date": latest_date}
-                if trend == "up":
-                    trend_clause = "AND sb.trend = 1"
-                elif trend == "down":
-                    trend_clause = "AND sb.trend = -1"
 
                 query = f"""
                     SELECT
-                        sb.ts_code,
-                        sb.symbol,
-                        sb.name,
+                        COALESCE(sb.ts_code, dm.con_code) as ts_code,
+                        COALESCE(sb.symbol, SPLIT_PART(dm.con_code, '.', 1)) as symbol,
+                        COALESCE(sb.name, dm.name) as name,
                         sb.industry,
                         sb.market,
                         sb.list_date,
@@ -496,17 +521,17 @@ class SectorService:
                         dd.pct_chg as change_pct,
                         dd.trade_date
                     FROM dc_member dm
-                    JOIN stock_basic sb ON sb.ts_code = dm.con_code
+                    LEFT JOIN stock_basic sb ON sb.ts_code = dm.con_code
                     LEFT JOIN LATERAL (
                         SELECT *
                         FROM daily_data
-                        WHERE ts_code = sb.ts_code
+                        WHERE ts_code = dm.con_code
                         ORDER BY trade_date DESC
                         LIMIT 1
                     ) dd ON true
                     WHERE dm.ts_code = :ts_code 
                       AND dm.trade_date = :trade_date
-                      {trend_clause}
+                      {'AND (sb.trend = 1 OR sb.trend IS NULL)' if trend == 'up' else 'AND (sb.trend = -1 OR sb.trend IS NULL)' if trend == 'down' else ''}
                     ORDER BY {order_clause}
                 """
                 result = conn.execute(text(query), trend_params)
@@ -599,6 +624,51 @@ class SectorService:
             print(f"Get sector large orders error: {e}")
             import traceback
             traceback.print_exc()
+            return []
+
+    def get_stock_concepts(self, con_code: str) -> List[Dict]:
+        """
+        获取股票所属的概念板块列表（反向查询：根据股票代码查 dc_member + dc_index）
+
+        Args:
+            con_code: 股票代码，如 688275.SH
+
+        Returns:
+            概念板块名称列表
+        """
+        try:
+            with self.engine.connect() as conn:
+                # 获取最新的 trade_date
+                date_query = "SELECT MAX(trade_date) as latest_date FROM dc_member WHERE con_code = :con_code"
+                date_result = conn.execute(text(date_query), {"con_code": con_code})
+                date_row = date_result.fetchone()
+                if not date_row or not date_row.latest_date:
+                    return []
+                latest_date = date_row.latest_date
+
+                query = """
+                    SELECT DISTINCT di.name, di.ts_code, di.pct_change
+                    FROM dc_member dm
+                    LEFT JOIN dc_index di ON di.ts_code = dm.ts_code AND di.trade_date = dm.trade_date
+                    WHERE dm.con_code = :con_code
+                      AND dm.trade_date = :trade_date
+                      AND di.idx_type = '概念板块'
+                    ORDER BY di.name
+                """
+                result = conn.execute(text(query), {"con_code": con_code, "trade_date": latest_date})
+
+                concepts = []
+                for row in result:
+                    concepts.append({
+                        "name": row.name,
+                        "ts_code": row.ts_code,
+                        "change_pct": float(row.pct_change or 0),
+                    })
+
+                return concepts
+
+        except Exception as e:
+            logger.error(f"Get stock concepts error: {e}", exc_info=True)
             return []
 
     def _normalize_code(self, code: str) -> str:

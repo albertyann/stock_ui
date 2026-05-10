@@ -49,3 +49,10 @@ async def get_kline_data(
         "success": True,
         "data": {"ts_code": ts_code, "period": period, "data": kline},
     }
+
+
+@router.post("/{ts_code}/sync-kline", response_model=dict)
+async def sync_kline_data(ts_code: str):
+    service = StockService()
+    result = service.sync_kline_data(ts_code)
+    return result

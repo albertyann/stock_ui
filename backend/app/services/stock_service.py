@@ -1,3 +1,6 @@
+import shutil
+import subprocess
+from datetime import datetime
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import create_engine, text
@@ -269,3 +272,84 @@ class StockService:
 
             traceback.print_exc()
             return []
+
+    def sync_kline_data(self, ts_code: str) -> dict:
+        """Delete existing kline data for a stock and re-sync from 2018-01-01.
+
+        Step 1: Delete all daily_data and weekly_data for this ts_code.
+        Step 2: Run stock-sync daily_data and weekly_data with date range.
+        """
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        start_date = "2018-01-01"
+
+        deleted_daily = 0
+        deleted_weekly = 0
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("DELETE FROM daily_data WHERE ts_code = :ts_code"),
+                    {"ts_code": ts_code},
+                )
+                deleted_daily = result.rowcount
+                conn.commit()
+
+                result = conn.execute(
+                    text("DELETE FROM weekly_data WHERE ts_code = :ts_code"),
+                    {"ts_code": ts_code},
+                )
+                deleted_weekly = result.rowcount
+                conn.commit()
+        except Exception as e:
+            print(f"Delete error: {e}")
+            return {"success": False, "error": f"Failed to delete data: {str(e)}"}
+
+        try:
+            cmd_parts = ["stock-sync"]
+            if settings.stock_sync_config_path:
+                cmd_parts.extend(["-c", settings.stock_sync_config_path])
+            cmd_parts.extend(["run", "daily_data", "--start-date", start_date, "--end-date", today])
+
+            executable = shutil.which("stock-sync")
+            if executable:
+                cmd_parts[0] = executable
+
+            result = subprocess.run(
+                cmd_parts,
+                capture_output=True,
+                text=True,
+                timeout=600,
+                cwd=settings.stock_sync_work_dir,
+            )
+
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": f"Sync command failed: {result.stderr[:500]}",
+                    "deleted_daily": deleted_daily,
+                    "deleted_weekly": deleted_weekly,
+                }
+
+            return {
+                "success": True,
+                "deleted_daily": deleted_daily,
+                "deleted_weekly": deleted_weekly,
+                "sync_output": result.stdout[-500:] if result.stdout else "",
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": "Sync command timed out",
+                "deleted_daily": deleted_daily,
+                "deleted_weekly": deleted_weekly,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "deleted_daily": deleted_daily,
+                "deleted_weekly": deleted_weekly,
+            }

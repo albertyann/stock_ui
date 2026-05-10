@@ -118,7 +118,15 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="涨跌幅" width="110" align="right" sortable :sort-method="sortByChangePct">
+          <el-table-column label="涨跌幅" width="110" align="right">
+            <template #header>
+              <span @click.stop="toggleChangeSort" style="cursor: pointer; display: inline-flex; align-items: center; gap: 2px;">
+                涨跌幅
+                <el-icon v-if="sortOrder === 'desc'" style="color: #f56c6c;"><ArrowDown /></el-icon>
+                <el-icon v-else-if="sortOrder === 'asc'" style="color: #67c23a;"><ArrowUp /></el-icon>
+                <el-icon v-else style="color: #c0c4cc;"><Sort /></el-icon>
+              </span>
+            </template>
             <template #default="{ row }">
               <span :class="getChangeClass(row.change_pct)">
                 {{ formatChange(row.change_pct) }}
@@ -212,7 +220,7 @@
 import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Search } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowUp, ArrowDown, Sort, Search } from '@element-plus/icons-vue'
 import { watchlistApi, sectorApi } from '@/api'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
@@ -249,6 +257,13 @@ const getRowClassName = ({ row }) => {
 // 按涨跌幅排序
 const sortByChangePct = (a, b) => {
   return (a.change_pct || 0) - (b.change_pct || 0)
+}
+
+// 点击涨跌幅列头切换后端全局排序: default → desc → asc → default
+const toggleChangeSort = () => {
+  const cycle = { default: 'desc', desc: 'asc', asc: 'default' }
+  sortOrder.value = cycle[sortOrder.value] || 'default'
+  handleSortChange()
 }
 
 // 键盘事件处理
@@ -346,7 +361,7 @@ const loading = ref(false)
 const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
 const sortOrder = ref('default') // 'default' | 'asc' | 'desc' | 'volume_asc' | 'volume_desc'
-const trendFilter = ref('up') // 'all' | 'up' | 'down'
+const trendFilter = ref('all') // 'all' | 'up' | 'down'
 
 // 股票列表（后端已按选定规则排序）
 const displayStocks = computed(() => {
@@ -355,7 +370,7 @@ const displayStocks = computed(() => {
 
 // 返回板块列表
 const goBack = () => {
-  router.push('/sectors')
+  router.push('/concept')
 }
 
 // 分页处理
@@ -415,6 +430,7 @@ const handleFollowSuccess = () => {
 // 获取板块股票列表（从 dc_member 表获取板块成分股）
 const fetchSectorStocks = async () => {
   const sectorCode = route.query.code
+  const tradeDate = route.query.tradeDate || ''
 
   if (!sectorCode) return
 
@@ -429,7 +445,8 @@ const fetchSectorStocks = async () => {
       20,
       searchQuery.value.trim() || null,
       sortOrder.value,
-      trendFilter.value !== 'all' ? trendFilter.value : null
+      trendFilter.value !== 'all' ? trendFilter.value : null,
+      tradeDate || null
     )
 
     if (response.success) {
@@ -488,7 +505,7 @@ watch(() => route.query.code, (newCode) => {
     sectorInfo.value = null
     searchQuery.value = ''
     currentPage.value = 1
-    trendFilter.value = 'all'
+    trendFilter.value = 'all'  // keep default as 'all'
   }
   selectedStockIndex.value = 0
 }, { immediate: true })

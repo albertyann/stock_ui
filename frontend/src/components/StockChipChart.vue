@@ -34,6 +34,25 @@ const renderChart = () => {
   const maxPercent = Math.max(...percents)
   const avgPercent = percents.reduce((a, b) => a + b, 0) / percents.length
 
+  const currentPriceStr = props.currentPrice ? props.currentPrice.toFixed(2) : null
+
+  // 生成当前价水平线上的垂直刻度线 (短线段，从当前价向上延伸)
+  const tickMarkLines = []
+  if (props.currentPrice && currentPriceStr) {
+    const currentPriceIdx = prices.findIndex(p => p.toFixed(2) === currentPriceStr)
+    if (currentPriceIdx >= 0 && currentPriceIdx < prices.length - 1) {
+      const nextPriceStr = prices[currentPriceIdx - 1] ? prices[currentPriceIdx - 1].toFixed(2) : null
+      if (nextPriceStr) {
+        const tickCount = 5
+        const tickSpacing = maxPercent / (tickCount + 1)
+        for (let i = 1; i <= tickCount; i++) {
+          const xVal = tickSpacing * i
+          tickMarkLines.push([[xVal, currentPriceStr], [xVal, nextPriceStr]])
+        }
+      }
+    }
+  }
+
   const option = {
     tooltip: {
       trigger: 'axis',
@@ -42,7 +61,9 @@ const renderChart = () => {
       appendToBody: true,
       className: 'chip-tooltip',
       formatter: (params) => {
-        const idx = params[0].dataIndex
+        const barParam = params.find(p => p.seriesName === '筹码分布')
+        if (!barParam) return ''
+        const idx = barParam.dataIndex
         const price = prices[idx]
         const pct = percents[idx]
         let html = `<div style="font-weight:bold;margin-bottom:5px">价格: ¥${price.toFixed(2)}</div>`
@@ -95,21 +116,26 @@ const renderChart = () => {
           symbol: 'none',
           label: {
             position: 'end',
-            formatter: '现价 ¥{c}',
-            fontSize: 10
+            formatter: `现价 ¥${props.currentPrice.toFixed(2)}`,
+            fontSize: 10,
+            color: '#409eff'
           },
           lineStyle: {
             color: '#409eff',
-            type: 'solid',
+            type: 'dashed',
             width: 1.5
           },
           data: [
-            {
-              xAxis: props.currentPrice,
-              label: {
-                formatter: `现价 ¥${props.currentPrice.toFixed(2)}`
+            { yAxis: currentPriceStr },
+            // 垂直刻度线：从当前价向上延伸的短线段
+            ...tickMarkLines.map(coords => ({
+              coords: coords,
+              lineStyle: {
+                color: '#409eff',
+                width: 1,
+                type: 'solid'
               }
-            }
+            }))
           ]
         } : undefined
       }

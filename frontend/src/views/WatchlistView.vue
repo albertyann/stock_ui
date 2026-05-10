@@ -788,13 +788,8 @@ const formatDate = (dateStr) => {
 
 const formatMarketCap = (cap) => {
   if (!cap) return ''
-  if (cap >= 100000000) {
-    return (cap / 100000000).toFixed(2) + '亿'
-  }
-  if (cap >= 10000) {
-    return (cap / 10000).toFixed(2) + '万'
-  }
-  return cap.toString()
+  // total_mv from stock_service.getDetail is in 万元, 10000万 = 1亿
+  return (cap / 10000).toFixed(2) + '亿'
 }
 
 const openXueqiu = (tsCode) => {
