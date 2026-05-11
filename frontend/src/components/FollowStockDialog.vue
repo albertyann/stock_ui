@@ -163,9 +163,9 @@ const disabledDate = (time) => {
 const resetForm = () => {
   form.value = {
     watchlist_id: null,
-    watch_reason: '',
+    watch_reason: '持续观察',
     watch_date: getTodayDate(),
-    notes: ''
+    notes: '上涨趋势'
   }
 }
 

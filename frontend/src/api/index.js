@@ -404,6 +404,20 @@ export const basicDataApi = {
       url += `?trade_date=${tradeDate}`
     }
     return api.get(url)
+  },
+  getSectorHeat: (params = {}) => {
+    const { trade_date = null, tab = 'up_pct', idx_type = null, min_stocks = null } = params
+    let url = `/basic-data/sector-heat?tab=${tab}`
+    if (trade_date) {
+      url += `&trade_date=${encodeURIComponent(trade_date)}`
+    }
+    if (idx_type) {
+      url += `&idx_type=${encodeURIComponent(idx_type)}`
+    }
+    if (min_stocks) {
+      url += `&min_stocks=${min_stocks}`
+    }
+    return api.get(url)
   }
 }
 

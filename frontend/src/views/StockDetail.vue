@@ -58,13 +58,18 @@
             <template #header>
               <div class="card-header">
                 <span>日线</span>
+                <el-radio-group v-model="adjType" size="small" class="adj-type-selector">
+                  <el-radio-button value="forward">前复权</el-radio-button>
+                  <el-radio-button value="backward">后复权</el-radio-button>
+                  <el-radio-button value="none">不复权</el-radio-button>
+                </el-radio-group>
               </div>
             </template>
             
             <StockKlineChart
               ref="klineChartRef"
               :tsCode="props.tsCode"
-              :klineData="klineData"
+              :klineData="adjustedKlineData"
               :height="360"
             />
           </el-card>
@@ -83,19 +88,19 @@
             </template>
             <StockRsiChart
               ref="rsiChartRef"
-              :klineData="klineData"
+              :klineData="adjustedKlineData"
             />
             <StockVolumeChart
               ref="volumeChartRef"
-              :klineData="klineData"
+              :klineData="adjustedKlineData"
             />
             <StockMacdChart
               ref="macdChartRef"
-              :klineData="klineData"
+              :klineData="adjustedKlineData"
             />
             <StockAdxChart
               ref="adxChartRef"
-              :klineData="klineData"
+              :klineData="adjustedKlineData"
             />
             
           </el-card>
@@ -188,7 +193,7 @@
             <StockKlineChart
               ref="weeklyKlineChartRef"
               :tsCode="props.tsCode"
-              :klineData="weeklyKlineData"
+              :klineData="adjustedWeeklyKlineData"
               :height="360"
               :maPeriods="[5, 10]"
             />
@@ -742,6 +747,67 @@ const conceptLoading = ref(false)
 const showSettingsDialog = ref(false)
 const syncKlineLoading = ref(false)
 const syncKlineResult = ref(null)
+
+// 复权方式: forward=前复权, backward=后复权, none=不复权
+const adjType = ref('forward')
+
+// 复权计算：对K线数据中的价格字段做前复权/后复权/不复权处理
+// 前复权: price * adj_factor / latest_adj_factor (以最新价格为基准)
+// 后复权: price * adj_factor / earliest_adj_factor (以最早价格为基准)
+// 不复权: 原始价格
+const applyAdjustment = (rawData) => {
+  if (!rawData || rawData.length === 0 || adjType.value === 'none') return rawData
+
+  const hasAdjFactor = rawData.some(item => item.adj_factor != null)
+  if (!hasAdjFactor) return rawData
+
+  const priceFields = ['open', 'high', 'low', 'close']
+
+  if (adjType.value === 'forward') {
+    // 前复权: 以最新日为基准
+    // 找到最新的有效 adj_factor
+    const latestAdj = [...rawData].reverse().find(item => item.adj_factor != null)?.adj_factor
+    if (!latestAdj || latestAdj === 0) return rawData
+
+    return rawData.map(item => {
+      if (item.adj_factor == null) return item
+      const ratio = item.adj_factor / latestAdj
+      const adjusted = { ...item }
+      priceFields.forEach(field => {
+        if (adjusted[field] != null) {
+          adjusted[field] = +(adjusted[field] * ratio).toFixed(2)
+        }
+      })
+      return adjusted
+    })
+  }
+
+  if (adjType.value === 'backward') {
+    // 后复权: 以最早日为基准
+    const earliestAdj = rawData.find(item => item.adj_factor != null)?.adj_factor
+    if (!earliestAdj || earliestAdj === 0) return rawData
+
+    return rawData.map(item => {
+      if (item.adj_factor == null) return item
+      const ratio = item.adj_factor / earliestAdj
+      const adjusted = { ...item }
+      priceFields.forEach(field => {
+        if (adjusted[field] != null) {
+          adjusted[field] = +(adjusted[field] * ratio).toFixed(2)
+        }
+      })
+      return adjusted
+    })
+  }
+
+  return rawData
+}
+
+// 调整后的日K线数据（用于所有日线图表组件）
+const adjustedKlineData = computed(() => applyAdjustment(klineData.value))
+
+// 调整后的周K线数据
+const adjustedWeeklyKlineData = computed(() => applyAdjustment(weeklyKlineData.value))
 
 // 可选标签列表（排除已选中的）
 const availableTagsList = computed(() => {
@@ -1482,6 +1548,11 @@ const deleteStockInfo = async (infoId) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.adj-type-selector :deep(.el-radio-button__inner) {
+  padding: 4px 10px;
+  font-size: 12px;
 }
 
 /* 顶部股票信息栏 */

@@ -74,7 +74,7 @@ class StockTag(Base):
 
 
 class Signal(Base):
-    __tablename__ = "signals"
+    __tablename__ = "m_signals"
 
     id = Column(Integer, primary_key=True, index=True)
     ts_code = Column(String(20), nullable=False, index=True)
@@ -296,7 +296,7 @@ class SyncTaskLog(Base):
 
 
 class Tag(Base):
-    __tablename__ = "tags"
+    __tablename__ = "m_tags"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False, unique=True, index=True)

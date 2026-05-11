@@ -21,13 +21,11 @@ import StockCalculator from '@/views/StockCalculator.vue'
 import MovingAverageSlope from '@/views/MovingAverageSlope.vue'
 import TagManage from '@/views/TagManage.vue'
 import WatchlistManage from '@/views/WatchlistManage.vue'
-import MoneyflowIndThs from '@/views/MoneyflowIndThs.vue'
-import IndustryMoneyflowChart from '@/views/IndustryMoneyflowChart.vue'
 import SectorDetail from '@/views/SectorDetail.vue'
-import CapitalFlow from '@/views/CapitalFlow.vue'
 import IndustryDailyFlow from '@/views/IndustryDailyFlow.vue'
 import IncrementalIndustry from '@/views/IncrementalIndustry.vue'
 import HotIndustries from '@/views/HotIndustries.vue'
+import SectorHeat from '@/views/SectorHeat.vue'
 import IndustryStockMoneyflow from '@/views/IndustryStockMoneyflow.vue'
 import StockFundAnalysis from '@/views/StockFundAnalysis.vue'
 import ConceptSectors from '@/views/ConceptSectors.vue'
@@ -160,24 +158,8 @@ const routes = [
     component: WatchlistManage,
     meta: { title: '股票分组' }
   },
-  {
-    path: '/moneyflow-ind-ths',
-    name: 'MoneyflowIndThs',
-    component: MoneyflowIndThs,
-    meta: { title: '行业资金' }
-  },
-  {
-    path: '/industry-moneyflow-chart',
-    name: 'IndustryMoneyflowChart',
-    component: IndustryMoneyflowChart,
-    meta: { title: '资金图表' }
-  },
-  {
-    path: '/capital-flow',
-    name: 'CapitalFlow',
-    component: CapitalFlow,
-    meta: { title: '资金流向' }
-  },
+
+
   {
     path: '/industry-daily-flow',
     name: 'IndustryDailyFlow',
@@ -195,6 +177,12 @@ const routes = [
     name: 'HotIndustries',
     component: HotIndustries,
     meta: { title: '火热行业' }
+  },
+  {
+    path: '/sector-heat',
+    name: 'SectorHeat',
+    component: SectorHeat,
+    meta: { title: '板块热度' }
   },
   {
     path: '/industry-stock-moneyflow',

@@ -205,6 +205,20 @@ async def get_hot_industries(
     return result
 
 
+@router.get("/sector-heat", response_model=dict)
+async def get_sector_heat(
+    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"),
+    tab: str = Query("up_pct", description="Tab类型: up_pct=上涨占比排名, amount=成交额排名"),
+    idx_type: Optional[str] = Query(None, description="板块类型过滤，如 概念板块"),
+    min_stocks: Optional[int] = Query(None, description="最小板块股票数量"),
+):
+    service = BasicDataService()
+    result = service.get_sector_heat(trade_date, tab, idx_type, min_stocks)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": [], "meta": {}}
+    return result
+
+
 @router.get("/industry-stock-moneyflow", response_model=dict)
 async def get_industry_stock_moneyflow(
     industry: str = Query(..., description="行业名称"),

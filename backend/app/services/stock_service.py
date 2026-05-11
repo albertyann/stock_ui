@@ -154,17 +154,19 @@ class StockService:
                     result = conn.execute(
                         text("""
                         SELECT 
-                            trade_date as date,
-                            open,
-                            high,
-                            low,
-                            close,
-                            vol as volume,
-                            amount,
-                            pct_chg as change_pct
-                        FROM daily_data 
-                        WHERE ts_code = :ts_code
-                        ORDER BY trade_date DESC
+                            d.trade_date as date,
+                            d.open,
+                            d.high,
+                            d.low,
+                            d.close,
+                            d.vol as volume,
+                            d.amount,
+                            d.pct_chg as change_pct,
+                            a.adj_factor
+                        FROM daily_data d
+                        LEFT JOIN adj_factor a ON d.ts_code = a.ts_code AND d.trade_date = a.trade_date
+                        WHERE d.ts_code = :ts_code
+                        ORDER BY d.trade_date DESC
                         LIMIT :limit
                     """),
                         {"ts_code": ts_code, "limit": limit},
@@ -173,17 +175,19 @@ class StockService:
                     result = conn.execute(
                         text("""
                         SELECT 
-                            trade_date as date,
-                            open,
-                            high,
-                            low,
-                            close,
-                            vol as volume,
-                            amount,
-                            pct_chg as change_pct
-                        FROM weekly_data 
-                        WHERE ts_code = :ts_code
-                        ORDER BY trade_date DESC
+                            w.trade_date as date,
+                            w.open,
+                            w.high,
+                            w.low,
+                            w.close,
+                            w.vol as volume,
+                            w.amount,
+                            w.pct_chg as change_pct,
+                            a.adj_factor
+                        FROM weekly_data w
+                        LEFT JOIN adj_factor a ON w.ts_code = a.ts_code AND w.trade_date = a.trade_date
+                        WHERE w.ts_code = :ts_code
+                        ORDER BY w.trade_date DESC
                         LIMIT :limit
                     """),
                         {"ts_code": ts_code, "limit": limit},
@@ -225,23 +229,25 @@ class StockService:
                             "volume": int(row.volume),
                             "amount": float(row.amount),
                             "change_pct": change_pct,
+                            "adj_factor": float(row.adj_factor) if row.adj_factor else None,
                         }
                     )
 
-                # weekly_data 最晚截止上周，从 stk_weekly_monthly 补充本周数据
                 if period == "weekly" and kline_data:
                     last_weekly_date = kline_data[0]["date"]
                     supp_result = conn.execute(
                         text("""
                         SELECT
-                            trade_date as date,
-                            open, high, low, close,
-                            vol as volume,
-                            amount,
-                            pct_chg as change_pct
-                        FROM stk_weekly_monthly
-                        WHERE ts_code = :ts_code AND freq = 'week'
-                        ORDER BY trade_date DESC
+                            s.trade_date as date,
+                            s.open, s.high, s.low, s.close,
+                            s.vol as volume,
+                            s.amount,
+                            s.pct_chg as change_pct,
+                            a.adj_factor
+                        FROM stk_weekly_monthly s
+                        LEFT JOIN adj_factor a ON s.ts_code = a.ts_code AND s.trade_date = a.trade_date
+                        WHERE s.ts_code = :ts_code AND s.freq = 'week'
+                        ORDER BY s.trade_date DESC
                         LIMIT 1
                     """),
                         {"ts_code": ts_code},
@@ -262,6 +268,7 @@ class StockService:
                                 "volume": int(supp_row.volume) if supp_row.volume is not None else None,
                                 "amount": float(supp_row.amount) if supp_row.amount is not None else None,
                                 "change_pct": supp_pct,
+                                "adj_factor": float(supp_row.adj_factor) if supp_row.adj_factor else None,
                             })
 
                 return list(reversed(kline_data))

@@ -154,16 +154,6 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="买一/卖一" width="150" align="center">
-            <template #default="{ row }">
-              <div v-if="row.bid_price || row.ask_price" class="bid-ask-cell">
-                <span class="bid-text">{{ row.bid_price ? '¥' + (row.bid_price ?? 0).toFixed(2) : '-' }}</span>
-                <span class="separator">/</span>
-                <span class="ask-text">{{ row.ask_price ? '¥' + (row.ask_price ?? 0).toFixed(2) : '-' }}</span>
-              </div>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
 
           <el-table-column label="更新时间" width="160">
             <template #default="{ row }">
@@ -731,27 +721,6 @@ onUnmounted(() => {
   background-color: #d9ecff !important;
 }
 
-/* 买卖盘单元格 */
-.bid-ask-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-}
-
-.bid-text {
-  color: #67c23a;
-  font-weight: 500;
-}
-
-.ask-text {
-  color: #f56c6c;
-  font-weight: 500;
-}
-
-.separator {
-  color: #909399;
-}
 
 /* 时间单元格 */
 .time-cell {

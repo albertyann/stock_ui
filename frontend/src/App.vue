@@ -71,6 +71,10 @@
               <el-icon><Flag /></el-icon>
               <span>概念板块</span>
             </el-menu-item>
+            <el-menu-item index="/sector-heat">
+              <el-icon><TrendCharts /></el-icon>
+              <span>板块热度</span>
+            </el-menu-item>
             <el-menu-item index="/sector-large-orders">
               <el-icon><Money /></el-icon>
               <span>板块大单</span>
@@ -82,18 +86,6 @@
             <el-menu-item index="/signal-manage">
               <el-icon><Bell /></el-icon>
               <span>信号管理</span>
-            </el-menu-item>
-            <el-menu-item index="/moneyflow-ind-ths">
-              <el-icon><Money /></el-icon>
-              <span>行业资金</span>
-            </el-menu-item>
-            <el-menu-item index="/industry-moneyflow-chart">
-              <el-icon><Histogram /></el-icon>
-              <span>资金图表</span>
-            </el-menu-item>
-            <el-menu-item index="/capital-flow">
-              <el-icon><Money /></el-icon>
-              <span>资金流向</span>
             </el-menu-item>
             <el-menu-item index="/industry-daily-flow">
               <el-icon><Histogram /></el-icon>
