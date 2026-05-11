@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
 const props = defineProps({
@@ -24,6 +24,15 @@ const props = defineProps({
 const chartRef = ref(null)
 let chart = null
 
+// 根据数据量动态计算图表高度，确保每条至少有足够空间
+const chartHeight = computed(() => {
+  const count = props.chipData?.length || 0
+  if (count === 0) return props.height
+  // 每个价格档位至少4px，最低280px，最高600px
+  const minHeight = Math.max(280, count * 4)
+  return Math.min(600, minHeight) + 'px'
+})
+
 const renderChart = () => {
   if (!chart || !props.chipData || props.chipData.length === 0) return
 
@@ -36,21 +45,16 @@ const renderChart = () => {
 
   const currentPriceStr = props.currentPrice ? props.currentPrice.toFixed(2) : null
 
-  // 生成当前价水平线上的垂直刻度线 (短线段，从当前价向上延伸)
-  const tickMarkLines = []
-  if (props.currentPrice && currentPriceStr) {
-    const currentPriceIdx = prices.findIndex(p => p.toFixed(2) === currentPriceStr)
-    if (currentPriceIdx >= 0 && currentPriceIdx < prices.length - 1) {
-      const nextPriceStr = prices[currentPriceIdx - 1] ? prices[currentPriceIdx - 1].toFixed(2) : null
-      if (nextPriceStr) {
-        const tickCount = 5
-        const tickSpacing = maxPercent / (tickCount + 1)
-        for (let i = 1; i <= tickCount; i++) {
-          const xVal = tickSpacing * i
-          tickMarkLines.push([[xVal, currentPriceStr], [xVal, nextPriceStr]])
-        }
-      }
-    }
+  // 找到当前价在价格列表中的索引
+  let currentPriceIdx = -1
+  if (currentPriceStr) {
+    currentPriceIdx = prices.findIndex(p => p.toFixed(2) === currentPriceStr)
+  }
+
+  // 现价标记线数据：仅使用 yAxis 方式，兼容 category 轴
+  const markLineData = []
+  if (currentPriceStr && currentPriceIdx >= 0) {
+    markLineData.push({ yAxis: currentPriceIdx })
   }
 
   const option = {
@@ -75,8 +79,8 @@ const renderChart = () => {
     grid: {
       left: '12%',
       right: '8%',
-      top: '8%',
-      bottom: '8%',
+      top: '5%',
+      bottom: '5%',
       containLabel: true
     },
     xAxis: {
@@ -97,7 +101,7 @@ const renderChart = () => {
       data: prices.map(p => p.toFixed(2)),
       axisLabel: {
         fontSize: 9,
-        interval: Math.floor(prices.length / 10)
+        interval: Math.max(0, Math.floor(prices.length / 12))
       },
       splitLine: { show: false }
     },
@@ -105,14 +109,14 @@ const renderChart = () => {
       {
         name: '筹码分布',
         type: 'bar',
-        data: percents.map((pct, idx) => ({
+        data: percents.map((pct) => ({
           value: pct,
           itemStyle: {
             color: pct >= avgPercent ? '#f56c6c' : '#909399'
           }
         })),
         barWidth: '90%',
-        markLine: props.currentPrice ? {
+        markLine: markLineData.length > 0 ? {
           symbol: 'none',
           label: {
             position: 'end',
@@ -125,18 +129,7 @@ const renderChart = () => {
             type: 'dashed',
             width: 1.5
           },
-          data: [
-            { yAxis: currentPriceStr },
-            // 垂直刻度线：从当前价向上延伸的短线段
-            ...tickMarkLines.map(coords => ({
-              coords: coords,
-              lineStyle: {
-                color: '#409eff',
-                width: 1,
-                type: 'solid'
-              }
-            }))
-          ]
+          data: markLineData
         } : undefined
       }
     ]
@@ -145,8 +138,10 @@ const renderChart = () => {
   chart.setOption(option, true)
 }
 
-const initChart = () => {
+const initChart = async () => {
   if (!chartRef.value) return
+  // 等待动态高度生效后再初始化
+  await nextTick()
   chart = echarts.init(chartRef.value)
   if (props.chipData && props.chipData.length > 0) {
     renderChart()
@@ -186,7 +181,7 @@ onUnmounted(() => {
 <style scoped>
 .stock-chip-chart {
   width: 100%;
-  height: v-bind('height');
+  height: v-bind('chartHeight');
 }
 
 :global(.chip-tooltip) {
