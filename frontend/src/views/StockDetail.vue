@@ -655,6 +655,21 @@
             </div>
           </div>
         </el-form-item>
+        <el-form-item label="删除股票">
+          <div class="delete-stock-section">
+            <div class="delete-stock-desc">
+              将当前股票从关注列表中移除。
+            </div>
+            <el-button
+              type="danger"
+              :loading="deleteStockLoading"
+              :disabled="deleteStockLoading || !watchlistStockInfo"
+              @click="handleDeleteStock"
+            >
+              删除股票
+            </el-button>
+          </div>
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -666,6 +681,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi } from '@/api'
 import { ElMessage } from 'element-plus'
@@ -747,6 +763,9 @@ const conceptLoading = ref(false)
 const showSettingsDialog = ref(false)
 const syncKlineLoading = ref(false)
 const syncKlineResult = ref(null)
+const deleteStockLoading = ref(false)
+
+const router = useRouter()
 
 // 复权方式: forward=前复权, backward=后复权, none=不复权
 const adjType = ref('forward')
@@ -1476,6 +1495,25 @@ const handleSyncKline = async () => {
   }
 }
 
+const handleDeleteStock = async () => {
+  if (!watchlistStockInfo.value) return
+  deleteStockLoading.value = true
+  try {
+    await watchlistApi.removeStock(
+      watchlistStockInfo.value.watchlist_id,
+      watchlistStockInfo.value.id
+    )
+    ElMessage.success('删除成功')
+    showSettingsDialog.value = false
+    router.push({ path: '/watchlist' })
+  } catch (error) {
+    console.error('Failed to delete stock:', error)
+    ElMessage.error('删除失败')
+  } finally {
+    deleteStockLoading.value = false
+  }
+}
+
 // 打开编辑信息弹窗
 const openEditInfoDialog = (info) => {
   infoDialogMode.value = 'edit'
@@ -2111,5 +2149,17 @@ const deleteStockInfo = async (infoId) => {
 .sync-result.sync-error {
   background-color: #fef0f0;
   color: #f56c6c;
+}
+
+.delete-stock-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.delete-stock-desc {
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.5;
 }
 </style>

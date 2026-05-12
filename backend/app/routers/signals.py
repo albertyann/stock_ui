@@ -149,6 +149,7 @@ async def get_signals_manage(
     signal_date: Optional[date] = None,
     signal_date_start: Optional[date] = None,
     signal_date_end: Optional[date] = None,
+    note_content: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
     service = SignalService(db)
@@ -161,6 +162,7 @@ async def get_signals_manage(
         signal_date=signal_date,
         signal_date_start=signal_date_start,
         signal_date_end=signal_date_end,
+        note_content=note_content,
     )
 
     ts_codes = list({s.ts_code for s in signals})

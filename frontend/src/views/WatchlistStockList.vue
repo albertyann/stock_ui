@@ -2,74 +2,83 @@
   <div class="page-container">
 
     <el-card class="filter-card">
-      <el-form :inline="true">
-        <el-form-item label="搜索">
-          <el-input
-            v-model="filter.search"
-            placeholder="ts_code / 股票名称"
-            clearable
-            style="width: 200px"
-            @keyup.enter="handleFilterChange"
-            @clear="handleFilterChange"
-          />
-        </el-form-item>
-        <el-form-item label="板块">
-          <el-select
-            v-model="filter.industry"
-            placeholder="选择板块"
-            clearable
-            style="width: 160px"
-            @change="handleFilterChange"
-          >
-            <el-option
-              v-for="item in industryOptions"
-              :key="item.code"
-              :label="item.name"
-              :value="item.name"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="分组">
-          <el-select
-            v-model="filter.watchlist_id"
-            placeholder="选择分组"
-            clearable
-            style="width: 160px"
-            @change="handleFilterChange"
-          >
-            <el-option
-              v-for="wl in watchlistOptions"
-              :key="wl.id"
-              :label="wl.name"
-              :value="wl.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="标签">
-          <el-select
-            v-model="filter.tags"
-            placeholder="选择标签"
-            multiple
-            filterable
-            clearable
-            collapse-tags
-            collapse-tags-tooltip
-            style="width: 200px"
-            @change="handleFilterChange"
-          >
-            <el-option
-              v-for="tag in allTags"
-              :key="tag"
-              :label="tag"
-              :value="tag"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleFilterChange">搜索</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <div class="filter-layout">
+        <div class="filter-left">
+          <el-form :inline="true">
+            <el-form-item label="搜索">
+              <el-input
+                v-model="filter.search"
+                placeholder="ts_code / 股票名称"
+                clearable
+                style="width: 200px"
+                @keyup.enter="handleFilterChange"
+                @clear="handleFilterChange"
+              />
+            </el-form-item>
+            <el-form-item label="板块">
+              <el-select
+                v-model="filter.industry"
+                placeholder="选择板块"
+                clearable
+                style="width: 160px"
+                @change="handleFilterChange"
+              >
+                <el-option
+                  v-for="item in industryOptions"
+                  :key="item.code"
+                  :label="item.name"
+                  :value="item.name"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="分组">
+              <el-select
+                v-model="filter.watchlist_id"
+                placeholder="选择分组"
+                clearable
+                style="width: 160px"
+                @change="handleFilterChange"
+              >
+                <el-option
+                  v-for="wl in watchlistOptions"
+                  :key="wl.id"
+                  :label="wl.name"
+                  :value="wl.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="标签">
+              <el-select
+                v-model="filter.tags"
+                placeholder="选择标签"
+                multiple
+                filterable
+                clearable
+                collapse-tags
+                collapse-tags-tooltip
+                style="width: 200px"
+                @change="handleFilterChange"
+              >
+                <el-option
+                  v-for="tag in allTags"
+                  :key="tag"
+                  :label="tag"
+                  :value="tag"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleFilterChange">搜索</el-button>
+              <el-button @click="resetFilter">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+        <div class="filter-right">
+          <span class="stat-up">{{ stockStats.up }}</span>
+          <span class="stat-separator">/</span>
+          <span class="stat-down">{{ stockStats.down }}</span>
+        </div>
+      </div>
     </el-card>
 
     <el-card v-loading="loading">
@@ -253,6 +262,7 @@ import { useWebSocket } from '@/composables/useWebSocket'
 
 const loading = ref(false)
 const tableData = ref([])
+const stockStats = ref({ up: 0, down: 0 })
 const industryOptions = ref([])
 const watchlistOptions = ref([])
 const allTags = ref([])
@@ -310,6 +320,7 @@ const fetchData = async () => {
         pagination.total = res.pagination.total
         pagination.total_pages = res.pagination.total_pages
       }
+      stockStats.value = res.stats || { up: 0, down: 0 }
     } else {
       ElMessage.error(res.error || '获取数据失败')
     }
@@ -548,6 +559,30 @@ onUnmounted(() => {
 }
 .filter-card {
   margin-bottom: 20px;
+}
+.filter-layout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.filter-left {
+  flex: 0 0 80%;
+}
+.filter-right {
+  flex: 0 0 20%;
+  text-align: right;
+  font-size: 18px;
+  font-weight: bold;
+}
+.stat-up {
+  color: #f56c6c;
+}
+.stat-down {
+  color: #67c23a;
+}
+.stat-separator {
+  color: #909399;
+  margin: 0 4px;
 }
 .pagination-wrapper {
   margin-top: 20px;

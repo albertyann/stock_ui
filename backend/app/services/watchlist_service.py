@@ -507,6 +507,29 @@ class WatchlistService:
                 total_result = conn.execute(text(count_query), params)
                 total = total_result.scalar()
 
+                stats_query = f"""
+                    SELECT
+                        COALESCE(SUM(CASE WHEN dd.pct_chg > 0 THEN 1 ELSE 0 END), 0) as up_count,
+                        COALESCE(SUM(CASE WHEN dd.pct_chg < 0 THEN 1 ELSE 0 END), 0) as down_count
+                    FROM watchlist_stocks ws
+                    LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    LEFT JOIN stock_tags st ON ws.ts_code = st.ts_code
+                    LEFT JOIN LATERAL (
+                        SELECT pct_chg
+                        FROM daily_data
+                        WHERE ts_code = ws.ts_code
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    ) dd ON TRUE
+                    {where_sql}
+                """
+                stats_result = conn.execute(text(stats_query), params)
+                stats_row = stats_result.fetchone()
+                stats = {
+                    "up": int(stats_row.up_count) if stats_row else 0,
+                    "down": int(stats_row.down_count) if stats_row else 0,
+                }
+
                 query = f"""
                     SELECT
                         ws.id,
@@ -589,6 +612,7 @@ class WatchlistService:
                         "total": total,
                         "total_pages": (total + page_size - 1) // page_size,
                     },
+                    "stats": stats,
                 }
         except Exception as e:
             import traceback

@@ -134,7 +134,16 @@ export const signalApi = {
     if (signal_date_end) url += `&signal_date_end=${signal_date_end}`
     return api.get(url)
   },
-  deleteSignal: (id) => api.delete(`/signals/${id}`)
+  deleteSignal: (id) => api.delete(`/signals/${id}`),
+  // 买点查询
+  getBuyPoints: (params = {}) => {
+    const { page = 1, page_size = 30, signal_date = null, signal_date_start = null, signal_date_end = null } = params
+    let url = `/signals/manage?page=${page}&page_size=${page_size}&signal_type=ADD_TAG&note_content=买点`
+    if (signal_date) url += `&signal_date=${signal_date}`
+    if (signal_date_start) url += `&signal_date_start=${signal_date_start}`
+    if (signal_date_end) url += `&signal_date_end=${signal_date_end}`
+    return api.get(url)
+  }
 }
 
 export const realtimeApi = {

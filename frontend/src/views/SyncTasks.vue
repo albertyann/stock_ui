@@ -175,9 +175,6 @@
         <el-form-item label="命令">
           <el-input v-model="form.command" placeholder="默认：stock-sync" />
         </el-form-item>
-        <el-form-item label="子命令">
-          <el-input v-model="form.sub_command" placeholder="默认：run" />
-        </el-form-item>
         <el-form-item label="默认参数">
           <div class="params-form">
             <div v-for="(param, index) in paramList" :key="index" class="param-row">
@@ -299,7 +296,6 @@ const editingId = ref(null)
 const defaultForm = {
   name: '',
   command: 'stock-sync',
-  sub_command: 'run',
   task_type: '',
   params: {},
   description: '',
@@ -364,9 +360,6 @@ const openLogDetail = (row) => {
 const previewCommand = computed(() => {
   if (!currentTask.value) return ''
   const parts = [currentTask.value.command || 'stock-sync']
-  if (currentTask.value.sub_command) {
-    parts.push(currentTask.value.sub_command)
-  }
   if (currentTask.value.task_type) {
     parts.push(currentTask.value.task_type)
   }
@@ -426,7 +419,6 @@ const openEditDialog = (row) => {
   Object.assign(form, {
     name: row.name,
     command: row.command || 'stock-sync',
-    sub_command: row.sub_command || 'run',
     task_type: row.task_type,
     params: row.params || {},
     description: row.description || '',
@@ -458,7 +450,8 @@ const submitForm = async () => {
   const params = {}
   paramList.value.forEach(p => {
     if (p.key.trim()) {
-      params[p.key.trim()] = p.value.trim()
+      const val = p.value
+      params[p.key.trim()] = typeof val === 'string' ? val.trim() : val
     }
   })
 

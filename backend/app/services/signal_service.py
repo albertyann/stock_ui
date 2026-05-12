@@ -90,6 +90,7 @@ class SignalService:
         signal_date: Optional[date] = None,
         signal_date_start: Optional[date] = None,
         signal_date_end: Optional[date] = None,
+        note_content: Optional[str] = None,
     ) -> Tuple[List[Signal], int]:
         filters = []
         if ts_code:
@@ -104,6 +105,8 @@ class SignalService:
             filters.append(Signal.signal_date >= signal_date_start)
         if signal_date_end:
             filters.append(Signal.signal_date <= signal_date_end)
+        if note_content:
+            filters.append(Signal.note_content == note_content)
 
         count_query = select(func.count()).select_from(Signal)
         if filters:

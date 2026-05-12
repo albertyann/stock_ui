@@ -30,6 +30,7 @@ import IndustryStockMoneyflow from '@/views/IndustryStockMoneyflow.vue'
 import StockFundAnalysis from '@/views/StockFundAnalysis.vue'
 import ConceptSectors from '@/views/ConceptSectors.vue'
 import ConceptDetail from '@/views/ConceptDetail.vue'
+import BuyPointQuery from '@/views/BuyPointQuery.vue'
 
 const routes = [
   {
@@ -207,6 +208,12 @@ const routes = [
     name: 'ConceptDetail',
     component: ConceptDetail,
     meta: { title: '板块明细' }
+  },
+  {
+    path: '/buy-point-query',
+    name: 'BuyPointQuery',
+    component: BuyPointQuery,
+    meta: { title: '买点查询' }
   }
 ]
 

@@ -39,6 +39,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>今日涨停</span>
             </el-menu-item>
+            <el-menu-item index="/buy-point-query">
+              <el-icon><Search /></el-icon>
+              <span>买点查询</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-tools">
             <template #title>

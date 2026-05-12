@@ -129,6 +129,7 @@ async def get_all_watchlist_stocks(
         "success": True,
         "data": result["stocks"],
         "pagination": result["pagination"],
+        "stats": result.get("stats", {"up": 0, "down": 0}),
     }
 
 
