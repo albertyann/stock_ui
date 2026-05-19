@@ -232,6 +232,18 @@ async def get_industry_stock_moneyflow(
     return result
 
 
+@router.get("/fina-audit/{ts_code}", response_model=dict)
+async def get_fina_audit(
+    ts_code: str,
+    limit: int = Query(5, ge=1, le=20, description="返回条数"),
+):
+    service = BasicDataService()
+    result = service.get_fina_audit(ts_code, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
 @router.get("/cyq-chips/{ts_code}", response_model=dict)
 async def get_cyq_chips(
     ts_code: str,

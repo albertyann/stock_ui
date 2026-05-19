@@ -11,6 +11,9 @@
             <span class="stock-info-top__change" :class="getChangeClass(stock.change_pct)">
               {{ stock.change_pct > 0 ? '+' : '' }}{{ stock.change_pct?.toFixed(2) }}%
             </span>
+            <el-tag size="small" :type="boardType.type" class="board-tag">
+              {{ boardType.emoji }} {{ boardType.label }}
+            </el-tag>
           </div>
           <div class="stock-info-top__metrics">
             <div class="stock-info-top__metric">
@@ -197,6 +200,32 @@
               :height="360"
               :maPeriods="[5, 10]"
             />
+          </el-card>
+
+          <!-- 审计意见 -->
+          <el-card v-if="auditList.length > 0" class="audit-card mt-20">
+            <template #header>
+              <div class="card-header">
+                <span>审计意见</span>
+              </div>
+            </template>
+            <div class="audit-list">
+              <div v-for="item in auditList" :key="item.end_date" class="audit-item">
+                <div class="audit-item__header">
+                  <span class="audit-item__period">{{ formatEndDate(item.end_date) }}</span>
+                  <el-tag
+                    size="small"
+                    :type="getAuditTagType(item.audit_result)"
+                    effect="plain"
+                  >
+                    {{ item.audit_result || '-' }}
+                  </el-tag>
+                </div>
+                <div class="audit-item__agency" v-if="item.audit_agency">
+                  {{ item.audit_agency }}
+                </div>
+              </div>
+            </div>
           </el-card>
 
           <!-- 概念板块 -->
@@ -760,12 +789,38 @@ const isWatched = ref(false)
 const conceptList = ref([])
 const conceptLoading = ref(false)
 
+const auditList = ref([])
+
 const showSettingsDialog = ref(false)
 const syncKlineLoading = ref(false)
 const syncKlineResult = ref(null)
 const deleteStockLoading = ref(false)
 
 const router = useRouter()
+
+// 板块类型计算属性
+const boardType = computed(() => {
+  if (!stock.value?.ts_code) return { emoji: '', label: '', type: 'info' }
+  
+  const code = stock.value.ts_code.split('.')[0]
+  const prefix = code.substring(0, 3)
+  const numCode = parseInt(code, 10)
+  
+  // 科创板
+  if (['688', '689'].includes(prefix)) {
+    return { emoji: '⭐', label: '科创板', type: 'warning' }
+  }
+  // 创业板
+  if (['300', '301'].includes(prefix)) {
+    return { emoji: '🚀', label: '创业板', type: 'success' }
+  }
+  // 北交所
+  if (prefix.startsWith('8') || ['430', '831', '832', '833', '834', '835', '836', '837', '838', '839', '870', '871', '872', '873'].includes(prefix)) {
+    return { emoji: '🏢', label: '北交所', type: 'danger' }
+  }
+  // 主板 (600/601/603/605/000/001/002/003)
+  return { emoji: '🏛️', label: '主板', type: 'info' }
+})
 
 // 复权方式: forward=前复权, backward=后复权, none=不复权
 const adjType = ref('forward')
@@ -940,6 +995,7 @@ const loadStockDetail = async () => {
     await loadAllTags()
     await loadStockInfos()
     await loadConcepts()
+    await loadAudit()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
     ElMessage.error('加载失败')
@@ -1474,6 +1530,38 @@ const loadConcepts = async () => {
   }
 }
 
+const loadAudit = async () => {
+  try {
+    const response = await basicDataApi.getFinaAudit(props.tsCode, 5)
+    if (response.success) {
+      auditList.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load audit:', error)
+  }
+}
+
+const formatEndDate = (dateStr) => {
+  if (!dateStr) return '-'
+  // end_date like "2024-12-31" -> "2024年报"
+  const parts = dateStr.split('-')
+  const year = parts[0]
+  const month = parseInt(parts[1], 10)
+  if (month === 12) return `${year}年报`
+  if (month === 9) return `${year}三季报`
+  if (month === 6) return `${year}中报`
+  if (month === 3) return `${year}一季报`
+  return dateStr
+}
+
+const getAuditTagType = (result) => {
+  if (!result) return 'info'
+  if (result.includes('标准无保留意见') || result.includes('无保留意见')) return 'success'
+  if (result.includes('保留意见')) return 'warning'
+  if (result.includes('否定意见') || result.includes('无法表示意见')) return 'danger'
+  return 'info'
+}
+
 const handleSyncKline = async () => {
   syncKlineLoading.value = true
   syncKlineResult.value = null
@@ -1659,6 +1747,10 @@ const deleteStockInfo = async (infoId) => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.stock-info-top__price-block .board-tag {
+  margin-left: 8px;
 }
 
 .info-grid {
@@ -2161,5 +2253,42 @@ const deleteStockInfo = async (infoId) => {
   font-size: 13px;
   color: #909399;
   line-height: 1.5;
+}
+
+/* 审计意见 */
+.audit-card {
+  margin-bottom: 20px;
+}
+
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.audit-item {
+  padding: 8px 10px;
+  background-color: #f4f4f5;
+  border-radius: 4px;
+}
+
+.audit-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.audit-item__period {
+  font-size: 13px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.audit-item__agency {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 </style>

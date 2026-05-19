@@ -7,6 +7,28 @@
       </el-button>
     </div>
 
+    <!-- Running Tasks Banner -->
+    <transition name="banner-slide">
+      <div v-if="hasRunningTasks" class="running-banner">
+        <div class="banner-header">
+          <div class="banner-title">
+            <el-icon class="is-loading banner-icon"><Loading /></el-icon>
+            <span>{{ runningTasks.size }} 个任务执行中</span>
+          </div>
+        </div>
+        <div class="banner-tasks">
+          <div v-for="[taskId, task] in runningTasks" :key="taskId" class="banner-task-item">
+            <span class="banner-task-name">{{ task.name }}</span>
+            <span class="banner-task-type">
+              <el-tag size="small" type="info">{{ task.task_type }}</el-tag>
+            </span>
+            <span class="banner-task-elapsed">{{ task.elapsed }}s</span>
+          </div>
+        </div>
+        <el-progress :percentage="100" :show-text="false" :indeterminate="true" :stroke-width="4" />
+      </div>
+    </transition>
+
     <el-card v-loading="loading">
       <el-table :data="tasks" stripe border>
         <el-table-column prop="name" label="任务名称" min-width="150" />
@@ -28,7 +50,14 @@
         </el-table-column>
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" size="small" @click="openExecuteDialog(row)">执行</el-button>
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="runningTasks.has(row.id)"
+              @click="executeTaskDirect(row)"
+            >
+              {{ runningTasks.has(row.id) ? '执行中...' : '执行' }}
+            </el-button>
             <el-button size="small" @click="openEditDialog(row)">编辑</el-button>
             <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
@@ -166,6 +195,7 @@
             <el-option label="daily_data (日线数据)" value="daily_data" />
             <el-option label="rt_k (实时日线数据)" value="rt_k" />
             <el-option label="weekly_data (周线数据)" value="weekly_data" />
+            <el-option label="stk_weekly_monthly (按天同步周线)" value="stk_weekly_monthly" />
             <el-option label="stock_basic (股票基本信息)" value="stock_basic" />
             <el-option label="moneyflow (资金流动)" value="moneyflow" />
             <el-option label="moneyflow_hsgt (北向资金)" value="moneyflow_hsgt" />
@@ -197,86 +227,11 @@
         <el-button type="primary" @click="submitForm">确定</el-button>
       </template>
     </el-dialog>
-
-    <!-- Execute Dialog -->
-    <el-dialog
-      v-model="executeDialogVisible"
-      :title="`执行任务：${currentTask?.name || ''}`"
-      width="700px"
-    >
-      <el-form :model="executeForm" label-width="120px">
-        <el-form-item label="任务类型">
-          <el-tag>{{ currentTask?.task_type }}</el-tag>
-        </el-form-item>
-        <el-form-item label="执行命令">
-          <el-input :model-value="previewCommand" readonly type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="运行参数">
-          <div class="params-form">
-            <div v-for="(param, index) in executeParamList" :key="index" class="param-row">
-              <el-input v-model="param.key" placeholder="参数名" style="width: 150px" />
-              <el-input v-model="param.value" placeholder="参数值" style="width: 200px; margin-left: 8px" />
-              <el-button type="danger" :icon="Delete" circle size="small" style="margin-left: 8px" @click="removeExecuteParam(index)" />
-            </div>
-            <el-button type="primary" size="small" @click="addExecuteParam">+ 添加参数</el-button>
-          </div>
-          <div class="param-tips">
-            <p>常用参数：</p>
-            <ul>
-              <li><code>days</code> - 同步天数（覆盖配置，如 30）</li>
-              <li><code>date</code> - 指定日期（格式：YYYY-MM-DD）</li>
-              <li><code>start_date</code> / <code>end_date</code> - 日期范围</li>
-            </ul>
-          </div>
-        </el-form-item>
-      </el-form>
-
-      <div v-if="executing" class="executing-progress">
-        <el-divider />
-        <div class="progress-content">
-          <el-icon class="is-loading"><Loading /></el-icon>
-          <span>任务执行中... 已耗时 {{ elapsedTime }} 秒</span>
-        </div>
-        <el-progress :percentage="100" :status="executing ? '' : 'success'" :show-text="false" :indeterminate="true" />
-      </div>
-
-      <div v-if="executeResult" class="execute-result">
-        <el-divider />
-        <div class="result-header">
-          <span>执行结果</span>
-          <el-tag :type="executeResult.success ? 'success' : 'danger'">
-            {{ executeResult.success ? '成功' : '失败' }}
-          </el-tag>
-        </div>
-        <div v-if="executeResult.command" class="result-command">
-          <strong>命令：</strong>{{ executeResult.command }}
-        </div>
-        <div v-if="executeResult.stdout" class="result-output">
-          <div class="output-label">标准输出：</div>
-          <pre>{{ executeResult.stdout }}</pre>
-        </div>
-        <div v-if="executeResult.stderr" class="result-output error">
-          <div class="output-label">错误输出：</div>
-          <pre>{{ executeResult.stderr }}</pre>
-        </div>
-        <div v-if="executeResult.error" class="result-output error">
-          <div class="output-label">错误信息：</div>
-          <pre>{{ executeResult.error }}</pre>
-        </div>
-      </div>
-
-      <template #footer>
-        <el-button @click="executeDialogVisible = false" :disabled="executing">关闭</el-button>
-        <el-button type="primary" :loading="executing" @click="runTask">
-          {{ executing ? '执行中...' : '立即执行' }}
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Loading, Refresh } from '@element-plus/icons-vue'
 import { syncTaskApi } from '@/api'
@@ -306,14 +261,11 @@ const defaultForm = {
 const form = reactive({ ...defaultForm })
 const paramList = ref([])
 
-const executeDialogVisible = ref(false)
-const currentTask = ref(null)
-const executing = ref(false)
-const executeResult = ref(null)
-const executeForm = reactive({ params: {} })
-const executeParamList = ref([])
-const elapsedTime = ref(0)
-let timerInterval = null
+// Running tasks tracking (concurrent multi-task support)
+const runningTasks = reactive(new Map())
+let bannerClearTimer = null
+
+const hasRunningTasks = computed(() => runningTasks.size > 0)
 
 const logsLoading = ref(false)
 const logs = ref([])
@@ -356,38 +308,6 @@ const openLogDetail = (row) => {
   currentLog.value = row
   logDetailVisible.value = true
 }
-
-const previewCommand = computed(() => {
-  if (!currentTask.value) return ''
-  const parts = [currentTask.value.command || 'stock-sync']
-  if (currentTask.value.task_type) {
-    parts.push(currentTask.value.task_type)
-  }
-
-  const params = {}
-  if (currentTask.value.params) {
-    Object.assign(params, currentTask.value.params)
-  }
-  executeParamList.value.forEach(p => {
-    if (p.key) params[p.key] = p.value
-  })
-
-  Object.entries(params).forEach(([key, value]) => {
-    if (value === '' || value === null || value === undefined) return
-    if (key === 'date') {
-      parts.push('--date')
-    } else if (key === 'start_date') {
-      parts.push('--start-date')
-    } else if (key === 'end_date') {
-      parts.push('--end-date')
-    } else {
-      parts.push(`--${key}`)
-    }
-    parts.push(String(value))
-  })
-
-  return parts.join(' ')
-})
 
 const fetchTasks = async () => {
   loading.value = true
@@ -506,78 +426,69 @@ const handleDelete = async (row) => {
   }
 }
 
-const openExecuteDialog = (row) => {
-  currentTask.value = row
-  executeResult.value = null
-  executeParamList.value = []
-  elapsedTime.value = 0
-  if (timerInterval) {
-    clearInterval(timerInterval)
-    timerInterval = null
-  }
-  executeDialogVisible.value = true
-}
+// Direct task execution (no dialog)
+const executeTaskDirect = async (row) => {
+  if (runningTasks.has(row.id)) return
 
-const addExecuteParam = () => {
-  executeParamList.value.push({ key: '', value: '' })
-}
-
-const removeExecuteParam = (index) => {
-  executeParamList.value.splice(index, 1)
-}
-
-const runTask = async () => {
-  if (!currentTask.value) return
-
-  const params = {}
-  executeParamList.value.forEach(p => {
-    if (p.key.trim()) {
-      const key = p.key.trim()
-      let value = p.value.trim()
-      if (value === 'true') value = true
-      else if (value === 'false') value = false
-      else if (/^\d+$/.test(value)) value = Number(value)
-      params[key] = value
-    }
+  const taskState = reactive({
+    id: row.id,
+    name: row.name,
+    task_type: row.task_type,
+    startTime: Date.now(),
+    timerInterval: null,
+    elapsed: 0
   })
 
-  executing.value = true
-  executeResult.value = null
-  elapsedTime.value = 0
-  
-  timerInterval = setInterval(() => {
-    elapsedTime.value++
+  taskState.timerInterval = setInterval(() => {
+    taskState.elapsed = Math.floor((Date.now() - taskState.startTime) / 1000)
   }, 1000)
-  
+
+  runningTasks.set(row.id, taskState)
+
+  // Clear banner dismiss timer if one was pending
+  if (bannerClearTimer) {
+    clearTimeout(bannerClearTimer)
+    bannerClearTimer = null
+  }
+
   try {
-    const res = await syncTaskApi.execute(currentTask.value.id, params)
-    executeResult.value = res
+    const res = await syncTaskApi.execute(row.id, {})
     if (res.success) {
-      ElMessage.success(`任务执行成功 (耗时 ${elapsedTime.value} 秒)`)
-      fetchLogs(logsCurrentPage.value)
+      ElMessage.success(`任务 "${row.name}" 执行成功 (耗时 ${taskState.elapsed} 秒)`)
     } else {
-      ElMessage.error(res.error || '任务执行失败')
+      ElMessage.error(res.error || `任务 "${row.name}" 执行失败`)
     }
   } catch (err) {
-    ElMessage.error('任务执行失败')
-    executeResult.value = { success: false, error: err.message || '执行失败' }
+    ElMessage.error(`任务 "${row.name}" 执行失败`)
   } finally {
-    clearInterval(timerInterval)
-    timerInterval = null
-    executing.value = false
+    clearInterval(taskState.timerInterval)
+    runningTasks.delete(row.id)
+    fetchLogs(logsCurrentPage.value)
+
+    // Auto-dismiss banner 3 seconds after ALL tasks complete
+    if (runningTasks.size === 0) {
+      bannerClearTimer = setTimeout(() => {
+        bannerClearTimer = null
+      }, 3000)
+    }
   }
 }
-
-watch(executeDialogVisible, (newVal) => {
-  if (!newVal && timerInterval) {
-    clearInterval(timerInterval)
-    timerInterval = null
-  }
-})
 
 onMounted(() => {
   fetchTasks()
   fetchLogs(1)
+})
+
+onUnmounted(() => {
+  // Clean up all running task timers
+  for (const [, task] of runningTasks) {
+    clearInterval(task.timerInterval)
+  }
+  runningTasks.clear()
+  if (bannerClearTimer) {
+    clearTimeout(bannerClearTimer)
+    bannerClearTimer = null
+  }
 })
 </script>
 
@@ -596,6 +507,78 @@ onMounted(() => {
   color: #303133;
   font-size: 24px;
 }
+
+/* Running Tasks Banner */
+.running-banner {
+  margin-bottom: 20px;
+  padding: 16px 20px 12px;
+  background: linear-gradient(135deg, #ecf5ff 0%, #f0f9eb 100%);
+  border: 1px solid #b3d8ff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.banner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.banner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #409eff;
+}
+.banner-icon {
+  font-size: 18px;
+}
+.banner-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.banner-task-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #d9ecff;
+  font-size: 13px;
+  color: #606266;
+}
+.banner-task-name {
+  font-weight: 500;
+  color: #303133;
+}
+.banner-task-elapsed {
+  font-variant-numeric: tabular-nums;
+  color: #409eff;
+  font-weight: 500;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Banner slide transition */
+.banner-slide-enter-active,
+.banner-slide-leave-active {
+  transition: all 0.3s ease;
+  max-height: 200px;
+  opacity: 1;
+}
+.banner-slide-enter-from,
+.banner-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .log-card {
   margin-top: 20px;
 }
@@ -628,63 +611,6 @@ onMounted(() => {
 .param-row {
   display: flex;
   align-items: center;
-}
-.param-tips {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #606266;
-}
-.param-tips p {
-  margin: 0 0 8px 0;
-  font-weight: 500;
-}
-.param-tips ul {
-  margin: 0;
-  padding-left: 18px;
-}
-.param-tips li {
-  margin-bottom: 4px;
-}
-.param-tips code {
-  background-color: #e4e7ed;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-family: monospace;
-}
-.executing-progress {
-  margin-top: 10px;
-}
-.progress-content {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  color: #409eff;
-  font-weight: 500;
-}
-.execute-result {
-  margin-top: 10px;
-}
-.result-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  font-weight: 500;
-}
-.result-command {
-  margin-bottom: 12px;
-  padding: 8px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  font-size: 13px;
-  word-break: break-all;
-}
-.result-output {
-  margin-bottom: 12px;
 }
 .result-output.error pre {
   background-color: #fef0f0;

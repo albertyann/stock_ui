@@ -414,6 +414,9 @@ export const basicDataApi = {
     }
     return api.get(url)
   },
+  getFinaAudit: (tsCode, limit = 5) => {
+    return api.get(`/basic-data/fina-audit/${tsCode}?limit=${limit}`)
+  },
   getSectorHeat: (params = {}) => {
     const { trade_date = null, tab = 'up_pct', idx_type = null, min_stocks = null } = params
     let url = `/basic-data/sector-heat?tab=${tab}`
