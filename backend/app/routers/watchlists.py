@@ -108,6 +108,9 @@ async def get_all_watchlist_stocks(
     sort_by_change_pct: Optional[str] = Query(
         None, description="按涨幅排序: asc, desc"
     ),
+    market_type: Optional[str] = Query(
+        None, description="市场类型: main=主板, chye=创业板, kcb=科创板"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     service = WatchlistService(db)
@@ -120,6 +123,7 @@ async def get_all_watchlist_stocks(
         watchlist_id=watchlist_id,
         tags=tags_list,
         sort_by_change_pct=sort_by_change_pct,
+        market_type=market_type,
     )
 
     if result.get("error"):

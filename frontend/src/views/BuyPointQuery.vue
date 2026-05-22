@@ -27,6 +27,22 @@
             @change="handleFilterChange"
           />
         </el-form-item>
+        <el-form-item label="数据范围">
+          <el-switch
+            v-model="filter.isAll"
+            :active-text="'全部'"
+            :inactive-text="'近5天'"
+            inline-prompt
+            @change="handleFilterChange"
+          />
+        </el-form-item>
+        <el-form-item label="市场">
+          <el-radio-group v-model="filter.market_type" @change="handleFilterChange">
+            <el-radio-button label="主板" value="main" />
+            <el-radio-button label="创业" value="chye" />
+            <el-radio-button label="科创" value="kcb" />
+          </el-radio-group>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleFilterChange">查询</el-button>
           <el-button @click="resetFilter">重置</el-button>
@@ -45,6 +61,13 @@
         </el-table-column>
         <el-table-column prop="stock_name" label="股票名称" width="120" fixed="left" />
         <el-table-column prop="industry" label="板块" width="140" />
+        <el-table-column prop="board_type" label="市场" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getBoardType(row.ts_code).type">
+              {{ getBoardType(row.ts_code).label }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="signal_date" label="信号日期" width="120" sortable="custom" />
         <el-table-column label="T+1 涨幅" width="100" align="right">
           <template #default="{ row }">
@@ -101,8 +124,19 @@ const selectedRowId = ref(null)
 
 const filter = reactive({
   signalDate: null,
-  dateRange: null
+  dateRange: null,
+  isAll: false,
+  market_type: 'chye'
 })
+
+const getRecent5DaysStart = () => {
+  const now = new Date()
+  now.setDate(now.getDate() - 5)
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 const pagination = reactive({
   page: 1,
@@ -114,10 +148,14 @@ const pagination = reactive({
 const fetchTrendData = async (buyPoints) => {
   if (!buyPoints || !buyPoints.length) return
 
+  const recent5Start = getRecent5DaysStart()
+
   // Group by signal_date
   const dateGroups = {}
   for (const bp of buyPoints) {
     if (!bp.signal_date || !bp.ts_code) continue
+    // Skip dates older than 5 days
+    if (bp.signal_date < recent5Start) continue
     if (!dateGroups[bp.signal_date]) {
       dateGroups[bp.signal_date] = []
     }
@@ -159,12 +197,22 @@ const fetchTrendData = async (buyPoints) => {
 const fetchData = async () => {
   loading.value = true
   try {
+    let signalDateStart = filter.dateRange ? filter.dateRange[0] : null
+    let signalDateEnd = filter.dateRange ? filter.dateRange[1] : null
+
+    if (!filter.isAll) {
+      // Force recent 5 days
+      signalDateStart = getRecent5DaysStart()
+      signalDateEnd = null
+    }
+
     const params = {
       page: pagination.page,
       page_size: pagination.page_size,
       signal_date: filter.signalDate || null,
-      signal_date_start: filter.dateRange ? filter.dateRange[0] : null,
-      signal_date_end: filter.dateRange ? filter.dateRange[1] : null
+      signal_date_start: signalDateStart,
+      signal_date_end: signalDateEnd,
+      market_type: filter.market_type || null
     }
     const res = await signalApi.getBuyPoints(params)
     if (res.success) {
@@ -193,6 +241,8 @@ const handleFilterChange = () => {
 const resetFilter = () => {
   filter.signalDate = null
   filter.dateRange = null
+  filter.isAll = false
+  filter.market_type = 'chye'
   pagination.page = 1
   fetchData()
 }
@@ -247,6 +297,26 @@ const getChangeClass = (val) => {
   if (val > 0) return 'up'
   if (val < 0) return 'down'
   return 'flat'
+}
+
+const getBoardType = (tsCode) => {
+  if (!tsCode) return { label: '', type: 'info' }
+  const code = tsCode.split('.')[0]
+  const prefix = code.substring(0, 3)
+  // 科创板
+  if (['688', '689'].includes(prefix)) {
+    return { label: '科创板', type: 'warning' }
+  }
+  // 创业板
+  if (['300', '301'].includes(prefix)) {
+    return { label: '创业板', type: 'success' }
+  }
+  // 北交所
+  if (prefix.startsWith('8') || ['430', '831', '832', '833', '834', '835', '836', '837', '838', '839', '870', '871', '872', '873'].includes(prefix)) {
+    return { label: '北交所', type: 'danger' }
+  }
+  // 主板
+  return { label: '主板', type: 'info' }
 }
 
 onMounted(() => {

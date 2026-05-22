@@ -91,6 +91,7 @@ class SignalService:
         signal_date_start: Optional[date] = None,
         signal_date_end: Optional[date] = None,
         note_content: Optional[str] = None,
+        market_type: Optional[str] = None,
     ) -> Tuple[List[Signal], int]:
         filters = []
         if ts_code:
@@ -107,6 +108,14 @@ class SignalService:
             filters.append(Signal.signal_date <= signal_date_end)
         if note_content:
             filters.append(Signal.note_content == note_content)
+        if market_type:
+            prefix_col = func.substring(Signal.ts_code, 1, 3)
+            if market_type == "main":
+                filters.append(prefix_col.in_(["600", "601", "603", "605", "000", "001", "002", "003"]))
+            elif market_type == "chye":
+                filters.append(prefix_col.in_(["300", "301"]))
+            elif market_type == "kcb":
+                filters.append(prefix_col.in_(["688", "689"]))
 
         count_query = select(func.count()).select_from(Signal)
         if filters:

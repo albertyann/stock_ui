@@ -150,6 +150,9 @@ async def get_signals_manage(
     signal_date_start: Optional[date] = None,
     signal_date_end: Optional[date] = None,
     note_content: Optional[str] = None,
+    market_type: Optional[str] = Query(
+        None, description="市场类型: main=主板, chye=创业板, kcb=科创板"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     service = SignalService(db)
@@ -163,6 +166,7 @@ async def get_signals_manage(
         signal_date_start=signal_date_start,
         signal_date_end=signal_date_end,
         note_content=note_content,
+        market_type=market_type,
     )
 
     ts_codes = list({s.ts_code for s in signals})

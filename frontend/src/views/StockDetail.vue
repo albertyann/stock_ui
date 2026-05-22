@@ -228,36 +228,6 @@
             </div>
           </el-card>
 
-          <!-- 概念板块 -->
-          <el-card class="mt-20" v-loading="conceptLoading">
-            <template #header>
-              <div class="card-header">
-                <span>概念板块</span>
-                <span v-if="conceptList.length > 0" class="signal-count">{{ conceptList.length }}个</span>
-              </div>
-            </template>
-            <div v-if="conceptList.length > 0" class="concept-tags">
-              <router-link
-                v-for="c in conceptList"
-                :key="c.ts_code"
-                :to="{ path: '/concept/detail', query: { code: c.ts_code, sectorType: 'concept', sectorName: c.name } }"
-                custom
-                v-slot="{ navigate }"
-              >
-                <el-tag
-                  size="small"
-                  effect="plain"
-                  class="concept-tag"
-                  :type="c.change_pct > 0 ? 'danger' : c.change_pct < 0 ? 'success' : 'info'"
-                  @click="navigate"
-                >
-                  {{ c.name }}
-                </el-tag>
-              </router-link>
-            </div>
-            <el-empty v-else description="暂无概念板块数据" :image-size="60" />
-          </el-card>
-
           <el-card class="mt-20" v-loading="moneyflowLoading">
             <template #header>
               <div class="card-header">
@@ -292,37 +262,34 @@
             <div ref="moneyflowChart" style="height: 300px;"></div>
           </el-card>
 
-          <!-- 筹码分布 -->
-          <el-card class="mt-20" v-loading="chipLoading">
+          <!-- 概念板块 -->
+          <el-card class="mt-20" v-loading="conceptLoading">
             <template #header>
               <div class="card-header">
-                <span>筹码分布</span>
-                <el-date-picker
-                  v-model="selectedChipDate"
-                  type="date"
-                  placeholder="选择日期"
-                  size="small"
-                  style="width: 140px"
-                  value-format="YYYY-MM-DD"
-                  @change="onChipDateChange"
-                />
+                <span>概念板块</span>
+                <span v-if="conceptList.length > 0" class="signal-count">{{ conceptList.length }}个</span>
               </div>
             </template>
-            <div v-if="chipData.chips && chipData.chips.length > 0">
-              <div class="chip-summary" v-if="chipConcentration !== null">
-                <div class="summary-item">
-                  <span class="summary-label">筹码集中度</span>
-                  <span class="summary-value">{{ chipConcentration.toFixed(2) }}%</span>
-                </div>
-              </div>
-              <StockChipChart
-                ref="chipChartRef"
-                :chipData="chipData.chips"
-                :currentPrice="chipData.current_price"
-                height="280px"
-              />
+            <div v-if="conceptList.length > 0" class="concept-tags">
+              <router-link
+                v-for="c in conceptList"
+                :key="c.ts_code"
+                :to="{ path: '/concept/detail', query: { code: c.ts_code, sectorType: 'concept', sectorName: c.name } }"
+                custom
+                v-slot="{ navigate }"
+              >
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  class="concept-tag"
+                  :type="c.change_pct > 0 ? 'danger' : c.change_pct < 0 ? 'success' : 'info'"
+                  @click="navigate"
+                >
+                  {{ c.name }}
+                </el-tag>
+              </router-link>
             </div>
-            <el-empty v-else description="暂无筹码数据" :image-size="60" />
+            <el-empty v-else description="暂无概念板块数据" :image-size="60" />
           </el-card>
 
           <!-- 标签管理 -->
@@ -360,7 +327,38 @@
             </div>
           </el-card>
 
-
+          <!-- 筹码分布 -->
+          <el-card class="mt-20" v-loading="chipLoading">
+            <template #header>
+              <div class="card-header">
+                <span>筹码分布</span>
+                <el-date-picker
+                  v-model="selectedChipDate"
+                  type="date"
+                  placeholder="选择日期"
+                  size="small"
+                  style="width: 140px"
+                  value-format="YYYY-MM-DD"
+                  @change="onChipDateChange"
+                />
+              </div>
+            </template>
+            <div v-if="chipData.chips && chipData.chips.length > 0">
+              <div class="chip-summary" v-if="chipConcentration !== null">
+                <div class="summary-item">
+                  <span class="summary-label">筹码集中度</span>
+                  <span class="summary-value">{{ chipConcentration.toFixed(2) }}%</span>
+                </div>
+              </div>
+              <StockChipChart
+                ref="chipChartRef"
+                :chipData="chipData.chips"
+                :currentPrice="chipData.current_price"
+                height="280px"
+              />
+            </div>
+            <el-empty v-else description="暂无筹码数据" :image-size="60" />
+          </el-card>
 
           <el-card class="mt-20" v-if="watchlistStockInfo">
             <template #header>

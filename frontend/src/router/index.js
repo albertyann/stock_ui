@@ -31,6 +31,7 @@ import StockFundAnalysis from '@/views/StockFundAnalysis.vue'
 import ConceptSectors from '@/views/ConceptSectors.vue'
 import ConceptDetail from '@/views/ConceptDetail.vue'
 import BuyPointQuery from '@/views/BuyPointQuery.vue'
+import StrategyStockPicker from '@/views/StrategyStockPicker.vue'
 
 const routes = [
   {
@@ -214,6 +215,12 @@ const routes = [
     name: 'BuyPointQuery',
     component: BuyPointQuery,
     meta: { title: '买点查询' }
+  },
+  {
+    path: '/strategy-stock-picker',
+    name: 'StrategyStockPicker',
+    component: StrategyStockPicker,
+    meta: { title: '策略选股' }
   }
 ]
 

@@ -67,6 +67,13 @@
                 />
               </el-select>
             </el-form-item>
+            <el-form-item label="市场">
+              <el-radio-group v-model="filter.market_type" @change="handleFilterChange">
+                <el-radio-button label="主板" value="main" />
+                <el-radio-button label="创业" value="chye" />
+                <el-radio-button label="科创" value="kcb" />
+              </el-radio-group>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="handleFilterChange">搜索</el-button>
               <el-button @click="resetFilter">重置</el-button>
@@ -271,8 +278,11 @@ const filter = reactive({
   search: '',
   industry: '',
   watchlist_id: null,
-  tags: []
+  tags: [],
+  market_type: 'chye'
 })
+
+
 
 const pagination = reactive({
   page: 1,
@@ -312,7 +322,8 @@ const fetchData = async () => {
       industry: filter.industry || null,
       watchlist_id: filter.watchlist_id || null,
       tags: filter.tags,
-      sort_by_change_pct: sortState.sort_by_change_pct
+      sort_by_change_pct: sortState.sort_by_change_pct,
+      market_type: filter.market_type || null
     })
     if (res.success) {
       tableData.value = res.data || []
@@ -362,6 +373,7 @@ const resetFilter = () => {
   filter.industry = ''
   filter.watchlist_id = null
   filter.tags = []
+  filter.market_type = 'chye'
   sortState.sort_by_change_pct = null
   pagination.page = 1
   fetchData()

@@ -456,6 +456,7 @@ class WatchlistService:
         watchlist_id: Optional[int] = None,
         tags: Optional[List[str]] = None,
         sort_by_change_pct: Optional[str] = None,
+        market_type: Optional[str] = None,
     ) -> dict:
         from sqlalchemy import create_engine, text
         from app.config import get_settings
@@ -486,6 +487,17 @@ class WatchlistService:
                 if tags:
                     where_clauses.append("st.tags ?| :tags_list")
                     params["tags_list"] = tags
+
+                if market_type:
+                    code_prefix = "SUBSTRING(ws.ts_code FROM 1 FOR 3)"
+                    if market_type == "main":
+                        where_clauses.append(
+                            f"{code_prefix} IN ('600', '601', '603', '605', '000', '001', '002', '003')"
+                        )
+                    elif market_type == "chye":
+                        where_clauses.append(f"{code_prefix} IN ('300', '301')")
+                    elif market_type == "kcb":
+                        where_clauses.append(f"{code_prefix} IN ('688', '689')")
 
                 where_sql = ""
                 if where_clauses:

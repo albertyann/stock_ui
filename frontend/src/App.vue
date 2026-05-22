@@ -61,6 +61,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>均线斜率</span>
             </el-menu-item>
+            <el-menu-item index="/strategy-stock-picker">
+              <el-icon><Filter /></el-icon>
+              <span>策略选股</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-analysis">
             <template #title>

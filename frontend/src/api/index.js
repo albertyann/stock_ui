@@ -39,7 +39,7 @@ export const watchlistApi = {
   update: (id, data) => api.put(`/watchlists/${id}`, data),
   delete: (id) => api.delete(`/watchlists/${id}`),
   getAllWatchlistStocks: (params = {}) => {
-    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null, tags = [] } = params
+    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null, tags = [], market_type = null } = params
     let url = `/watchlists/stocks/all?page=${page}&page_size=${page_size}`
     if (search) {
       url += `&search=${encodeURIComponent(search)}`
@@ -55,6 +55,9 @@ export const watchlistApi = {
     }
     if (tags && tags.length > 0) {
       url += `&tags=${encodeURIComponent(tags.join(','))}`
+    }
+    if (market_type) {
+      url += `&market_type=${encodeURIComponent(market_type)}`
     }
     return api.get(url)
   },
@@ -137,11 +140,12 @@ export const signalApi = {
   deleteSignal: (id) => api.delete(`/signals/${id}`),
   // 买点查询
   getBuyPoints: (params = {}) => {
-    const { page = 1, page_size = 30, signal_date = null, signal_date_start = null, signal_date_end = null } = params
+    const { page = 1, page_size = 30, signal_date = null, signal_date_start = null, signal_date_end = null, market_type = null } = params
     let url = `/signals/manage?page=${page}&page_size=${page_size}&signal_type=ADD_TAG&note_content=买点`
     if (signal_date) url += `&signal_date=${signal_date}`
     if (signal_date_start) url += `&signal_date_start=${signal_date_start}`
     if (signal_date_end) url += `&signal_date_end=${signal_date_end}`
+    if (market_type) url += `&market_type=${encodeURIComponent(market_type)}`
     return api.get(url)
   }
 }
@@ -454,6 +458,12 @@ export const stockInfoApi = {
   create: (data) => api.post('/stock-info/', data),
   update: (id, data) => api.put(`/stock-info/${id}`, data),
   delete: (id) => api.delete(`/stock-info/${id}`)
+}
+
+export const strategyApi = {
+  getStrategies: () => api.get('/strategies/list'),
+  executeStrategy: (data) => api.post('/strategies/execute', data),
+  getTaskStatus: (taskId) => api.get(`/strategies/execute/${taskId}`),
 }
 
 export default api
