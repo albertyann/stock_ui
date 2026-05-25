@@ -54,7 +54,7 @@ async def init_database():
         """)
 
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS signals (
+            CREATE TABLE IF NOT EXISTS m_signals (
                 id SERIAL PRIMARY KEY,
                 ts_code VARCHAR(20) NOT NULL,
                 signal_type VARCHAR(20) NOT NULL,
@@ -122,13 +122,13 @@ async def init_database():
 
         # Create indexes
         await conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_signals_ts_code ON signals(ts_code)"
+            "CREATE INDEX IF NOT EXISTS idx_signals_ts_code ON m_signals(ts_code)"
         )
         await conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_signals_type ON signals(signal_type)"
+            "CREATE INDEX IF NOT EXISTS idx_signals_type ON m_signals(signal_type)"
         )
         await conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_signals_active ON signals(is_active) WHERE is_active = TRUE"
+            "CREATE INDEX IF NOT EXISTS idx_signals_active ON m_signals(is_active) WHERE is_active = TRUE"
         )
         await conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_prices_code_date ON stock_prices_cache(ts_code, trade_date DESC)"
@@ -155,7 +155,7 @@ async def init_database():
         print("  - watchlists")
         print("  - watchlist_stocks")
         print("  - stock_tags")
-        print("  - signals")
+        print("  - m_signals")
         print("  - stock_prices_cache")
         print("  - technical_indicators_cache")
         print("✅ Default watchlist created")

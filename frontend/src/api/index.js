@@ -466,4 +466,16 @@ export const strategyApi = {
   getTaskStatus: (taskId) => api.get(`/strategies/execute/${taskId}`),
 }
 
+export const dailyScoreApi = {
+  getDates: () => api.get('/daily-scores/dates'),
+  getLatestDate: () => api.get('/daily-scores/latest-date'),
+  getSummary: (tradeDate) => api.get(`/daily-scores/summary?trade_date=${tradeDate}`),
+  getScores: (tradeDate, direction = '', limit = 100) => {
+    let url = `/daily-scores/scores?trade_date=${tradeDate}&limit=${limit}`
+    if (direction) url += `&direction=${direction}`
+    return api.get(url)
+  },
+  getHistory: (tsCode, limit = 30) => api.get(`/daily-scores/${tsCode}/history?limit=${limit}`),
+}
+
 export default api

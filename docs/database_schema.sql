@@ -57,7 +57,7 @@ CREATE INDEX idx_stock_tags_tags ON stock_tags USING GIN (tags);
 -- ============================================
 -- 4. 买卖信号表
 -- ============================================
-CREATE TABLE IF NOT EXISTS signals (
+CREATE TABLE IF NOT EXISTS m_signals (
     id SERIAL PRIMARY KEY,
     ts_code VARCHAR(20) NOT NULL COMMENT '股票代码',
     signal_type VARCHAR(20) NOT NULL COMMENT '信号类型: BUY(买入), SELL(卖出), WATCH(观望)',
@@ -85,11 +85,11 @@ CREATE TABLE IF NOT EXISTS signals (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE signals IS '买卖信号表';
-CREATE INDEX idx_signals_code ON signals(ts_code);
-CREATE INDEX idx_signals_type ON signals(signal_type);
-CREATE INDEX idx_signals_date ON signals(signal_date);
-CREATE INDEX idx_signals_active ON signals(is_active) WHERE is_active = TRUE;
+COMMENT ON TABLE m_signals IS '买卖信号表';
+CREATE INDEX idx_signals_code ON m_signals(ts_code);
+CREATE INDEX idx_signals_type ON m_signals(signal_type);
+CREATE INDEX idx_signals_date ON m_signals(signal_date);
+CREATE INDEX idx_signals_active ON m_signals(is_active) WHERE is_active = TRUE;
 
 -- ============================================
 -- 4. 股票价格缓存表 (用于快速查询)
@@ -195,7 +195,7 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_watchlists_updated_at BEFORE UPDATE ON watchlists
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_signals_updated_at BEFORE UPDATE ON signals
+CREATE TRIGGER update_signals_updated_at BEFORE UPDATE ON m_signals
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
@@ -208,7 +208,7 @@ SELECT
     w.name as watchlist_name,
     p.close_price as latest_price,
     p.change_pct as latest_change_pct
-FROM signals s
+FROM m_signals s
 LEFT JOIN watchlist_stocks ws ON s.ts_code = ws.ts_code
 LEFT JOIN watchlists w ON ws.watchlist_id = w.id
 LEFT JOIN LATERAL (
@@ -257,7 +257,7 @@ LEFT JOIN LATERAL (
 ) p ON TRUE
 LEFT JOIN LATERAL (
     SELECT signal_type, signal_strength, signal_date
-    FROM signals
+    FROM m_signals
     WHERE ts_code = ws.ts_code AND is_active = TRUE
     ORDER BY signal_date DESC
     LIMIT 1

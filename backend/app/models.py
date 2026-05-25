@@ -313,3 +313,35 @@ class StockInfo(Base):
     memo = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class DailyStockScore(Base):
+    __tablename__ = "daily_stock_scores"
+
+    id = Column(Integer, primary_key=True)
+    ts_code = Column(String(20), nullable=False, index=True)
+    trade_date = Column(Date, nullable=False, index=True)
+    name = Column(String(100))
+    industry = Column(String(50))
+    trend_score = Column(Numeric(6, 2))
+    trend_details = Column(JSONB, default=dict)
+    momentum_score = Column(Numeric(6, 2))
+    momentum_details = Column(JSONB, default=dict)
+    volume_price_score = Column(Numeric(6, 2))
+    volume_price_details = Column(JSONB, default=dict)
+    composite_1d = Column(Numeric(6, 2))
+    composite_3d = Column(Numeric(6, 2))
+    composite_5d = Column(Numeric(6, 2))
+    composite_10d = Column(Numeric(6, 2))
+    direction_1d = Column(String(10))
+    direction_3d = Column(String(10))
+    direction_5d = Column(String(10))
+    direction_10d = Column(String(10))
+    rank_in_watchlist = Column(Integer)
+    prev_composite_5d = Column(Numeric(6, 2))
+    score_change_5d = Column(Numeric(6, 2))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("ts_code", "trade_date", name="uix_daily_score_code_date"),
+    )

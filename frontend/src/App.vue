@@ -111,6 +111,10 @@
               <el-icon><Money /></el-icon>
               <span>个股资金分析</span>
             </el-menu-item>
+            <el-menu-item index="/daily-scores">
+              <el-icon><Histogram /></el-icon>
+              <span>每日量化评分</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-basic-data">
             <template #title>

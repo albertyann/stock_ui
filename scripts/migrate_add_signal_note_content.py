@@ -17,7 +17,7 @@ async def migrate_database():
         note_content_exists = await conn.fetchval("""
             SELECT EXISTS (
                 SELECT 1 FROM information_schema.columns 
-                WHERE table_name = 'signals' 
+                WHERE table_name = 'm_signals' 
                 AND column_name = 'note_content'
             )
         """)
@@ -25,7 +25,7 @@ async def migrate_database():
         if not note_content_exists:
             print("Adding note_content column...")
             await conn.execute("""
-                ALTER TABLE signals 
+                ALTER TABLE m_signals 
                 ADD COLUMN note_content TEXT
             """)
             print("✅ note_content column added")

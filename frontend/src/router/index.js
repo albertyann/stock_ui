@@ -32,6 +32,7 @@ import ConceptSectors from '@/views/ConceptSectors.vue'
 import ConceptDetail from '@/views/ConceptDetail.vue'
 import BuyPointQuery from '@/views/BuyPointQuery.vue'
 import StrategyStockPicker from '@/views/StrategyStockPicker.vue'
+import DailyScoreView from '@/views/DailyScoreView.vue'
 
 const routes = [
   {
@@ -221,6 +222,12 @@ const routes = [
     name: 'StrategyStockPicker',
     component: StrategyStockPicker,
     meta: { title: '策略选股' }
+  },
+  {
+    path: '/daily-scores',
+    name: 'DailyScoreView',
+    component: DailyScoreView,
+    meta: { title: '每日量化评分' }
   }
 ]
 
