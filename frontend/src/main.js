@@ -14,6 +14,11 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 app.use(createPinia())
+
+import { useMarketStore } from '@/stores/market'
+const marketStore = useMarketStore()
+marketStore.initMarket()
+
 app.use(router)
 app.use(ElementPlus)
 

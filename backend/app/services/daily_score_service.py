@@ -1,8 +1,10 @@
 from typing import List, Optional
 from datetime import date
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.market.context import get_current_market
+from app.market.filter import build_orm_filter
 from app.models import DailyStockScore
 
 
@@ -22,6 +24,11 @@ class DailyScoreService:
         )
         if direction:
             query = query.where(DailyStockScore.direction_5d == direction)
+
+        market = get_current_market()
+        market_filters = build_orm_filter(market, DailyStockScore.ts_code)
+        query = query.where(or_(*market_filters))
+
         result = await session.execute(query)
         return result.scalars().all()
 
@@ -30,7 +37,10 @@ class DailyScoreService:
         session: AsyncSession,
         trade_date: date,
     ) -> dict:
-        total_query = select(func.count()).where(DailyStockScore.trade_date == trade_date)
+        market = get_current_market()
+        market_filters = build_orm_filter(market, DailyStockScore.ts_code)
+
+        total_query = select(func.count()).where(DailyStockScore.trade_date == trade_date).where(or_(*market_filters))
         total_result = await session.execute(total_query)
         total = total_result.scalar()
 
@@ -38,6 +48,7 @@ class DailyScoreService:
             select(func.count())
             .where(DailyStockScore.trade_date == trade_date)
             .where(DailyStockScore.direction_5d == "bullish")
+            .where(or_(*market_filters))
         )
         bullish_result = await session.execute(bullish_query)
         bullish = bullish_result.scalar()
@@ -46,6 +57,7 @@ class DailyScoreService:
             select(func.count())
             .where(DailyStockScore.trade_date == trade_date)
             .where(DailyStockScore.direction_5d == "bearish")
+            .where(or_(*market_filters))
         )
         bearish_result = await session.execute(bearish_query)
         bearish = bearish_result.scalar()

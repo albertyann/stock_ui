@@ -25,8 +25,8 @@
               >
                 <el-option
                   v-for="item in industryOptions"
-                  :key="item.code"
-                  :label="item.name"
+                  :key="item.name"
+                  :label="`${item.name} (${item.count})`"
                   :value="item.name"
                 />
               </el-select>
@@ -66,6 +66,18 @@
                   :value="tag"
                 />
               </el-select>
+            </el-form-item>
+            <el-form-item label="涨幅">
+              <el-slider
+                v-model="filter.change_pct_range"
+                range
+                :min="-20"
+                :max="20"
+                :step="1"
+                :marks="{ '-20': '-20%', '0': '0%', '20': '20%' }"
+                style="width: 200px"
+                @change="handleFilterChange"
+              />
             </el-form-item>
             <el-form-item label="市场">
               <el-radio-group v-model="filter.market_type" @change="handleFilterChange">
@@ -264,7 +276,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { watchlistApi, sectorApi } from '@/api'
+import { watchlistApi } from '@/api'
 import { useWebSocket } from '@/composables/useWebSocket'
 
 const loading = ref(false)
@@ -279,7 +291,8 @@ const filter = reactive({
   industry: '',
   watchlist_id: null,
   tags: [],
-  market_type: 'chye'
+  market_type: 'chye',
+  change_pct_range: [-20, 20]
 })
 
 
@@ -323,7 +336,9 @@ const fetchData = async () => {
       watchlist_id: filter.watchlist_id || null,
       tags: filter.tags,
       sort_by_change_pct: sortState.sort_by_change_pct,
-      market_type: filter.market_type || null
+      market_type: filter.market_type || null,
+      change_pct_min: filter.change_pct_range[0],
+      change_pct_max: filter.change_pct_range[1]
     })
     if (res.success) {
       tableData.value = res.data || []
@@ -344,13 +359,13 @@ const fetchData = async () => {
 
 const fetchOptions = async () => {
   try {
-    const [sectorRes, watchlistRes, tagsRes] = await Promise.all([
-      sectorApi.getAllSectors(),
+    const [industriesRes, watchlistRes, tagsRes] = await Promise.all([
+      watchlistApi.getIndustries(),
       watchlistApi.getAll(),
       watchlistApi.getAllTags()
     ])
-    if (sectorRes.success) {
-      industryOptions.value = sectorRes.data || []
+    if (industriesRes.success) {
+      industryOptions.value = industriesRes.data || []
     }
     if (watchlistRes.success) {
       watchlistOptions.value = watchlistRes.data || []
@@ -374,6 +389,7 @@ const resetFilter = () => {
   filter.watchlist_id = null
   filter.tags = []
   filter.market_type = 'chye'
+  filter.change_pct_range = [-20, 20]
   sortState.sort_by_change_pct = null
   pagination.page = 1
   fetchData()

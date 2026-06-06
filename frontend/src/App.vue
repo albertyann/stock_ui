@@ -35,6 +35,14 @@
               <el-icon><Star /></el-icon>
               <span>关注清单</span>
             </el-menu-item>
+            <el-menu-item index="/watchlist-sector-stats">
+              <el-icon><Grid /></el-icon>
+              <span>关注板块</span>
+            </el-menu-item>
+            <el-menu-item index="/watchlist-sector-trend">
+              <el-icon><TrendCharts /></el-icon>
+              <span>板块趋势</span>
+            </el-menu-item>
             <el-menu-item index="/limit-up">
               <el-icon><TrendCharts /></el-icon>
               <span>今日涨停</span>
@@ -169,6 +177,9 @@
           <div class="header-left">
             <i>{{ '一花一世界，一树一菩提' }}</i>
           </div>
+          <div class="header-right">
+            <MarketSwitcher />
+          </div>
         </el-header>
         
         <el-main>
@@ -181,6 +192,7 @@
 </template>
 
 <script setup>
+import MarketSwitcher from '@/components/MarketSwitcher.vue'
 </script>
 
 <style scoped>
@@ -259,6 +271,11 @@
   margin: 0;
   font-size: 20px;
   color: #303133;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .el-menu-vertical {

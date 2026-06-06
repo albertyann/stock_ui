@@ -17,6 +17,7 @@ from app.routers import (
     strategies,
     daily_scores,
 )
+from app.market.middleware import MarketMiddleware
 from app.tasks.scheduler import task_manager
 from app.websockets.routes import router as ws_router
 
@@ -51,6 +52,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(MarketMiddleware)
 
 api_prefix = settings.api_v1_prefix
 app.include_router(watchlists.router, prefix=api_prefix)

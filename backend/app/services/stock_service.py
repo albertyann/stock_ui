@@ -5,6 +5,8 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import create_engine, text
 from app.config import get_settings
+from app.market.context import get_current_market
+from app.market.filter import build_sql_filter
 
 
 class StockService:
@@ -18,15 +20,19 @@ class StockService:
             engine = create_engine(sync_url)
 
             with engine.connect() as conn:
-                query = """
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "ts_code")
+                params = {"keyword": f"%{keyword}%", "limit": limit}
+                params.update(market_params)
+
+                query = f"""
                     SELECT DISTINCT ts_code, symbol, name
                     FROM watchlist_stocks
                     WHERE (name ILIKE :keyword OR ts_code ILIKE :keyword OR symbol ILIKE :keyword)
+                    AND {market_sql}
                     LIMIT :limit
                 """
-                result = conn.execute(
-                    text(query), {"keyword": f"%{keyword}%", "limit": limit}
-                )
+                result = conn.execute(text(query), params)
 
                 results = []
                 for row in result:

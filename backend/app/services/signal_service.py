@@ -1,13 +1,15 @@
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, update, func, delete as sa_delete
+from sqlalchemy import select, and_, update, func, delete as sa_delete, or_
 from sqlalchemy.dialects.postgresql import insert
 import pandas as pd
 
 from app.models import Signal, StockPriceCache, TechnicalIndicator
 from app.events.note_events import NoteCreatedEvent
 from app.database import async_session
+from app.market.context import get_current_market
+from app.market.filter import build_orm_filter
 
 
 class SignalService:
@@ -76,6 +78,10 @@ class SignalService:
         if active_only:
             query = query.where(Signal.is_active == True)
 
+        market = get_current_market()
+        market_filters = build_orm_filter(market, Signal.ts_code)
+        query = query.where(or_(*market_filters))
+
         query = query.order_by(Signal.id.desc()).limit(limit)
         result = await self.db.execute(query)
         return result.scalars().all()
@@ -94,6 +100,11 @@ class SignalService:
         market_type: Optional[str] = None,
     ) -> Tuple[List[Signal], int]:
         filters = []
+
+        market = get_current_market()
+        market_filters = build_orm_filter(market, Signal.ts_code)
+        filters.extend(market_filters)
+
         if ts_code:
             filters.append(Signal.ts_code == ts_code)
         if signal_type:

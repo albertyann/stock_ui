@@ -6,6 +6,8 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from app.config import get_settings
+from app.market.context import get_current_market
+from app.market.filter import build_sql_filter
 
 
 class RealtimePriceService:
@@ -653,8 +655,17 @@ class RealtimePriceService:
 
                     parsed_date = latest_date_row.latest_date
 
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "d.ts_code")
+                params = {
+                    "trade_date": parsed_date,
+                    "min_change_pct": min_change_pct,
+                    "limit": limit,
+                }
+                params.update(market_params)
+
                 if industry:
-                    query = """
+                    query = f"""
                         SELECT 
                             d.ts_code,
                             d.trade_date,
@@ -672,20 +683,14 @@ class RealtimePriceService:
                     WHERE d.trade_date = :trade_date
                     AND d.pct_chg >= :min_change_pct
                     AND s.industry = :industry
+                    AND {market_sql}
                     ORDER BY d.pct_chg DESC
                     LIMIT :limit
                     """
-                    result = conn.execute(
-                        text(query),
-                        {
-                            "trade_date": parsed_date,
-                            "min_change_pct": min_change_pct,
-                            "industry": industry,
-                            "limit": limit,
-                        },
-                    )
+                    params["industry"] = industry
+                    result = conn.execute(text(query), params)
                 else:
-                    query = """
+                    query = f"""
                         SELECT 
                             d.ts_code,
                             d.trade_date,
@@ -701,17 +706,11 @@ class RealtimePriceService:
                     FROM daily_data d
                     WHERE d.trade_date = :trade_date
                     AND d.pct_chg >= :min_change_pct
+                    AND {market_sql}
                     ORDER BY d.pct_chg DESC
                     LIMIT :limit
                     """
-                    result = conn.execute(
-                        text(query),
-                        {
-                            "trade_date": parsed_date,
-                            "min_change_pct": min_change_pct,
-                            "limit": limit,
-                        },
-                    )
+                    result = conn.execute(text(query), params)
 
                 stocks = []
                 for row in result:

@@ -1,10 +1,12 @@
 from typing import List, Optional, Tuple
 from datetime import datetime, date
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, delete, distinct, func
+from sqlalchemy import select, and_, delete, distinct, func, or_
 from sqlalchemy.orm import selectinload
 import json
 from app.events import event_bus, NoteCreatedEvent
+from app.market.context import get_current_market
+from app.market.filter import build_orm_filter, build_sql_filter
 from app.models import (
     Watchlist,
     WatchlistStock,
@@ -169,6 +171,10 @@ class WatchlistService:
 
         if watch_date:
             query = query.where(WatchlistStock.watch_date == watch_date)
+
+        market = get_current_market()
+        market_filters = build_orm_filter(market, WatchlistStock.ts_code)
+        query = query.where(or_(*market_filters))
 
         query = query.order_by(WatchlistStock.added_at.desc())
 
@@ -408,6 +414,346 @@ class WatchlistService:
         )
         return [row[0] for row in result.fetchall() if row[0]]
 
+    def get_sector_stats(self) -> List[dict]:
+        """Get watchlist stocks grouped by sector with up/down counts and trading amounts"""
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                query = """
+                    WITH latest_dates AS (
+                        SELECT DISTINCT trade_date
+                        FROM daily_data
+                        ORDER BY trade_date DESC
+                        LIMIT 2
+                    ),
+                    today_date AS (
+                        SELECT trade_date as d FROM latest_dates ORDER BY trade_date DESC LIMIT 1
+                    ),
+                    prev_date AS (
+                        SELECT trade_date as d FROM latest_dates ORDER BY trade_date DESC OFFSET 1 LIMIT 1
+                    )
+                    SELECT
+                        COALESCE(sb.industry, '未分类') as industry,
+                        COUNT(DISTINCT ws.ts_code) as total_stocks,
+                        SUM(CASE WHEN dd_today.pct_chg > 0 THEN 1 ELSE 0 END) as up_count,
+                        SUM(CASE WHEN dd_today.pct_chg < 0 THEN 1 ELSE 0 END) as down_count,
+                        SUM(CASE WHEN dd_today.pct_chg = 0 OR dd_today.pct_chg IS NULL THEN 1 ELSE 0 END) as flat_count,
+                        COALESCE(SUM(dd_today.amount), 0) as today_amount,
+                        COALESCE(SUM(dd_prev.amount), 0) as prev_amount,
+                        AVG(dd_today.pct_chg) as avg_change_pct
+                    FROM watchlist_stocks ws
+                    LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    LEFT JOIN daily_data dd_today ON ws.ts_code = dd_today.ts_code
+                        AND dd_today.trade_date = (SELECT d FROM today_date)
+                    LEFT JOIN daily_data dd_prev ON ws.ts_code = dd_prev.ts_code
+                        AND dd_prev.trade_date = (SELECT d FROM prev_date)
+                    GROUP BY COALESCE(sb.industry, '未分类')
+                    HAVING COUNT(DISTINCT ws.ts_code) > 0
+                    ORDER BY total_stocks DESC, industry ASC
+                """
+                result = conn.execute(text(query))
+                stats = []
+                for row in result:
+                    today_amount = float(row.today_amount) if row.today_amount else 0
+                    prev_amount = float(row.prev_amount) if row.prev_amount else 0
+                    amount_change_pct = None
+                    if prev_amount > 0:
+                        amount_change_pct = round((today_amount - prev_amount) / prev_amount * 100, 2)
+
+                    stats.append({
+                        "industry": row.industry,
+                        "total_stocks": int(row.total_stocks),
+                        "up_count": int(row.up_count) if row.up_count else 0,
+                        "down_count": int(row.down_count) if row.down_count else 0,
+                        "flat_count": int(row.flat_count) if row.flat_count else 0,
+                        "today_amount": round(today_amount, 2),
+                        "prev_amount": round(prev_amount, 2),
+                        "amount_change_pct": amount_change_pct,
+                        "avg_change_pct": round(float(row.avg_change_pct), 2) if row.avg_change_pct else None,
+                    })
+                return stats
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return []
+
+    def get_sector_trend(self, end_date: Optional[date] = None, days: int = 20) -> dict:
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        if end_date is None:
+            end_date = date.today()
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        WITH trading_days AS (
+                            SELECT DISTINCT trade_date
+                            FROM daily_data
+                            WHERE trade_date <= :end_date
+                            ORDER BY trade_date DESC
+                            LIMIT :days
+                        ),
+                        sector_daily AS (
+                            SELECT
+                                td.trade_date,
+                                COALESCE(sb.industry, '未分类') as industry,
+                                COUNT(DISTINCT ws.ts_code) as total_stocks,
+                                SUM(CASE WHEN dd.pct_chg > 0 THEN 1 ELSE 0 END) as up_count
+                            FROM trading_days td
+                            CROSS JOIN watchlist_stocks ws
+                            LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                            INNER JOIN daily_data dd ON ws.ts_code = dd.ts_code AND dd.trade_date = td.trade_date
+                            GROUP BY td.trade_date, COALESCE(sb.industry, '未分类')
+                            HAVING COUNT(DISTINCT ws.ts_code) > 5
+                        )
+                        SELECT
+                            trade_date,
+                            industry,
+                            total_stocks,
+                            up_count,
+                            CASE WHEN total_stocks > 0
+                                THEN ROUND(up_count::numeric / total_stocks * 100, 2)
+                                ELSE 0
+                            END as up_ratio
+                        FROM sector_daily
+                        ORDER BY trade_date ASC, industry ASC
+                    """),
+                    {"end_date": end_date, "days": days}
+                )
+
+                dates_set = set()
+                sector_data = {}
+                for row in result:
+                    trade_date_str = row.trade_date.strftime("%Y-%m-%d")
+                    dates_set.add(trade_date_str)
+                    industry = row.industry
+                    if industry not in sector_data:
+                        sector_data[industry] = {}
+                    sector_data[industry][trade_date_str] = {
+                        "up_ratio": float(row.up_ratio) if row.up_ratio is not None else 0,
+                        "total_stocks": int(row.total_stocks),
+                        "up_count": int(row.up_count),
+                    }
+
+                sorted_dates = sorted(dates_set)
+
+                sectors = {}
+                for industry, date_map in sector_data.items():
+                    sectors[industry] = []
+                    for d in sorted_dates:
+                        sectors[industry].append(date_map.get(d, {}).get("up_ratio", 0))
+
+                return {
+                    "dates": sorted_dates,
+                    "sectors": sectors,
+                }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"dates": [], "sectors": {}}
+
+    def get_sector_volume(self, end_date: Optional[date] = None, days: int = 20) -> dict:
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        if end_date is None:
+            end_date = date.today()
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        WITH trading_days AS (
+                            SELECT DISTINCT trade_date
+                            FROM daily_data
+                            WHERE trade_date <= :end_date
+                            ORDER BY trade_date DESC
+                            LIMIT :days
+                        ),
+                        sector_daily AS (
+                            SELECT
+                                td.trade_date,
+                                COALESCE(sb.industry, '未分类') as industry,
+                                COUNT(DISTINCT ws.ts_code) as total_stocks,
+                                SUM(dd.vol) as total_volume,
+                                SUM(dd.amount) as total_amount
+                            FROM trading_days td
+                            CROSS JOIN watchlist_stocks ws
+                            LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                            INNER JOIN daily_data dd ON ws.ts_code = dd.ts_code AND dd.trade_date = td.trade_date
+                            GROUP BY td.trade_date, COALESCE(sb.industry, '未分类')
+                            HAVING COUNT(DISTINCT ws.ts_code) > 5
+                        )
+                        SELECT
+                            trade_date,
+                            industry,
+                            total_stocks,
+                            total_volume,
+                            total_amount
+                        FROM sector_daily
+                        ORDER BY trade_date ASC, industry ASC
+                    """),
+                    {"end_date": end_date, "days": days}
+                )
+
+                dates_set = set()
+                sector_data = {}
+                for row in result:
+                    trade_date_str = row.trade_date.strftime("%Y-%m-%d")
+                    dates_set.add(trade_date_str)
+                    industry = row.industry
+                    if industry not in sector_data:
+                        sector_data[industry] = {}
+                    sector_data[industry][trade_date_str] = {
+                        "total_volume": float(row.total_volume) if row.total_volume is not None else 0,
+                        "total_amount": float(row.total_amount) if row.total_amount is not None else 0,
+                        "total_stocks": int(row.total_stocks),
+                    }
+
+                sorted_dates = sorted(dates_set)
+
+                sectors = {}
+                for industry, date_map in sector_data.items():
+                    sectors[industry] = []
+                    for d in sorted_dates:
+                        sectors[industry].append(date_map.get(d, {}).get("total_volume", 0))
+
+                return {
+                    "dates": sorted_dates,
+                    "sectors": sectors,
+                }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"dates": [], "sectors": {}}
+
+    def get_super_rise_distribution(self, end_date: Optional[date] = None, days: int = 20) -> dict:
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        if end_date is None:
+            end_date = date.today()
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        WITH trading_days AS (
+                            SELECT DISTINCT trade_date
+                            FROM daily_data
+                            WHERE trade_date <= :end_date
+                            ORDER BY trade_date DESC
+                            LIMIT :days
+                        ),
+                        sector_daily AS (
+                            SELECT
+                                td.trade_date,
+                                COALESCE(sb.industry, '未分类') as industry,
+                                COUNT(DISTINCT ws.ts_code) as total_stocks,
+                                SUM(CASE WHEN dd.pct_chg > 3.14 THEN 1 ELSE 0 END) as super_rise_count
+                            FROM trading_days td
+                            CROSS JOIN watchlist_stocks ws
+                            LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                            INNER JOIN daily_data dd ON ws.ts_code = dd.ts_code AND dd.trade_date = td.trade_date
+                            GROUP BY td.trade_date, COALESCE(sb.industry, '未分类')
+                            HAVING COUNT(DISTINCT ws.ts_code) > 6
+                        )
+                        SELECT
+                            trade_date,
+                            industry,
+                            total_stocks,
+                            super_rise_count,
+                            CASE WHEN total_stocks > 0
+                                THEN ROUND(super_rise_count::numeric / total_stocks * 100, 2)
+                                ELSE 0
+                            END as super_rise_ratio
+                        FROM sector_daily
+                        ORDER BY trade_date ASC, industry ASC
+                    """),
+                    {"end_date": end_date, "days": days}
+                )
+
+                dates_set = set()
+                sector_data = {}
+                for row in result:
+                    trade_date_str = row.trade_date.strftime("%Y-%m-%d")
+                    dates_set.add(trade_date_str)
+                    industry = row.industry
+                    if industry not in sector_data:
+                        sector_data[industry] = {}
+                    sector_data[industry][trade_date_str] = {
+                        "super_rise_ratio": float(row.super_rise_ratio) if row.super_rise_ratio is not None else 0,
+                        "total_stocks": int(row.total_stocks),
+                        "super_rise_count": int(row.super_rise_count),
+                    }
+
+                sorted_dates = sorted(dates_set)
+
+                sectors = {}
+                for industry, date_map in sector_data.items():
+                    sectors[industry] = []
+                    for d in sorted_dates:
+                        sectors[industry].append(date_map.get(d, {}).get("super_rise_ratio", 0))
+
+                return {
+                    "dates": sorted_dates,
+                    "sectors": sectors,
+                }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"dates": [], "sectors": {}}
+
+    def get_watchlist_industries(self) -> List[dict]:
+        from sqlalchemy import create_engine, text
+        from app.config import get_settings
+
+        settings = get_settings()
+        sync_url = settings.database_url.replace("+asyncpg", "")
+        engine = create_engine(sync_url)
+
+        try:
+            with engine.connect() as conn:
+                query = """
+                    SELECT 
+                        COALESCE(sb.industry, '未分类') as industry,
+                        COUNT(*) as stock_count
+                    FROM watchlist_stocks ws
+                    LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
+                    GROUP BY sb.industry
+                    HAVING COUNT(*) > 0
+                    ORDER BY stock_count DESC, industry ASC
+                """
+                result = conn.execute(text(query))
+                return [
+                    {"name": row.industry, "count": row.stock_count}
+                    for row in result
+                ]
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return []
+
     async def update_stock_tags(self, ts_code: str, tags: List[str]) -> Optional[StockTag]:
         from sqlalchemy import text
 
@@ -457,6 +803,8 @@ class WatchlistService:
         tags: Optional[List[str]] = None,
         sort_by_change_pct: Optional[str] = None,
         market_type: Optional[str] = None,
+        change_pct_min: Optional[float] = None,
+        change_pct_max: Optional[float] = None,
     ) -> dict:
         from sqlalchemy import create_engine, text
         from app.config import get_settings
@@ -499,6 +847,19 @@ class WatchlistService:
                     elif market_type == "kcb":
                         where_clauses.append(f"{code_prefix} IN ('688', '689')")
 
+                if change_pct_min is not None:
+                    where_clauses.append("dd.pct_chg >= :change_pct_min")
+                    params["change_pct_min"] = change_pct_min
+
+                if change_pct_max is not None:
+                    where_clauses.append("dd.pct_chg <= :change_pct_max")
+                    params["change_pct_max"] = change_pct_max
+
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "ws.ts_code")
+                where_clauses.append(market_sql)
+                params.update(market_params)
+
                 where_sql = ""
                 if where_clauses:
                     where_sql = "WHERE " + " AND ".join(where_clauses)
@@ -514,6 +875,13 @@ class WatchlistService:
                     FROM watchlist_stocks ws
                     LEFT JOIN stock_basic sb ON ws.ts_code = sb.ts_code
                     LEFT JOIN stock_tags st ON ws.ts_code = st.ts_code
+                    LEFT JOIN LATERAL (
+                        SELECT pct_chg
+                        FROM daily_data
+                        WHERE ts_code = ws.ts_code
+                        ORDER BY trade_date DESC
+                        LIMIT 1
+                    ) dd ON TRUE
                     {where_sql}
                 """
                 total_result = conn.execute(text(count_query), params)

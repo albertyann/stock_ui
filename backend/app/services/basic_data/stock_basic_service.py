@@ -1,6 +1,9 @@
 from typing import Dict, Optional
 from sqlalchemy import text
 
+from app.market.context import get_current_market
+from app.market.filter import build_sql_filter
+
 
 class StockBasicServiceMixin:
     def get_stock_basic(
@@ -30,9 +33,12 @@ class StockBasicServiceMixin:
                     where_clauses.append("industry = :industry")
                     params["industry"] = industry
 
-                where_sql = ""
-                if where_clauses:
-                    where_sql = "WHERE " + " AND ".join(where_clauses)
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "ts_code")
+                where_clauses.append(market_sql)
+                params.update(market_params)
+
+                where_sql = "WHERE " + " AND ".join(where_clauses)
 
                 count_query = f"SELECT COUNT(*) as total FROM stock_basic {where_sql}"
                 total = conn.execute(text(count_query), params).fetchone().total

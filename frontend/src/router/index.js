@@ -33,6 +33,8 @@ import ConceptDetail from '@/views/ConceptDetail.vue'
 import BuyPointQuery from '@/views/BuyPointQuery.vue'
 import StrategyStockPicker from '@/views/StrategyStockPicker.vue'
 import DailyScoreView from '@/views/DailyScoreView.vue'
+import WatchlistSectorStats from '@/views/WatchlistSectorStats.vue'
+import WatchlistSectorTrend from '@/views/WatchlistSectorTrend.vue'
 
 const routes = [
   {
@@ -228,6 +230,18 @@ const routes = [
     name: 'DailyScoreView',
     component: DailyScoreView,
     meta: { title: '每日量化评分' }
+  },
+  {
+    path: '/watchlist-sector-stats',
+    name: 'WatchlistSectorStats',
+    component: WatchlistSectorStats,
+    meta: { title: '关注板块' }
+  },
+  {
+    path: '/watchlist-sector-trend',
+    name: 'WatchlistSectorTrend',
+    component: WatchlistSectorTrend,
+    meta: { title: '板块趋势' }
   }
 ]
 

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useMarketStore } from '@/stores/market'
 
 const api = axios.create({
   baseURL: '/api/v1',
@@ -15,6 +16,24 @@ const longRunningApi = axios.create({
     'Content-Type': 'application/json'
   }
 })
+
+api.interceptors.request.use(
+  (config) => {
+    const marketStore = useMarketStore()
+    config.headers['X-Market'] = marketStore.currentMarket
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+longRunningApi.interceptors.request.use(
+  (config) => {
+    const marketStore = useMarketStore()
+    config.headers['X-Market'] = marketStore.currentMarket
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 longRunningApi.interceptors.response.use(
   (response) => response.data,
@@ -38,8 +57,30 @@ export const watchlistApi = {
   get: (id) => api.get(`/watchlists/${id}`),
   update: (id, data) => api.put(`/watchlists/${id}`, data),
   delete: (id) => api.delete(`/watchlists/${id}`),
+  getSectorStats: () => api.get('/watchlists/sector-stats'),
+  getSectorTrend: (endDate = null, days = 20) => {
+    let url = `/watchlists/sector-trend?days=${days}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+    return api.get(url)
+  },
+  getSectorVolume: (endDate = null, days = 20) => {
+    let url = `/watchlists/sector-volume?days=${days}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+    return api.get(url)
+  },
+  getSuperRiseDistribution: (endDate = null, days = 20) => {
+    let url = `/watchlists/super-rise-distribution?days=${days}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+    return api.get(url)
+  },
   getAllWatchlistStocks: (params = {}) => {
-    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null, tags = [], market_type = null } = params
+    const { page = 1, page_size = 30, search = null, industry = null, watchlist_id = null, sort_by_change_pct = null, tags = [], market_type = null, change_pct_min = null, change_pct_max = null } = params
     let url = `/watchlists/stocks/all?page=${page}&page_size=${page_size}`
     if (search) {
       url += `&search=${encodeURIComponent(search)}`
@@ -58,6 +99,12 @@ export const watchlistApi = {
     }
     if (market_type) {
       url += `&market_type=${encodeURIComponent(market_type)}`
+    }
+    if (change_pct_min !== null && change_pct_min !== undefined) {
+      url += `&change_pct_min=${change_pct_min}`
+    }
+    if (change_pct_max !== null && change_pct_max !== undefined) {
+      url += `&change_pct_max=${change_pct_max}`
     }
     return api.get(url)
   },
@@ -98,6 +145,7 @@ export const watchlistApi = {
     api.put(`/watchlists/stocks/${stockId}/notes`, { notes }),
   // 获取所有标签
   getAllTags: () => api.get('/watchlists/tags'),
+  getIndustries: () => api.get('/watchlists/industries'),
   // 更新股票标签
   updateStockTags: (tsCode, tags) =>
     api.put(`/watchlists/stocks/${tsCode}/tags`, { tags }),

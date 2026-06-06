@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
+from datetime import date
 from pydantic import BaseModel
 import json
 import os
@@ -111,6 +112,12 @@ async def get_all_watchlist_stocks(
     market_type: Optional[str] = Query(
         None, description="市场类型: main=主板, chye=创业板, kcb=科创板"
     ),
+    change_pct_min: Optional[float] = Query(
+        None, description="最小涨幅(%), 例如 -20"
+    ),
+    change_pct_max: Optional[float] = Query(
+        None, description="最大涨幅(%), 例如 20"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     service = WatchlistService(db)
@@ -124,6 +131,8 @@ async def get_all_watchlist_stocks(
         tags=tags_list,
         sort_by_change_pct=sort_by_change_pct,
         market_type=market_type,
+        change_pct_min=change_pct_min,
+        change_pct_max=change_pct_max,
     )
 
     if result.get("error"):
@@ -257,6 +266,68 @@ async def get_all_tags(db: AsyncSession = Depends(get_db)):
     return {
         "success": True,
         "data": {"tags": tags},
+    }
+
+
+@router.get("/sector-stats", response_model=dict)
+async def get_watchlist_sector_stats(db: AsyncSession = Depends(get_db)):
+    service = WatchlistService(db)
+    stats = service.get_sector_stats()
+    return {
+        "success": True,
+        "data": stats,
+    }
+
+
+@router.get("/sector-trend", response_model=dict)
+async def get_watchlist_sector_trend(
+    end_date: Optional[date] = Query(None, description="结束日期，默认今天"),
+    days: int = Query(20, ge=5, le=60, description="交易天数"),
+    db: AsyncSession = Depends(get_db),
+):
+    service = WatchlistService(db)
+    trend = service.get_sector_trend(end_date=end_date, days=days)
+    return {
+        "success": True,
+        "data": trend,
+    }
+
+
+@router.get("/sector-volume", response_model=dict)
+async def get_watchlist_sector_volume(
+    end_date: Optional[date] = Query(None, description="结束日期，默认今天"),
+    days: int = Query(20, ge=5, le=60, description="交易天数"),
+    db: AsyncSession = Depends(get_db),
+):
+    service = WatchlistService(db)
+    volume = service.get_sector_volume(end_date=end_date, days=days)
+    return {
+        "success": True,
+        "data": volume,
+    }
+
+
+@router.get("/super-rise-distribution", response_model=dict)
+async def get_watchlist_super_rise_distribution(
+    end_date: Optional[date] = Query(None, description="结束日期，默认今天"),
+    days: int = Query(20, ge=5, le=60, description="交易天数"),
+    db: AsyncSession = Depends(get_db),
+):
+    service = WatchlistService(db)
+    distribution = service.get_super_rise_distribution(end_date=end_date, days=days)
+    return {
+        "success": True,
+        "data": distribution,
+    }
+
+
+@router.get("/industries", response_model=dict)
+async def get_watchlist_industries(db: AsyncSession = Depends(get_db)):
+    service = WatchlistService(db)
+    industries = service.get_watchlist_industries()
+    return {
+        "success": True,
+        "data": industries,
     }
 
 

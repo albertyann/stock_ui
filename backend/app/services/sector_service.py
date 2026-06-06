@@ -8,6 +8,8 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy import create_engine, text
 from app.config import get_settings
+from app.market.context import get_current_market
+from app.market.filter import build_sql_filter
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +31,22 @@ class SectorService:
         """
         try:
             with self.engine.connect() as conn:
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "ts_code")
+                params = dict(market_params)
+
                 # 从 stock_basic 表按 industry 字段分组获取板块信息
-                query = """
+                query = f"""
                     SELECT 
                         industry as sector_name,
                         COUNT(*) as stock_count
                     FROM stock_basic
                     WHERE industry IS NOT NULL AND industry != ''
+                    AND {market_sql}
                     GROUP BY industry
                     ORDER BY stock_count DESC
                 """
-                result = conn.execute(text(query))
+                result = conn.execute(text(query), params)
 
                 sectors = []
                 for idx, row in enumerate(result):
@@ -95,7 +102,10 @@ class SectorService:
                     order_clause = "dd.vol DESC NULLS LAST"
 
                 # 构建趋势过滤条件
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "sb.ts_code")
                 trend_params = {"industry": sector_name}
+                trend_params.update(market_params)
                 trend_clause = ""
                 if trend == "up":
                     trend_clause = "AND sb.trend = 1"
@@ -128,6 +138,7 @@ class SectorService:
                         LIMIT 1
                     ) dd ON true
                     WHERE sb.industry = :industry {trend_clause}
+                    AND {market_sql}
                     ORDER BY {order_clause}
                 """
                 result = conn.execute(text(query), trend_params)
@@ -236,16 +247,21 @@ class SectorService:
             idx = int(sector_code.replace("ind_", ""))
 
             with self.engine.connect() as conn:
-                query = """
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "ts_code")
+                params = dict(market_params)
+
+                query = f"""
                     SELECT 
                         industry as sector_name,
                         COUNT(*) as stock_count
                     FROM stock_basic
                     WHERE industry IS NOT NULL AND industry != ''
+                    AND {market_sql}
                     GROUP BY industry
                     ORDER BY stock_count DESC
                 """
-                result = conn.execute(text(query))
+                result = conn.execute(text(query), params)
 
                 for i, row in enumerate(result):
                     if i == idx:

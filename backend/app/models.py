@@ -182,6 +182,7 @@ class DailyData(Base):
     pct_chg = Column(Numeric(10, 2))
     vol = Column(Numeric(15, 2))
     amount = Column(Numeric(15, 2))
+    market = Column(String(10), default="A")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

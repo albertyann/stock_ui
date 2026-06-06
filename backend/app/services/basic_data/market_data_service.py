@@ -1,6 +1,9 @@
 from typing import Dict, Optional
 from sqlalchemy import text
 
+from app.market.context import get_current_market
+from app.market.filter import build_sql_filter
+
 
 class MarketDataServiceMixin:
     def get_daily_data(
@@ -25,6 +28,11 @@ class MarketDataServiceMixin:
                 if trade_date:
                     where_clauses.append("d.trade_date = :trade_date")
                     params["trade_date"] = trade_date
+
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "d.ts_code")
+                where_clauses.append(market_sql)
+                params.update(market_params)
 
                 where_sql = ""
                 if where_clauses:
@@ -119,6 +127,11 @@ class MarketDataServiceMixin:
                 if trade_date:
                     where_clauses.append("w.trade_date = :trade_date")
                     params["trade_date"] = trade_date
+
+                market = get_current_market()
+                market_sql, market_params = build_sql_filter(market, "w.ts_code")
+                where_clauses.append(market_sql)
+                params.update(market_params)
 
                 where_sql = ""
                 if where_clauses:
