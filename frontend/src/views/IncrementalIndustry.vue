@@ -110,7 +110,7 @@ import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { basicDataApi } from '@/api'
-import * as echarts from 'echarts'
+import * as echarts from '@/utils/echarts'
 
 const loading = ref(false)
 const days = ref(20)

@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     app_name: str = "Stock Watchlist API"
     debug: bool = True
     database_url: str = (
-        "postgresql+asyncpg://postgres:postgrespw@localhost:55000/stock_data"
+        "postgresql+asyncpg://postgres:postgrespwd@localhost:5432/stock_data"
     )
     api_v1_prefix: str = "/api/v1"
     cors_origins: list = [
@@ -18,9 +18,16 @@ class Settings(BaseSettings):
     signal_analysis_interval: int = 600
     tushare_token: str = ""
     stock_sync_config_path: str = (
-        "/Users/yann/workspace/trading/sync/configs/sync_config.yaml"
+        "/Users/yann/workspace/trade/sync/configs/sync_config.yaml"
     )
-    stock_sync_work_dir: str = "/Users/yann/workspace/trading/sync"
+    stock_sync_work_dir: str = "/Users/yann/workspace/trade/sync"
+    worker_work_dir: str = "/Users/yann/workspace/trade/worker"
+    worker_timeout: int = 15
+
+    ai_api_key: str = ""
+    ai_model: str = "deepseek-v4-flash"
+    ai_base_url: str = "https://api.deepseek.com"
+    ai_timeout: int = 120
 
     class Config:
         env_file = ".env"

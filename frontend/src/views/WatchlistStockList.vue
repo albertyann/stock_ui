@@ -89,6 +89,7 @@
             <el-form-item>
               <el-button type="primary" @click="handleFilterChange">搜索</el-button>
               <el-button @click="resetFilter">重置</el-button>
+              <el-button @click="copyAllTsCodes">拷贝</el-button>
             </el-form-item>
           </el-form>
         </div>
@@ -456,6 +457,22 @@ const openXueqiu = (tsCode) => {
   const [code, exchange] = tsCode.split('.')
   const xueqiuCode = exchange + code
   window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
+}
+
+// 复制当前页所有 ts_code 到剪贴板
+const copyAllTsCodes = async () => {
+  const codes = tableData.value.map(row => row.ts_code).filter(Boolean)
+  if (codes.length === 0) {
+    ElMessage.warning('没有可复制的 TS 代码')
+    return
+  }
+  try {
+    await navigator.clipboard.writeText(codes.join('\n'))
+    ElMessage.success(`已复制 ${codes.length} 条 TS 代码`)
+  } catch (err) {
+    console.error('Failed to copy ts_codes:', err)
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 const formatMarketCap = (value) => {

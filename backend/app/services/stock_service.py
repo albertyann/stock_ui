@@ -1,3 +1,4 @@
+import json
 import shutil
 import subprocess
 from datetime import datetime
@@ -322,8 +323,6 @@ class StockService:
 
         try:
             cmd_parts = ["stock-sync"]
-            if settings.stock_sync_config_path:
-                cmd_parts.extend(["-c", settings.stock_sync_config_path])
             cmd_parts.extend(["run", "daily_data", "--start-date", start_date, "--end-date", today])
 
             executable = shutil.which("stock-sync")
@@ -366,3 +365,56 @@ class StockService:
                 "deleted_daily": deleted_daily,
                 "deleted_weekly": deleted_weekly,
             }
+
+    def get_buy_signals(self, ts_code: str, check_days: int = 3) -> dict:
+        """调用 worker CLI 检测最近 N 个交易日的买入信号（ma2560 + rsi12）。
+
+        与 sync_kline_data 同样的 subprocess 模式：优先用 shutil.which 找到
+        stock-cli 可执行文件，cwd 设为 worker 目录以便读取 worker 的 .env。
+        """
+        settings = get_settings()
+
+        cmd_parts = [
+            "stock-cli", "buy-signals",
+            "--ts-code", ts_code,
+            "--check-days", str(check_days),
+            "--output", "stdout-json",
+        ]
+        executable = shutil.which("stock-cli")
+        if executable:
+            cmd_parts[0] = executable
+
+        try:
+            result = subprocess.run(
+                cmd_parts,
+                capture_output=True,
+                text=True,
+                timeout=settings.worker_timeout,
+                cwd=settings.worker_work_dir,
+            )
+        except subprocess.TimeoutExpired:
+            return {"success": False, "error": f"worker timeout ({settings.worker_timeout}s)"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+        if result.returncode != 0:
+            err_tail = (result.stderr or "")[-300:]
+            return {"success": False, "error": f"worker failed (rc={result.returncode}): {err_tail}"}
+
+        stdout = (result.stdout or "").strip()
+        data = None
+        try:
+            data = json.loads(stdout)
+        except json.JSONDecodeError:
+            for line in reversed(stdout.splitlines()):
+                line = line.strip()
+                if line.startswith("{"):
+                    try:
+                        data = json.loads(line)
+                        break
+                    except json.JSONDecodeError:
+                        continue
+        if data is None:
+            return {"success": False, "error": "no JSON found in worker stdout"}
+
+        return {"success": True, "data": data}

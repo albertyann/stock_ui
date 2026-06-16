@@ -1,4 +1,5 @@
 import asyncio
+import json
 import shutil
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -93,8 +94,6 @@ class SyncTaskService:
         settings = get_settings()
 
         cmd_parts = [task.command]
-        if settings.stock_sync_config_path:
-            cmd_parts.extend(["-c", settings.stock_sync_config_path])
 
         if task.sub_command == "run" and task.task_type:
             cmd_parts.append(task.task_type)
@@ -200,6 +199,48 @@ class SyncTaskService:
             "page": page,
             "page_size": page_size,
         }
+
+    @staticmethod
+    async def get_available_task_types() -> Dict:
+        """Get all available sync task types by running 'stock-sync ls --json'."""
+        settings = get_settings()
+
+        executable = shutil.which("stock-sync")
+        if not executable:
+            return {"success": False, "error": "stock-sync command not found"}
+
+        cmd_parts = [
+            executable,
+            "-c",
+            settings.stock_sync_config_path,
+            "ls",
+            "--json",
+        ]
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *cmd_parts,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=settings.stock_sync_work_dir,
+            )
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30)
+
+            if process.returncode != 0:
+                return {
+                    "success": False,
+                    "error": stderr.decode("utf-8", errors="replace").strip()
+                    or f"stock-sync ls exited with code {process.returncode}",
+                }
+
+            tasks = json.loads(stdout.decode("utf-8", errors="replace"))
+            return {"success": True, "data": tasks}
+        except asyncio.TimeoutError:
+            return {"success": False, "error": "Timeout retrieving available tasks"}
+        except json.JSONDecodeError as e:
+            return {"success": False, "error": f"Failed to parse task list: {e}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def _log_to_dict(self, log: SyncTaskLog) -> Dict:
         return {

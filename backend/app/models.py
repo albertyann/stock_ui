@@ -346,3 +346,15 @@ class DailyStockScore(Base):
     __table_args__ = (
         UniqueConstraint("ts_code", "trade_date", name="uix_daily_score_code_date"),
     )
+
+
+class StockSurvey(Base):
+    __tablename__ = "stock_survey"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ts_code = Column(String(20), nullable=False, index=True)
+    query = Column(Text)
+    content = Column(Text, nullable=False)
+    source = Column(String(50), default="ai_chat")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

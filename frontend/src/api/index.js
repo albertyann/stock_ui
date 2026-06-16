@@ -161,6 +161,8 @@ export const stockApi = {
   getDetail: (tsCode) => api.get(`/stocks/${tsCode}`),
   getKline: (tsCode, period = 'daily', limit = 60) => 
     api.get(`/stocks/${tsCode}/kline?period=${period}&limit=${limit}`),
+  getBuySignals: (tsCode, checkDays = 3) =>
+    api.get(`/stocks/${tsCode}/buy-signals?check_days=${checkDays}`),
   getTags: (tsCode) => api.get(`/watchlists/stocks/${tsCode}/tags`),
   updateTags: (tsCode, tags) => api.put(`/watchlists/stocks/${tsCode}/tags`, { tags }),
   syncKline: (tsCode) => longRunningApi.post(`/stocks/${tsCode}/sync-kline`)
@@ -280,6 +282,7 @@ export const syncTaskApi = {
   update: (id, data) => api.put(`/sync-tasks/${id}`, data),
   delete: (id) => api.delete(`/sync-tasks/${id}`),
   execute: (id, params = {}) => longRunningApi.post(`/sync-tasks/${id}/execute`, { params }),
+  getAvailableTypes: () => api.get('/sync-tasks/available-types'),
   getLogs: (params = {}) => {
     const { task_name = null, page = 1, page_size = 10 } = params
     let url = `/sync-tasks/logs?page=${page}&page_size=${page_size}`
@@ -524,6 +527,12 @@ export const dailyScoreApi = {
     return api.get(url)
   },
   getHistory: (tsCode, limit = 30) => api.get(`/daily-scores/${tsCode}/history?limit=${limit}`),
+}
+
+export const aiChatApi = {
+  chat: (data) => api.post('/ai/chat', data),
+  saveSurvey: (data) => api.post('/ai/survey', data),
+  getSurveys: (tsCode) => api.get(`/ai/surveys/${tsCode}`),
 }
 
 export default api

@@ -4,7 +4,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from '@/utils/echarts'
 
 const props = defineProps({
   // K线数据 (需要 close 字段)

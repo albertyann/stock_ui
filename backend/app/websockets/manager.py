@@ -1,7 +1,5 @@
-from fastapi import WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
 from typing import Dict, Set, List
-import json
-import asyncio
 import logging
 from datetime import datetime
 
@@ -73,13 +71,21 @@ class ConnectionManager:
             self.disconnect(connection, client_id)
 
     async def send_personal_message(self, message: dict, client_id: str):
-        if client_id in self.active_connections:
-            message["timestamp"] = datetime.now().isoformat()
-            for connection in self.active_connections[client_id]:
-                try:
-                    await connection.send_json(message)
-                except Exception as e:
-                    logger.error(f"Error sending personal message to {client_id}: {e}")
+        if client_id not in self.active_connections:
+            return
+
+        message["timestamp"] = datetime.now().isoformat()
+        disconnected: List[WebSocket] = []
+
+        for connection in self.active_connections[client_id]:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.error(f"Error sending personal message to {client_id}: {e}")
+                disconnected.append(connection)
+
+        for connection in disconnected:
+            self.disconnect(connection, client_id)
 
     async def broadcast(self, message: dict):
         message["timestamp"] = datetime.now().isoformat()

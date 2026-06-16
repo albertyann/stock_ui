@@ -2,8 +2,8 @@
   <div class="page-container">
     <div class="page-header">
       <h2>同步任务管理</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon>新增任务
+      <el-button type="primary" @click="openEnableDialog">
+        <el-icon><Plus /></el-icon>启用任务
       </el-button>
     </div>
 
@@ -190,16 +190,18 @@
           <el-input v-model="form.name" placeholder="例如：同步交易日历" />
         </el-form-item>
         <el-form-item label="任务类型" required>
-          <el-select v-model="form.task_type" placeholder="选择任务类型" style="width: 100%">
-            <el-option label="trade_cal (交易日历)" value="trade_cal" />
-            <el-option label="daily_data (日线数据)" value="daily_data" />
-            <el-option label="rt_k (实时日线数据)" value="rt_k" />
-            <el-option label="weekly_data (周线数据)" value="weekly_data" />
-            <el-option label="stk_weekly_monthly (按天同步周线)" value="stk_weekly_monthly" />
-            <el-option label="stock_basic (股票基本信息)" value="stock_basic" />
-            <el-option label="moneyflow (资金流动)" value="moneyflow" />
-            <el-option label="moneyflow_hsgt (北向资金)" value="moneyflow_hsgt" />
-            <el-option label="moneyflow_ind_ths (同花顺行业资金流)" value="moneyflow_ind_ths" />
+          <el-select
+            v-model="form.task_type"
+            placeholder="选择任务类型"
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="t in availableTypes"
+              :key="t.task_type"
+              :label="`${t.task_type} (${t.display_name})`"
+              :value="t.task_type"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="命令">
@@ -227,17 +229,92 @@
         <el-button type="primary" @click="submitForm">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- Enable Tasks Dialog -->
+    <el-dialog
+      v-model="enableDialogVisible"
+      title="启用任务"
+      width="820px"
+      class="enable-dialog"
+    >
+      <div class="enable-dialog-toolbar">
+        <el-input
+          v-model="availableFilter"
+          placeholder="搜索命令..."
+          clearable
+          :prefix-icon="Search"
+          style="width: 260px"
+        />
+        <span class="enable-dialog-count">
+          共 {{ sortedAvailableTypes.length }} 个命令
+          <el-tag size="small" type="info" style="margin-left: 8px">未启用 {{ disabledCount }}</el-tag>
+          <el-tag size="small" type="success" style="margin-left: 4px">已启用 {{ enabledCount }}</el-tag>
+        </span>
+      </div>
+      <div class="commands-grid enable-grid" v-loading="availableLoading">
+        <div
+          v-for="cmd in sortedAvailableTypes"
+          :key="cmd.task_type"
+          class="command-item"
+          :class="{ disabled: !cmd.enabled }"
+          @click="quickAddCommand(cmd)"
+        >
+          <div class="command-item-header">
+            <span class="command-task-type">{{ cmd.task_type }}</span>
+            <el-tag size="small" :type="cmd.enabled ? 'success' : 'info'">
+              {{ cmd.enabled ? '已启用' : '未启用' }}
+            </el-tag>
+          </div>
+          <div class="command-display-name">{{ cmd.display_name }}</div>
+          <div class="command-schedule">
+            <el-icon><Clock /></el-icon>
+            <span>{{ cmd.schedule }}</span>
+          </div>
+        </div>
+        <div v-if="sortedAvailableTypes.length === 0 && !availableLoading" class="no-results">
+          没有匹配的命令
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading, Refresh } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Refresh, Search, Clock } from '@element-plus/icons-vue'
 import { syncTaskApi } from '@/api'
 
 const loading = ref(false)
 const tasks = ref([])
+
+// Available sync task types from 'stock-sync ls'
+const availableTypes = ref([])
+const availableLoading = ref(false)
+const availableFilter = ref('')
+
+const enableDialogVisible = ref(false)
+
+const filteredAvailableTypes = computed(() => {
+  if (!availableFilter.value) return availableTypes.value
+  const q = availableFilter.value.toLowerCase()
+  return availableTypes.value.filter(
+    t =>
+      t.task_type.toLowerCase().includes(q) ||
+      (t.display_name || '').toLowerCase().includes(q)
+  )
+})
+
+// Sort: 未启用 (disabled) first, 已启用 (enabled) last
+const sortedAvailableTypes = computed(() => {
+  return [...filteredAvailableTypes.value].sort((a, b) => {
+    if (a.enabled === b.enabled) return 0
+    return a.enabled ? 1 : -1
+  })
+})
+
+const enabledCount = computed(() => sortedAvailableTypes.value.filter(t => t.enabled).length)
+const disabledCount = computed(() => sortedAvailableTypes.value.filter(t => !t.enabled).length)
 
 const formatTime = (isoStr) => {
   const d = new Date(isoStr)
@@ -323,6 +400,41 @@ const fetchTasks = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const fetchAvailableTypes = async () => {
+  availableLoading.value = true
+  try {
+    const res = await syncTaskApi.getAvailableTypes()
+    if (res.success) {
+      availableTypes.value = res.data || []
+    } else {
+      ElMessage.warning(res.error || '获取可用命令列表失败')
+    }
+  } catch (err) {
+    ElMessage.warning('获取可用命令列表失败')
+  } finally {
+    availableLoading.value = false
+  }
+}
+
+const quickAddCommand = (cmd) => {
+  enableDialogVisible.value = false
+  isEdit.value = false
+  editingId.value = null
+  Object.assign(form, {
+    ...defaultForm,
+    name: cmd.display_name || cmd.task_type,
+    task_type: cmd.task_type,
+    description: cmd.display_name || ''
+  })
+  paramList.value = []
+  dialogVisible.value = true
+}
+
+const openEnableDialog = () => {
+  enableDialogVisible.value = true
+  fetchAvailableTypes()
 }
 
 const openCreateDialog = () => {
@@ -477,6 +589,7 @@ const executeTaskDirect = async (row) => {
 onMounted(() => {
   fetchTasks()
   fetchLogs(1)
+  fetchAvailableTypes()
 })
 
 onUnmounted(() => {
@@ -581,6 +694,85 @@ onUnmounted(() => {
 
 .log-card {
   margin-top: 20px;
+}
+
+/* Available Commands Card */
+.available-commands-card {
+  margin-top: 20px;
+}
+.commands-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  min-height: 60px;
+}
+.enable-grid {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.enable-dialog-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.enable-dialog-count {
+  font-size: 13px;
+  color: #606266;
+  display: inline-flex;
+  align-items: center;
+}
+.command-item {
+  padding: 12px 14px;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+.command-item:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+}
+.command-item.disabled {
+  opacity: 0.5;
+}
+.command-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.command-task-type {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+.command-display-name {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 6px;
+}
+.command-schedule {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #909399;
+  font-variant-numeric: tabular-nums;
+}
+.command-schedule .el-icon {
+  font-size: 12px;
+}
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #909399;
+  padding: 24px 0;
+  font-size: 14px;
 }
 .log-card-header {
   display: flex;

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from app.services.realtime_service import RealtimePriceService
 
@@ -363,7 +364,7 @@ async def health_check():
     # 测试数据库连接
     try:
         with service.engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"

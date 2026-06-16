@@ -36,11 +36,9 @@ class RealtimePriceService:
 
         try:
             with self.engine.connect() as conn:
-                # 构建IN查询
-                placeholders = ", ".join([f"'{code}'" for code in ts_codes])
-
                 # 从 daily_data 获取每个股票的最新数据
-                query = f"""
+                # 参数化查询防止 SQL 注入：使用 ANY(:codes) 替代字符串拼接
+                query = """
                     SELECT DISTINCT ON (ts_code)
                         ts_code,
                         trade_date,
@@ -53,11 +51,11 @@ class RealtimePriceService:
                         pct_chg as change_pct,
                         pre_close
                     FROM daily_data 
-                    WHERE ts_code IN ({placeholders})
+                    WHERE ts_code = ANY(:codes)
                     ORDER BY ts_code, trade_date DESC
                 """
 
-                result = conn.execute(text(query))
+                result = conn.execute(text(query), {"codes": ts_codes})
 
                 stocks = []
                 for row in result:
@@ -530,19 +528,19 @@ class RealtimePriceService:
                     }
 
                 all_dates = list(set(trading_dates.values()))
-                placeholders_codes = ", ".join([f"'{code}'" for code in ts_codes])
-                placeholders_dates = ", ".join(
-                    [f"'{d.strftime('%Y-%m-%d')}'" for d in all_dates]
-                )
 
-                query = f"""
+                # 参数化绑定防止 SQL 注入
+                query = """
                     SELECT ts_code, trade_date, close, pct_chg
                     FROM daily_data
-                    WHERE ts_code IN ({placeholders_codes})
-                    AND trade_date IN ({placeholders_dates})
+                    WHERE ts_code = ANY(:codes)
+                    AND trade_date = ANY(:dates)
                     ORDER BY ts_code, trade_date
                 """
-                result = conn.execute(text(query))
+                result = conn.execute(
+                    text(query),
+                    {"codes": ts_codes, "dates": all_dates},
+                )
 
                 price_map = {}
                 for row in result:

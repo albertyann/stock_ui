@@ -4,7 +4,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from '@/utils/echarts'
 
 const props = defineProps({
   // 股票代码
@@ -36,6 +36,10 @@ const props = defineProps({
   maPeriods: {
     type: Array,
     default: () => [5, 20, 30, 60]
+  },
+  buySignals: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -88,6 +92,7 @@ const renderChart = () => {
   const tooltipFormatter = (params) => {
     const dataIndex = params[0].dataIndex
     const item = data[dataIndex]
+    const signal = props.buySignals.find(s => s.date === item.date)
     let html = `
       <div style="font-weight:bold;margin-bottom:5px;">${item.date}</div>
       <div>开: ${item.open.toFixed(2)}</div>
@@ -97,12 +102,22 @@ const renderChart = () => {
       <div>涨跌: ${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</div>
     `
     
-    // 添加均线信息
     params.forEach(param => {
       if (param.seriesName && param.seriesName.startsWith('MA') && param.value) {
         html += `<div>${param.marker} ${param.seriesName}: ${param.value.toFixed(2)}</div>`
       }
     })
+
+    if (signal) {
+      html += '<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px;">'
+      if (signal.ma2560) {
+        html += `<div style="color:#e6a23c">● MA25回踩 (评分${signal.ma2560.score.toFixed(0)}, 距MA25 ${signal.ma2560.proximity_pct.toFixed(2)}%)</div>`
+      }
+      if (signal.rsi12) {
+        html += `<div style="color:#409eff">▲ RSI12强势 (评分${signal.rsi12.score.toFixed(0)}, RSI${signal.rsi12.rsi12.toFixed(1)})</div>`
+      }
+      html += '</div>'
+    }
     
     return html
   }
@@ -148,6 +163,47 @@ const renderChart = () => {
     }
   ]
 
+  const buildBuyMarkPoints = () => {
+    if (!props.buySignals || props.buySignals.length === 0) return []
+    const points = []
+    props.buySignals.forEach(signal => {
+      const dataIndex = dates.indexOf(signal.date)
+      if (dataIndex === -1) return
+      const lowValue = data[dataIndex].low
+      const hasMa = !!signal.ma2560
+      const hasRsi = !!signal.rsi12
+      if (hasMa && hasRsi) {
+        points.push({
+          coord: [dataIndex, lowValue], symbol: 'rect', symbolSize: 18,
+          symbolOffset: [0, 14],
+          itemStyle: { color: 'transparent', borderColor: '#e6a23c', borderWidth: 2.5 },
+          label: { show: false }, z: 100
+        })
+        points.push({
+          coord: [dataIndex, lowValue], symbol: 'rect', symbolSize: 10,
+          symbolOffset: [0, 14],
+          itemStyle: { color: '#ffffff', borderColor: '#409eff', borderWidth: 2 },
+          label: { show: false }, z: 101
+        })
+      } else if (hasMa) {
+        points.push({
+          coord: [dataIndex, lowValue], symbol: 'circle', symbolSize: 12,
+          symbolOffset: [0, 14],
+          itemStyle: { color: '#e6a23c', borderColor: '#fff', borderWidth: 1 },
+          label: { show: false }
+        })
+      } else if (hasRsi) {
+        points.push({
+          coord: [dataIndex, lowValue], symbol: 'triangle', symbolSize: 12,
+          symbolOffset: [0, 14],
+          itemStyle: { color: '#409eff', borderColor: '#fff', borderWidth: 1 },
+          label: { show: false }
+        })
+      }
+    })
+    return points
+  }
+
   const series = [
     {
       name: '日K',
@@ -158,6 +214,11 @@ const renderChart = () => {
         color0: '#67c23a',
         borderColor: '#f56c6c',
         borderColor0: '#67c23a'
+      },
+      markPoint: {
+        data: buildBuyMarkPoints(),
+        animation: false,
+        emphasis: { disabled: true }
       }
     },
     ...props.maPeriods.map(period => ({
@@ -243,6 +304,12 @@ defineExpose({
 
 // 监听数据变化
 watch(() => props.klineData, () => {
+  if (chart) {
+    renderChart()
+  }
+}, { deep: true })
+
+watch(() => props.buySignals, () => {
   if (chart) {
     renderChart()
   }

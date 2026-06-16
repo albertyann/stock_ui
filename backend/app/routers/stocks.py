@@ -51,6 +51,16 @@ async def get_kline_data(
     }
 
 
+@router.get("/{ts_code}/buy-signals", response_model=dict)
+async def get_buy_signals(
+    ts_code: str,
+    check_days: int = Query(3, ge=1, le=30, description="检查最近 N 个交易日"),
+):
+    service = StockService()
+    result = service.get_buy_signals(ts_code, check_days)
+    return result
+
+
 @router.post("/{ts_code}/sync-kline", response_model=dict)
 async def sync_kline_data(ts_code: str):
     service = StockService()

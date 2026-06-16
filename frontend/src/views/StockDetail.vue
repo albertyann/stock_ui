@@ -61,11 +61,24 @@
             <template #header>
               <div class="card-header">
                 <span>日线</span>
-                <el-radio-group v-model="adjType" size="small" class="adj-type-selector">
-                  <el-radio-button value="forward">前复权</el-radio-button>
-                  <el-radio-button value="backward">后复权</el-radio-button>
-                  <el-radio-button value="none">不复权</el-radio-button>
-                </el-radio-group>
+                <div class="kline-header-right">
+                  <span class="signal-legend" v-if="buySignalsData.length > 0">
+                    <span class="legend-item">
+                      <span class="legend-dot" style="background-color:#e6a23c;border-radius:50%;"></span>MA25回踩
+                    </span>
+                    <span class="legend-item">
+                      <span class="legend-dot legend-tri"></span>RSI12强势
+                    </span>
+                    <span class="legend-item">
+                      <span class="legend-dot legend-rect"></span>双命中
+                    </span>
+                  </span>
+                  <el-radio-group v-model="adjType" size="small" class="adj-type-selector">
+                    <el-radio-button value="forward">前复权</el-radio-button>
+                    <el-radio-button value="backward">后复权</el-radio-button>
+                    <el-radio-button value="none">不复权</el-radio-button>
+                  </el-radio-group>
+                </div>
               </div>
             </template>
             
@@ -73,6 +86,7 @@
               ref="klineChartRef"
               :tsCode="props.tsCode"
               :klineData="adjustedKlineData"
+              :buySignals="buySignalsData"
               :height="360"
             />
           </el-card>
@@ -179,6 +193,37 @@
                       MACD: {{ signal.indicators.macd.toFixed(2) }}
                     </el-tag>
                   </div>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+          </el-card>
+
+          <!-- AI 调研记录 -->
+          <el-card class="mt-20 stock-survey-card" v-loading="surveysLoading">
+            <template #header>
+              <div class="card-header">
+                <span>AI 调研记录</span>
+                <span class="signal-count" v-if="surveyList.length > 0">共 {{ surveyList.length }} 条</span>
+              </div>
+            </template>
+
+            <div v-if="surveyList.length === 0" class="empty-signals">
+              <el-empty description="暂无 AI 调研记录" :image-size="60" />
+            </div>
+
+            <el-timeline v-else>
+              <el-timeline-item
+                v-for="survey in surveyList"
+                :key="survey.id"
+                type="primary"
+                :timestamp="formatDateTime(survey.created_at)"
+                placement="top"
+              >
+                <div class="survey-timeline-content">
+                  <div v-if="survey.query" class="survey-query">
+                    问题：{{ survey.query }}
+                  </div>
+                  <div class="survey-result" v-html="renderSurveyContent(survey.content)"></div>
                 </div>
               </el-timeline-item>
             </el-timeline>
@@ -703,14 +748,18 @@
         <el-button @click="showSettingsDialog = false">关闭</el-button>
       </template>
     </el-dialog>
+    <StockChatAssistant
+      :tsCode="props.tsCode"
+      :stock="stock"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import * as echarts from 'echarts'
-import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi } from '@/api'
+import * as echarts from '@/utils/echarts'
+import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi, aiChatApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { EditPen, Plus, Edit, Delete, Setting } from '@element-plus/icons-vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
@@ -720,11 +769,13 @@ import StockMacdChart from '@/components/StockMacdChart.vue'
 import StockRsiChart from '@/components/StockRsiChart.vue'
 import StockChipChart from '@/components/StockChipChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
+import StockChatAssistant from '@/components/StockChatAssistant.vue'
 
 const props = defineProps(['tsCode'])
 
 const stock = ref(null)
 const klineData = ref([])
+const buySignalsData = ref([])
 const weeklyKlineData = ref([])
 const latestSignal = ref(null)
 const klineChartRef = ref(null)
@@ -748,6 +799,10 @@ const selectedChipDate = ref(null)
 // 信号时间线数据
 const signalsLoading = ref(false)
 const signalList = ref([])
+
+// AI 调研记录
+const surveysLoading = ref(false)
+const surveyList = ref([])
 
 // 股票备注相关
 const showNotesDialog = ref(false)
@@ -983,6 +1038,7 @@ const loadStockDetail = async () => {
     }
 
     await loadKline()
+    await loadBuySignals()
     await loadSignal()
     await loadMoneyflow()
     await loadCyqChips()
@@ -994,6 +1050,7 @@ const loadStockDetail = async () => {
     await loadStockInfos()
     await loadConcepts()
     await loadAudit()
+    await loadSurveys()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
     ElMessage.error('加载失败')
@@ -1189,6 +1246,17 @@ const loadKline = async () => {
   }
 }
 
+const loadBuySignals = async () => {
+  try {
+    const response = await stockApi.getBuySignals(props.tsCode, 3)
+    if (response.success) {
+      buySignalsData.value = response.data?.signals || []
+    }
+  } catch (error) {
+    console.error('Failed to load buy signals:', error)
+  }
+}
+
 const loadSignal = async () => {
   try {
     const response = await signalApi.getLatest(props.tsCode)
@@ -1214,6 +1282,33 @@ const loadSignals = async () => {
   } finally {
     signalsLoading.value = false
   }
+}
+
+const loadSurveys = async () => {
+  surveysLoading.value = true
+  try {
+    const response = await aiChatApi.getSurveys(props.tsCode)
+    if (response.success) {
+      surveyList.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load surveys:', error)
+  } finally {
+    surveysLoading.value = false
+  }
+}
+
+const renderSurveyContent = (content) => {
+  if (!content) return ''
+  return content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
 }
 
 const getChangeClass = (change) => {
@@ -1863,8 +1958,48 @@ const deleteStockInfo = async (infoId) => {
 
 /* 信号时间线样式 */
 .signal-timeline-card {
+  height: 480px;
+  overflow-y: auto;
+}
+
+.stock-survey-card {
   max-height: 1000px;
   overflow-y: auto;
+}
+
+.survey-timeline-content {
+  padding: 8px 0;
+}
+
+.survey-query {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background-color: #f4f4f5;
+  border-radius: 4px;
+}
+
+.survey-result {
+  font-size: 14px;
+  color: #303133;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.survey-result pre {
+  background: #f5f7fa;
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.survey-result code {
+  background: #f5f7fa;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
 }
 
 .signal-count {
@@ -1985,6 +2120,51 @@ const deleteStockInfo = async (infoId) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.kline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.signal-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #606266;
+}
+
+.signal-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.signal-legend .legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.signal-legend .legend-tri {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid #409eff;
+}
+
+.signal-legend .legend-rect {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 2px solid #e6a23c;
+  box-shadow: inset 0 0 0 1.5px #409eff;
 }
 
 /* MACD 图例 */

@@ -62,6 +62,13 @@ async def create_task(payload: SyncTaskCreate, db: AsyncSession = Depends(get_db
     return {"success": True, "data": task}
 
 
+@router.get("/available-types", response_model=dict)
+async def get_available_types():
+    """List all available sync task types from 'stock-sync ls'."""
+    result = await SyncTaskService.get_available_task_types()
+    return result
+
+
 @router.get("/{task_id}", response_model=dict)
 async def get_task(task_id: int, db: AsyncSession = Depends(get_db)):
     service = SyncTaskService(db)

@@ -128,6 +128,9 @@
                 <el-tag v-if="stock.industry" size="small" type="info" class="industry-tag">
                   {{ stock.industry }}
                 </el-tag>
+                <el-tag v-if="getMarketType(stock.ts_code)" size="small" :type="getMarketTypeTag(getMarketType(stock.ts_code))" class="market-tag">
+                  {{ getMarketType(stock.ts_code) }}
+                </el-tag>
               </div>
               <div 
                 class="change-badge" 
@@ -217,7 +220,7 @@
               :ts-code="stock.ts_code"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-m-a-c-d="true"
-              min-height="260px"
+              :height="360"
             />
           </div>
         </div>
@@ -578,6 +581,38 @@ onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
 
+// 根据股票代码判断市场类型
+const getMarketType = (tsCode) => {
+  if (!tsCode) return ''
+  const [code, exchange] = tsCode.split('.')
+  if (!code || !exchange) return ''
+  
+  const prefix = code.slice(0, 3)
+  
+  if (exchange === 'SH') {
+    if (['600', '601', '603', '605'].includes(prefix)) return '主板'
+    if (prefix === '688') return '科创板'
+  } else if (exchange === 'SZ') {
+    if (['000', '002'].includes(prefix)) return '主板'
+    if (['300', '301'].includes(prefix)) return '创业板'
+  } else if (exchange === 'BJ') {
+    return '北交所'
+  }
+  
+  return ''
+}
+
+// 市场类型标签样式
+const getMarketTypeTag = (marketType) => {
+  switch (marketType) {
+    case '主板': return 'primary'
+    case '创业板': return 'success'
+    case '科创板': return 'warning'
+    case '北交所': return 'danger'
+    default: return 'info'
+  }
+}
+
 // 涨跌幅样式
 const getChangeClass = (changePct) => {
   if (changePct > 0) return 'up'
@@ -887,6 +922,12 @@ onUnmounted(() => {
 
 .industry-tag {
   margin-top: 6px;
+  font-size: 11px;
+}
+
+.market-tag {
+  margin-top: 6px;
+  margin-left: 4px;
   font-size: 11px;
 }
 

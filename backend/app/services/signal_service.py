@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import date
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, update, func, delete as sa_delete, or_
 from sqlalchemy.dialects.postgresql import insert
@@ -10,6 +11,8 @@ from app.events.note_events import NoteCreatedEvent
 from app.database import async_session
 from app.market.context import get_current_market
 from app.market.filter import build_orm_filter
+
+logger = logging.getLogger(__name__)
 
 
 class SignalService:
@@ -101,10 +104,6 @@ class SignalService:
     ) -> Tuple[List[Signal], int]:
         filters = []
 
-        market = get_current_market()
-        market_filters = build_orm_filter(market, Signal.ts_code)
-        filters.extend(market_filters)
-
         if ts_code:
             filters.append(Signal.ts_code == ts_code)
         if signal_type:
@@ -118,7 +117,7 @@ class SignalService:
         if signal_date_end:
             filters.append(Signal.signal_date <= signal_date_end)
         if note_content:
-            filters.append(Signal.note_content == note_content)
+            filters.append(Signal.note_content.like(f"%{note_content}%"))
         if market_type:
             prefix_col = func.substring(Signal.ts_code, 1, 3)
             if market_type == "main":

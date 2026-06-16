@@ -1,10 +1,9 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-from typing import List, Optional
+from typing import Optional
 import json
-import asyncio
 import logging
 
-from app.websockets.manager import manager, broadcast_price_update, broadcast_signal
+from app.websockets.manager import manager
 from app.services.stock_service import StockService
 from app.services.signal_service import SignalService
 from app.database import async_session
@@ -134,6 +133,8 @@ async def websocket_endpoint(
                         client_id,
                     )
 
+            except WebSocketDisconnect:
+                raise
             except json.JSONDecodeError:
                 await manager.send_personal_message(
                     {"type": "error", "message": "Invalid JSON format"}, client_id

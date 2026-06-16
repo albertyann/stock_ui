@@ -8,7 +8,7 @@ import asyncio
 import asyncpg
 import sys
 
-DATABASE_URL = "postgres://postgres:postgrespw@localhost:55000/stock_data"
+DATABASE_URL = "postgres://postgres:postgrespwd@localhost:5432/stock_data"
 
 
 async def migrate():

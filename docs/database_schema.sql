@@ -1,7 +1,7 @@
 -- =====================================================
 -- 股票关注系统数据库设计 (PostgreSQL)
 -- 数据库: stock_data
--- 连接: postgres://postgres:postgrespw@localhost:55000/stock_data
+-- 连接: postgres://postgres:postgrespwd@localhost:5432/stock_data
 -- =====================================================
 
 -- ============================================
