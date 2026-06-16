@@ -82,12 +82,13 @@
               </div>
             </template>
             
-            <StockKlineChart
+            <!-- POC: 日 K 改用 KLineChart 渲染 (周 K 仍为 ECharts, 便于同页对比) -->
+            <StockKlineChartKLC
               ref="klineChartRef"
               :tsCode="props.tsCode"
               :klineData="adjustedKlineData"
               :buySignals="buySignalsData"
-              :height="360"
+              height="360px"
             />
           </el-card>
 
@@ -242,7 +243,7 @@
               ref="weeklyKlineChartRef"
               :tsCode="props.tsCode"
               :klineData="adjustedWeeklyKlineData"
-              :height="360"
+              height="360px"
               :maPeriods="[5, 10]"
             />
           </el-card>
@@ -763,6 +764,7 @@ import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorAp
 import { ElMessage } from 'element-plus'
 import { EditPen, Plus, Edit, Delete, Setting } from '@element-plus/icons-vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
+import StockKlineChartKLC from '@/components/StockKlineChartKLC.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockVolumeChart from '@/components/StockVolumeChart.vue'
 import StockMacdChart from '@/components/StockMacdChart.vue'

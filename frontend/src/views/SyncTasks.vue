@@ -3,7 +3,7 @@
     <div class="page-header">
       <h2>同步任务管理</h2>
       <el-button type="primary" @click="openEnableDialog">
-        <el-icon><Plus /></el-icon>启用任务
+        启用任务
       </el-button>
     </div>
 
