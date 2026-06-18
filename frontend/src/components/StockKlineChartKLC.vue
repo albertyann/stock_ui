@@ -10,7 +10,7 @@
  * POC: KLineChart (v9) 版本的日 K 图，props 与 StockKlineChart.vue 完全兼容。
  *
  * 与 ECharts 版的差异 / 已知限制（POC LIMITATION）:
- *  - 买卖点标记: 用内置 simpleAnnotation overlay (圆点 + 文字) 区分信号类型,
+ *  - 买卖点标记: 用内置 simpleAnnotation overlay (圆点/三角/星/菱形 + 文字) 区分信号类型,
  *    原 ECharts 版的「空心矩形 + 实心小矩形」同心标记未 1:1 还原。
  *    若需精确还原, 可通过 registerOverlay 注册自定义 overlay (KLineChart 支持)。
  *  - MA 线颜色: 内置 MA 指标, 颜色通过 styles.lines 配置; 周期数与数组下标对应。
@@ -72,27 +72,43 @@ const applyMarkers = () => {
     const bar = dataList.find((d) => d.timestamp === ts)
     if (!bar) return
 
+    // ma2560 / rsi12 组合标记 (原有逻辑保持不变)
     const hasMa = !!signal.ma2560
     const hasRsi = !!signal.rsi12
-    // 用文字 + 颜色区分信号类型
-    let text = '●'
-    let color = '#e6a23c'
-    if (hasMa && hasRsi) {
-      text = '★'
-      color = '#e6a23c'
-    } else if (hasRsi) {
-      text = '▲'
-      color = '#409eff'
-    }
-    chart.createOverlay({
-      name: 'simpleAnnotation',
-      points: [{ timestamp: bar.timestamp, value: bar.low }],
-      extendData: text,
-      styles: {
-        point: { color, borderColor: '#ffffff', borderSize: 1, radius: 5 },
-        text: { color, size: 12, weight: 'bold', family: 'sans-serif', backgroundColor: 'transparent' }
+    if (hasMa || hasRsi) {
+      let text = '●'
+      let color = '#e6a23c'
+      if (hasMa && hasRsi) {
+        text = '★'
+        color = '#e6a23c'
+      } else if (hasRsi) {
+        text = '▲'
+        color = '#409eff'
       }
-    })
+      chart.createOverlay({
+        name: 'simpleAnnotation',
+        points: [{ timestamp: bar.timestamp, value: bar.low }],
+        extendData: text,
+        styles: {
+          point: { color, borderColor: '#ffffff', borderSize: 1, radius: 5 },
+          text: { color, size: 12, weight: 'bold', family: 'sans-serif', backgroundColor: 'transparent' }
+        }
+      })
+    }
+
+    // ma10-proximity 标记 (紫色菱形, 略低于 bar.low 避免与 ma25/rsi 标记重叠)
+    if (signal.ma10) {
+      const ma10Color = '#9c27b0'
+      chart.createOverlay({
+        name: 'simpleAnnotation',
+        points: [{ timestamp: bar.timestamp, value: bar.low * 0.985 }],
+        extendData: '◆',
+        styles: {
+          point: { color: ma10Color, borderColor: '#ffffff', borderSize: 1, radius: 5 },
+          text: { color: ma10Color, size: 12, weight: 'bold', family: 'sans-serif', backgroundColor: 'transparent' }
+        }
+      })
+    }
   })
 }
 
@@ -154,6 +170,12 @@ const initChart = () => {
                 legends.push({
                   title: { text: 'RSI12强势', color: '#409eff' },
                   value: `评分${s.rsi12.score.toFixed(0)} RSI${s.rsi12.rsi12.toFixed(1)}`
+                })
+              }
+              if (s.ma10) {
+                legends.push({
+                  title: { text: 'MA10回踩', color: '#9c27b0' },
+                  value: `评分${s.ma10.score.toFixed(0)} 距${s.ma10.proximity_pct.toFixed(2)}%`
                 })
               }
             }

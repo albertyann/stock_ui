@@ -371,7 +371,15 @@ class StockService:
 
         与 sync_kline_data 同样的 subprocess 模式：优先用 shutil.which 找到
         stock-cli 可执行文件，cwd 设为 worker 目录以便读取 worker 的 .env。
+
+        性能优化（Plan A）：先查 Redis 指标批量缓存；命中即直接返回，未命中
+        再 fallback 到原 subprocess 实时计算并回写缓存。批量缓存由
+        IndicatorCalcService 维护，key 形如 "indicator:calc:result:{date}"。
         """
+        cached = self._lookup_buy_signals_cache(ts_code)
+        if cached is not None:
+            return {"success": True, "data": cached, "source": "cache"}
+
         settings = get_settings()
 
         cmd_parts = [
@@ -418,3 +426,114 @@ class StockService:
             return {"success": False, "error": "no JSON found in worker stdout"}
 
         return {"success": True, "data": data}
+
+    def _lookup_buy_signals_cache(self, ts_code: str) -> Optional[dict]:
+        """Look up the batch-computed indicator cache for one stock.
+
+        Returns a buy-signals-shaped dict on hit, or None on miss / when the
+        stock is not in the watchlist (non-watchlist stocks have no batch
+        cache and must fall back to live subprocess).
+
+        Shape produced here matches `stock-cli buy-signals` stdout so the
+        frontend's `response.data.signals` consumption path is unchanged.
+        Note: cache reflects only the latest trade date (check_days=1),
+        whereas live worker output may cover up to `check_days` days.
+        """
+        # Local import to avoid circular dependency at module load time.
+        from app.redis_client import get_cached_json
+
+        summary = get_cached_json("indicator:calc:last")
+        if not summary:
+            return None
+        end_date = summary.get("end_date")
+        if not end_date:
+            return None
+        result = get_cached_json(f"indicator:calc:result:{end_date}")
+        if not result:
+            return None
+
+        stock_entry = result.get("stocks", {}).get(ts_code)
+        if stock_entry is None:
+            return None
+
+        rsi12 = self._convert_indicator_to_buy_signal_shape(
+            "rsi12", stock_entry.get("rsi12")
+        )
+        ma10 = self._convert_indicator_to_buy_signal_shape(
+            "ma10", stock_entry.get("ma10")
+        )
+        ma2560 = self._convert_indicator_to_buy_signal_shape(
+            "ma2560", stock_entry.get("ma2560")
+        )
+
+        signals = []
+        if rsi12 or ma10 or ma2560:
+            current_price = None
+            for ind in (rsi12, ma10, ma2560):
+                if ind and ind.get("_current_price") is not None:
+                    current_price = ind["_current_price"]
+            for ind in (rsi12, ma10, ma2560):
+                if ind:
+                    ind.pop("_current_price", None)
+            signals.append(
+                {
+                    "date": end_date,
+                    "close": current_price,
+                    "ma2560": ma2560,
+                    "rsi12": rsi12,
+                    "ma10": ma10,
+                }
+            )
+
+        return {
+            "ts_code": ts_code,
+            "end_date": end_date,
+            "check_days": 1,
+            "signals": signals,
+        }
+
+    @staticmethod
+    def _convert_indicator_to_buy_signal_shape(ind_key: str, cached: Optional[dict]) -> Optional[dict]:
+        """Convert one cached indicator entry to the buy-signals entry shape.
+
+        buy-signals output (consumed by frontend charts) per indicator:
+            rsi12:  {score, rsi12, consecutive_days}
+            ma10:   {score, proximity_pct, ma10, ma60}
+            ma2560: {score, proximity_pct, ma25, ma60}
+
+        Cache entry shape:
+            {passed, score, details: <raw m_signals indicators JSON>,
+             current_price, signal_strength}
+        """
+        if not cached or not cached.get("passed"):
+            return None
+        score = float(cached.get("score", 0) or 0)
+        details = cached.get("details") or {}
+        current_price = cached.get("current_price")
+
+        if ind_key == "rsi12":
+            out = {
+                "score": score,
+                "rsi12": float(details.get("rsi12", 0) or 0),
+                "consecutive_days": int(details.get("consecutive_days", 0) or 0),
+            }
+        elif ind_key == "ma10":
+            out = {
+                "score": score,
+                "proximity_pct": float(details.get("ma10_proximity_pct", 0) or 0),
+                "ma10": float(details.get("ma10", 0) or 0),
+                "ma60": float(details.get("ma60", 0) or 0),
+            }
+        elif ind_key == "ma2560":
+            out = {
+                "score": score,
+                "proximity_pct": float(details.get("ma25_proximity_pct", 0) or 0),
+                "ma25": float(details.get("ma25", 0) or 0),
+                "ma60": float(details.get("ma60", 0) or 0),
+            }
+        else:
+            return None
+
+        # Stash price so the caller can populate `close` once per signal entry.
+        out["_current_price"] = current_price
+        return out

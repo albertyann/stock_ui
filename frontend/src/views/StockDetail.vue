@@ -67,6 +67,9 @@
                       <span class="legend-dot" style="background-color:#e6a23c;border-radius:50%;"></span>MA25回踩
                     </span>
                     <span class="legend-item">
+                      <span class="legend-dot legend-diamond"></span>MA10回踩
+                    </span>
+                    <span class="legend-item">
                       <span class="legend-dot legend-tri"></span>RSI12强势
                     </span>
                     <span class="legend-item">
@@ -752,6 +755,7 @@
     <StockChatAssistant
       :tsCode="props.tsCode"
       :stock="stock"
+      @survey-saved="loadSurveys"
     />
   </div>
 </template>
@@ -2158,6 +2162,14 @@ const deleteStockInfo = async (infoId) => {
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-bottom: 8px solid #409eff;
+}
+
+.signal-legend .legend-diamond {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #9c27b0;
+  transform: rotate(45deg);
 }
 
 .signal-legend .legend-rect {

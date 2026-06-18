@@ -107,6 +107,8 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['survey-saved'])
+
 const isOpen = ref(false)
 const inputMessage = ref('')
 const messages = ref([])
@@ -197,6 +199,7 @@ const saveSurvey = async (msg) => {
     })
     if (response.success) {
       ElMessage.success('已保存到 stock_survey')
+      emit('survey-saved')
     } else {
       ElMessage.error(response.error || '保存失败')
     }

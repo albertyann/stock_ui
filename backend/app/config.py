@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     stock_sync_work_dir: str = "/Users/yann/workspace/trade/sync"
     worker_work_dir: str = "/Users/yann/workspace/trade/worker"
     worker_timeout: int = 15
+    worker_batch_timeout: int = 180
+
+    redis_url: str = "redis://localhost:6379/0"
 
     ai_api_key: str = ""
     ai_model: str = "deepseek-v4-flash"

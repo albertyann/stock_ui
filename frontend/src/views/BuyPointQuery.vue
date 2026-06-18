@@ -69,6 +69,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="signal_date" label="信号日期" width="120" sortable="custom" />
+        <el-table-column label="T 日涨幅" width="100" align="right">
+          <template #default="{ row }">
+            <span :class="getChangeClass(row['change_T+0'])">{{ formatPct(row['change_T+0']) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="T+1 涨幅" width="100" align="right">
           <template #default="{ row }">
             <span :class="getChangeClass(row['change_T+1'])">{{ formatPct(row['change_T+1']) }}</span>
@@ -162,13 +167,13 @@ const fetchTrendData = async (buyPoints) => {
     dateGroups[bp.signal_date].push(bp.ts_code)
   }
 
-  // For each date group, call queryByDate with days=[1,2,3]
+  // For each date group, call queryByDate with days=[0,1,2,3] (0 = T 日当天涨幅)
   const trendMap = {} // key: ts_code + '_' + signal_date
   const promises = Object.entries(dateGroups).map(async ([date, codes]) => {
     // Deduplicate codes
     const uniqueCodes = [...new Set(codes)]
     try {
-      const result = await realtimeApi.queryByDate(uniqueCodes, date, [1, 2, 3])
+      const result = await realtimeApi.queryByDate(uniqueCodes, date, [0, 1, 2, 3])
       if (result.data) {
         for (const item of result.data) {
           trendMap[item.ts_code + '_' + date] = item
@@ -186,6 +191,7 @@ const fetchTrendData = async (buyPoints) => {
     const key = row.ts_code + '_' + row.signal_date
     const trend = trendMap[key]
     if (trend) {
+      row['change_T+0'] = trend['change_T+0'] ?? null
       row['change_T+1'] = trend['change_T+1'] ?? null
       row['change_T+2'] = trend['change_T+2'] ?? null
       row['change_T+3'] = trend['change_T+3'] ?? null

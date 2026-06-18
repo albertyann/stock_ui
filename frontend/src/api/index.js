@@ -517,6 +517,13 @@ export const strategyApi = {
   getTaskStatus: (taskId) => api.get(`/strategies/execute/${taskId}`),
 }
 
+export const indicatorCalcApi = {
+  compute: () => longRunningApi.post('/indicator-calc/compute'),
+  getLast: () => api.get('/indicator-calc/last'),
+  getAll: () => api.get('/indicator-calc/all'),
+  getByTsCode: (tsCode) => api.get(`/indicator-calc/${tsCode}`),
+}
+
 export const dailyScoreApi = {
   getDates: () => api.get('/daily-scores/dates'),
   getLatestDate: () => api.get('/daily-scores/latest-date'),

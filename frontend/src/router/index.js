@@ -120,6 +120,12 @@ const routes = [
     meta: { title: '均线斜率' }
   },
   {
+    path: '/indicator-calc',
+    name: 'IndicatorCalc',
+    component: () => import('@/views/IndicatorCalc.vue'),
+    meta: { title: '指标计算' }
+  },
+  {
     path: '/basic-data/tags',
     name: 'TagManage',
     component: () => import('@/views/TagManage.vue'),
