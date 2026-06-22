@@ -463,7 +463,21 @@ const handleQuery = async () => {
   loading.value = true
   try {
     const result = await realtimeApi.queryByDate(codes, queryDate.value, selectedDays.value)
-    queryResult.value = result.data || []
+    // Pre-compute cumulative_change_T+N so the table column's `prop` binding
+    // resolves to a real value. Without this, sorting by 累计涨幅 breaks because
+    // element-plus sorts by the `prop` field, which otherwise doesn't exist.
+    queryResult.value = (result.data || []).map(row => {
+      const enriched = { ...row }
+      const base = row['close_T+0']
+      for (const day of selectedDays.value) {
+        const target = row['close_T+' + day]
+        enriched['cumulative_change_T+' + day] =
+          base !== null && base !== undefined && target !== null && target !== undefined
+            ? ((target - base) / base) * 100
+            : null
+      }
+      return enriched
+    })
     tradingDates.value = result.trading_dates || null
 
     if (!queryResult.value.length) {

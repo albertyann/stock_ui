@@ -159,8 +159,10 @@ export const watchlistApi = {
 export const stockApi = {
   search: (q, limit = 20) => api.get(`/stocks/search?q=${q}&limit=${limit}`),
   getDetail: (tsCode) => api.get(`/stocks/${tsCode}`),
-  getKline: (tsCode, period = 'daily', limit = 60) => 
+  getKline: (tsCode, period = 'daily', limit = 60) =>
     api.get(`/stocks/${tsCode}/kline?period=${period}&limit=${limit}`),
+  getWeeklyKline: (tsCode, limit = 60) =>
+    api.get(`/stocks/${tsCode}/weekly-kline?limit=${limit}`),
   getBuySignals: (tsCode, checkDays = 3) =>
     api.get(`/stocks/${tsCode}/buy-signals?check_days=${checkDays}`),
   getTags: (tsCode) => api.get(`/watchlists/stocks/${tsCode}/tags`),
@@ -471,6 +473,9 @@ export const basicDataApi = {
   },
   getFinaAudit: (tsCode, limit = 5) => {
     return api.get(`/basic-data/fina-audit/${tsCode}?limit=${limit}`)
+  },
+  getFinaIndicator: (tsCode, limit = 8) => {
+    return api.get(`/basic-data/fina-indicator/${tsCode}?limit=${limit}`)
   },
   getSectorHeat: (params = {}) => {
     const { trade_date = null, tab = 'up_pct', idx_type = null, min_stocks = null } = params

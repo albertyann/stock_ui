@@ -169,9 +169,11 @@ class StockService:
                             d.vol as volume,
                             d.amount,
                             d.pct_chg as change_pct,
-                            a.adj_factor
+                            a.adj_factor,
+                            b.turnover_rate
                         FROM daily_data d
                         LEFT JOIN adj_factor a ON d.ts_code = a.ts_code AND d.trade_date = a.trade_date
+                        LEFT JOIN daily_basic b ON d.ts_code = b.ts_code AND d.trade_date = b.trade_date
                         WHERE d.ts_code = :ts_code
                         ORDER BY d.trade_date DESC
                         LIMIT :limit
@@ -237,6 +239,7 @@ class StockService:
                             "amount": float(row.amount),
                             "change_pct": change_pct,
                             "adj_factor": float(row.adj_factor) if row.adj_factor else None,
+                            "turnover_rate": float(row.turnover_rate) if row.turnover_rate else None,
                         }
                     )
 
@@ -282,6 +285,122 @@ class StockService:
 
         except Exception as e:
             print(f"Kline error: {e}")
+            import traceback
+
+            traceback.print_exc()
+            return []
+
+    def get_weekly_kline_data(self, ts_code: str, limit: int = 60) -> List[dict]:
+        """获取周K线数据。
+
+        数据源:
+        - weekly_data: 历史完整周线（每周收盘后刷新，trade_date 为该周最后交易日）
+        - stk_weekly_monthly (freq='week'): 当周运行中数据，用于补充 weekly_data 尚未更新的当周
+
+        若 stk_weekly_monthly 的最新周 trade_date 比 weekly_data 最新一条更新，则插入到列表头部，
+        最终返回按时间升序排列的周线序列。
+
+        注意:
+        - weekly_data.pct_chg / stk_weekly_monthly.pct_chg 均为小数 (如 0.05 表示 5%)，统一乘以 100 输出
+        - adj_factor 通过 LEFT JOIN adj_factor 获取（按周线 trade_date 匹配），用于前端复权计算
+        """
+        try:
+            settings = get_settings()
+            sync_url = settings.database_url.replace("+asyncpg", "")
+            engine = create_engine(sync_url)
+
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text("""
+                        SELECT
+                            w.trade_date as date,
+                            w.open,
+                            w.high,
+                            w.low,
+                            w.close,
+                            w.vol as volume,
+                            w.amount,
+                            w.pct_chg as change_pct,
+                            a.adj_factor
+                        FROM weekly_data w
+                        LEFT JOIN adj_factor a
+                            ON w.ts_code = a.ts_code AND w.trade_date = a.trade_date
+                        WHERE w.ts_code = :ts_code
+                        ORDER BY w.trade_date DESC
+                        LIMIT :limit
+                    """),
+                    {"ts_code": ts_code, "limit": limit},
+                )
+
+                kline_data = []
+                for row in result:
+                    change_pct = float(row.change_pct) if row.change_pct else 0
+                    # weekly_data.pct_chg 存储为小数 (如 0.05 = 5%)，乘以 100 转为百分比
+                    change_pct = change_pct * 100
+                    kline_data.append(
+                        {
+                            "date": row.date.strftime("%Y-%m-%d"),
+                            "open": float(row.open),
+                            "high": float(row.high),
+                            "low": float(row.low),
+                            "close": float(row.close),
+                            "volume": int(row.volume) if row.volume is not None else 0,
+                            "amount": float(row.amount) if row.amount is not None else 0,
+                            "change_pct": change_pct,
+                            "adj_factor": float(row.adj_factor) if row.adj_factor else None,
+                        }
+                    )
+
+                # 当周 (非周五) weekly_data 尚未落库，从 stk_weekly_monthly 补充最新一周
+                if kline_data:
+                    last_weekly_date = kline_data[0]["date"]
+                    supp_result = conn.execute(
+                        text("""
+                            SELECT
+                                s.trade_date as date,
+                                s.open,
+                                s.high,
+                                s.low,
+                                s.close,
+                                s.vol as volume,
+                                s.amount,
+                                s.pct_chg as change_pct,
+                                a.adj_factor
+                            FROM stk_weekly_monthly s
+                            LEFT JOIN adj_factor a
+                                ON s.ts_code = a.ts_code AND s.trade_date = a.trade_date
+                            WHERE s.ts_code = :ts_code AND s.freq = 'week'
+                            ORDER BY s.trade_date DESC
+                            LIMIT 1
+                        """),
+                        {"ts_code": ts_code},
+                    )
+                    supp_row = supp_result.fetchone()
+                    if supp_row and supp_row.date:
+                        supp_date_str = supp_row.date.strftime("%Y-%m-%d")
+                        if not last_weekly_date or supp_date_str > last_weekly_date:
+                            supp_pct = float(supp_row.change_pct) if supp_row.change_pct else 0
+                            # stk_weekly_monthly.pct_chg 同样为小数，乘以 100 转为百分比
+                            supp_pct = supp_pct * 100
+                            kline_data.insert(
+                                0,
+                                {
+                                    "date": supp_date_str,
+                                    "open": float(supp_row.open) if supp_row.open is not None else None,
+                                    "high": float(supp_row.high) if supp_row.high is not None else None,
+                                    "low": float(supp_row.low) if supp_row.low is not None else None,
+                                    "close": float(supp_row.close) if supp_row.close is not None else None,
+                                    "volume": int(supp_row.volume) if supp_row.volume is not None else 0,
+                                    "amount": float(supp_row.amount) if supp_row.amount is not None else 0,
+                                    "change_pct": supp_pct,
+                                    "adj_factor": float(supp_row.adj_factor) if supp_row.adj_factor else None,
+                                },
+                            )
+
+                return list(reversed(kline_data))
+
+        except Exception as e:
+            print(f"Weekly kline error: {e}")
             import traceback
 
             traceback.print_exc()

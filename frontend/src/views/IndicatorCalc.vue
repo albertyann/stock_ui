@@ -81,7 +81,13 @@
         :row-class-name="rowClassName"
         @sort-change="handleSortChange"
       >
-        <el-table-column prop="ts_code" label="代码" width="120" sortable />
+        <el-table-column prop="ts_code" label="代码" width="120">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" link @click="goDetail(row.ts_code)">
+              {{ row.ts_code }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="名称" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.name || row.ts_code }}
@@ -107,6 +113,12 @@
               {{ row.change_pct >= 0 ? '+' : '' }}{{ row.change_pct.toFixed(2) }}%
             </span>
             <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="收盘价" width="110" align="center" sortable>
+          <template #default="{ row }">
+            <span v-if="row.close_price !== null">{{ row.close_price.toFixed(2) }}</span>
+            <span v-else class="muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="RSI12强势" width="130" align="center">
@@ -219,6 +231,7 @@ const tableRows = computed(() => {
       name: nameMap.value[r.ts_code] || '',
       hitCount,
       boardType: getBoardType(r.ts_code),
+      close_price: priceInfo?.close_price ?? null,
       change_pct: priceInfo?.change_pct ?? r.pct_chg ?? null,
     }
   })

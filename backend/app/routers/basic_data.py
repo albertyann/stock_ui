@@ -244,6 +244,19 @@ async def get_fina_audit(
     return result
 
 
+@router.get("/fina-indicator/{ts_code}", response_model=dict)
+async def get_fina_indicator(
+    ts_code: str,
+    limit: int = Query(8, ge=1, le=20, description="返回最近N个报告期"),
+):
+    """季度业绩（财务指标）。数据为累计口径，同比字段可直接判断盈亏趋势。"""
+    service = BasicDataService()
+    result = service.get_fina_indicator(ts_code, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
 @router.get("/cyq-chips/{ts_code}", response_model=dict)
 async def get_cyq_chips(
     ts_code: str,

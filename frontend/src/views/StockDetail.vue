@@ -115,6 +115,10 @@
               ref="volumeChartRef"
               :klineData="adjustedKlineData"
             />
+            <StockTurnoverChart
+              ref="turnoverChartRef"
+              :klineData="adjustedKlineData"
+            />
             <StockMacdChart
               ref="macdChartRef"
               :klineData="adjustedKlineData"
@@ -272,6 +276,65 @@
                 </div>
                 <div class="audit-item__agency" v-if="item.audit_agency">
                   {{ item.audit_agency }}
+                </div>
+              </div>
+            </div>
+          </el-card>
+
+          <!-- 季度业绩 -->
+          <el-card class="mt-20 fina-indicator-card" v-loading="finaIndicatorLoading">
+            <template #header>
+              <div class="card-header">
+                <span>季度业绩</span>
+                <span class="signal-count" v-if="finaIndicatorList.length > 0">{{ finaIndicatorList.length }}期</span>
+              </div>
+            </template>
+
+            <div v-if="finaIndicatorList.length === 0" class="empty-signals">
+              <el-empty description="暂无业绩数据" :image-size="60" />
+            </div>
+
+            <div v-else class="fina-table">
+              <div class="fina-row fina-header">
+                <div class="fina-cell">报告期</div>
+                <div class="fina-cell">扣非EPS</div>
+                <div class="fina-cell">扣非同比</div>
+                <div class="fina-cell">营收同比</div>
+                <div class="fina-cell">ROE</div>
+              </div>
+              <div
+                v-for="(item, idx) in finaIndicatorList"
+                :key="item.end_date"
+                class="fina-row"
+                :class="{ 'fina-row-loss': isLoss(item) }"
+              >
+                <div class="fina-cell fina-cell-period">
+                  {{ formatEndDate(item.end_date) }}
+                </div>
+                <div class="fina-cell">
+                  {{ item.dt_eps != null ? item.dt_eps.toFixed(2) : '-' }}
+                </div>
+                <div class="fina-cell">
+                  <span :class="getYoyClass(item.dt_netprofit_yoy)">
+                    {{ formatYoy(item.dt_netprofit_yoy) }}
+                  </span>
+                  <el-tag
+                    v-if="getProfitTag(item, idx)"
+                    :type="getProfitTag(item, idx).type"
+                    size="small"
+                    effect="plain"
+                    class="fina-tag"
+                  >
+                    {{ getProfitTag(item, idx).label }}
+                  </el-tag>
+                </div>
+                <div class="fina-cell">
+                  <span :class="getYoyClass(item.or_yoy)">
+                    {{ formatYoy(item.or_yoy) }}
+                  </span>
+                </div>
+                <div class="fina-cell">
+                  {{ item.roe != null ? item.roe.toFixed(2) + '%' : '-' }}
                 </div>
               </div>
             </div>
@@ -773,6 +836,7 @@ import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockVolumeChart from '@/components/StockVolumeChart.vue'
 import StockMacdChart from '@/components/StockMacdChart.vue'
 import StockRsiChart from '@/components/StockRsiChart.vue'
+import StockTurnoverChart from '@/components/StockTurnoverChart.vue'
 import StockChipChart from '@/components/StockChipChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 import StockChatAssistant from '@/components/StockChatAssistant.vue'
@@ -790,6 +854,7 @@ const adxChartRef = ref(null)
 const volumeChartRef = ref(null)
 const macdChartRef = ref(null)
 const rsiChartRef = ref(null)
+const turnoverChartRef = ref(null)
 
 const moneyflowLoading = ref(false)
 const moneyflowData = ref([])
@@ -849,6 +914,10 @@ const conceptList = ref([])
 const conceptLoading = ref(false)
 
 const auditList = ref([])
+
+// 季度业绩
+const finaIndicatorList = ref([])
+const finaIndicatorLoading = ref(false)
 
 const showSettingsDialog = ref(false)
 const syncKlineLoading = ref(false)
@@ -1029,6 +1098,7 @@ const handleResize = () => {
   volumeChartRef.value?.resize()
   macdChartRef.value?.resize()
   rsiChartRef.value?.resize()
+  turnoverChartRef.value?.resize()
   chipChartRef.value?.resize()
   if (moneyflowChartInstance) {
     moneyflowChartInstance.resize()
@@ -1056,6 +1126,7 @@ const loadStockDetail = async () => {
     await loadStockInfos()
     await loadConcepts()
     await loadAudit()
+    await loadFinaIndicator()
     await loadSurveys()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
@@ -1245,8 +1316,8 @@ const loadKline = async () => {
     console.error('Failed to load daily kline:', error)
   }
   try {
-    const weeklyResponse = await stockApi.getKline(props.tsCode, 'weekly', 60)
-    weeklyKlineData.value = weeklyResponse.data.data || []
+    const weeklyResponse = await stockApi.getWeeklyKline(props.tsCode, 60)
+    weeklyKlineData.value = weeklyResponse.data || []
   } catch (error) {
     console.error('Failed to load weekly kline:', error)
   }
@@ -1638,6 +1709,64 @@ const loadAudit = async () => {
   } catch (error) {
     console.error('Failed to load audit:', error)
   }
+}
+
+// 加载季度业绩
+const loadFinaIndicator = async () => {
+  finaIndicatorLoading.value = true
+  try {
+    const response = await basicDataApi.getFinaIndicator(props.tsCode, 8)
+    if (response.success) {
+      finaIndicatorList.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Failed to load fina indicator:', error)
+  } finally {
+    finaIndicatorLoading.value = false
+  }
+}
+
+// 同比格式化 (+25.30% / -10.50%)
+const formatYoy = (val) => {
+  if (val == null) return '-'
+  return (val > 0 ? '+' : '') + val.toFixed(2) + '%'
+}
+
+// 同比着色 (红涨绿跌, 与项目惯例一致)
+const getYoyClass = (val) => {
+  if (val == null) return 'muted'
+  return val > 0 ? 'up' : val < 0 ? 'down' : 'muted'
+}
+
+// 亏损判断 (扣非 EPS < 0 视为亏损, 整行高亮)
+const isLoss = (item) => {
+  return item.dt_eps != null && item.dt_eps < 0
+}
+
+// 盈利趋势 tag (列表按 end_date DESC, idx+1 为上一报告期)
+const getProfitTag = (item, idx) => {
+  if (item.dt_netprofit_yoy == null) return null
+  // 真实亏损
+  if (item.dt_eps != null && item.dt_eps < 0) {
+    return { type: 'danger', label: '亏损' }
+  }
+
+  const prev = finaIndicatorList.value[idx + 1]
+  if (!prev || prev.dt_netprofit_yoy == null) {
+    if (item.dt_netprofit_yoy > 0) return { type: 'success', label: '增长' }
+    if (item.dt_netprofit_yoy < 0) return { type: 'warning', label: '下滑' }
+    return null
+  }
+
+  const cur = item.dt_netprofit_yoy
+  const pre = prev.dt_netprofit_yoy
+  // 反转
+  if (cur > 0 && pre < 0) return { type: 'success', label: '扭亏' }
+  if (cur < 0 && pre > 0) return { type: 'danger', label: '转亏' }
+  // 同向变化
+  if (cur > pre) return { type: 'success', label: '加速' }
+  if (cur < pre) return { type: 'warning', label: '放缓' }
+  return null
 }
 
 const formatEndDate = (dateStr) => {
@@ -2482,5 +2611,70 @@ const deleteStockInfo = async (infoId) => {
   color: #909399;
   margin-top: 4px;
   line-height: 1.4;
+}
+
+/* 季度业绩卡片 */
+.fina-indicator-card :deep(.el-card__body) {
+  padding: 4px 12px;
+}
+
+.fina-table {
+  font-size: 12px;
+}
+
+.fina-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 1.5fr 1.1fr 0.9fr;
+  gap: 6px;
+  padding: 9px 4px;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+}
+
+.fina-row:last-child {
+  border-bottom: none;
+}
+
+.fina-header {
+  font-weight: 600;
+  color: #909399;
+  background-color: #fafafa;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.fina-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.fina-cell-period {
+  text-align: left;
+  font-weight: 500;
+  color: #303133;
+}
+
+.fina-row-loss {
+  background-color: #fef0f0;
+}
+
+.fina-tag {
+  margin-left: 4px;
+  transform: scale(0.85);
+  transform-origin: left center;
+  vertical-align: middle;
+}
+
+.fina-table .up {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
+.fina-table .down {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.fina-table .muted {
+  color: #909399;
 }
 </style>

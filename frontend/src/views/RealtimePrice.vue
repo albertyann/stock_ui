@@ -220,7 +220,7 @@
               :ts-code="stock.ts_code"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-m-a-c-d="true"
-              :height="360"
+              height="360px"
             />
           </div>
         </div>

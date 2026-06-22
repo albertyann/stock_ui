@@ -51,6 +51,16 @@ async def get_kline_data(
     }
 
 
+@router.get("/{ts_code}/weekly-kline", response_model=dict)
+async def get_weekly_kline_data(
+    ts_code: str,
+    limit: int = Query(60, ge=1, le=200, description="返回周线条数"),
+):
+    service = StockService()
+    kline = service.get_weekly_kline_data(ts_code, limit)
+    return {"success": True, "data": kline}
+
+
 @router.get("/{ts_code}/buy-signals", response_model=dict)
 async def get_buy_signals(
     ts_code: str,

@@ -8,6 +8,7 @@ from app.services.basic_data.industry_analysis_service import IndustryAnalysisSe
 from app.services.basic_data.cyq_chips_service import CyqChipsServiceMixin
 from app.services.basic_data.sector_heat_service import SectorHeatServiceMixin
 from app.services.basic_data.fina_audit_service import FinaAuditServiceMixin
+from app.services.basic_data.fina_indicator_service import FinaIndicatorServiceMixin
 
 
 class BasicDataService(
@@ -21,6 +22,7 @@ class BasicDataService(
     CyqChipsServiceMixin,
     SectorHeatServiceMixin,
     FinaAuditServiceMixin,
+    FinaIndicatorServiceMixin,
 ):
     pass
 
