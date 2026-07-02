@@ -167,7 +167,15 @@ export const stockApi = {
     api.get(`/stocks/${tsCode}/buy-signals?check_days=${checkDays}`),
   getTags: (tsCode) => api.get(`/watchlists/stocks/${tsCode}/tags`),
   updateTags: (tsCode, tags) => api.put(`/watchlists/stocks/${tsCode}/tags`, { tags }),
-  syncKline: (tsCode) => longRunningApi.post(`/stocks/${tsCode}/sync-kline`)
+  syncKline: (tsCode) => longRunningApi.post(`/stocks/${tsCode}/sync-kline`),
+  evaluateStock: (tsCode, date = null) => {
+    let url = `/stocks/${tsCode}/evaluate`
+    if (date) {
+      url += `?date=${date}`
+    }
+    return longRunningApi.post(url)
+  },
+  getEvalScores: (tsCode) => api.get(`/stocks/${tsCode}/evaluate-scores`)
 }
 
 export const signalApi = {
@@ -249,7 +257,6 @@ export const sectorApi = {
     }
     return api.get(url)
   },
-  getSectorLargeOrders: (tradeDate) => api.get(`/sectors/large-orders?trade_date=${tradeDate}`),
   getConceptSectors: (tradeDate = null, sectorType = null) => {
     const params = new URLSearchParams()
     if (tradeDate) {
@@ -523,7 +530,10 @@ export const strategyApi = {
 }
 
 export const indicatorCalcApi = {
-  compute: () => longRunningApi.post('/indicator-calc/compute'),
+  compute: (date = null) => {
+    const params = date ? { date } : {}
+    return longRunningApi.post('/indicator-calc/compute', null, { params })
+  },
   getLast: () => api.get('/indicator-calc/last'),
   getAll: () => api.get('/indicator-calc/all'),
   getByTsCode: (tsCode) => api.get(`/indicator-calc/${tsCode}`),

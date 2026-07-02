@@ -7,7 +7,10 @@ Endpoints:
     GET  /api/v1/indicator-calc/{ts_code}      Return one stock's indicators.
 """
 
-from fastapi import APIRouter
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Query
 
 from app.services.indicator_calc_service import IndicatorCalcService
 
@@ -16,13 +19,13 @@ router = APIRouter(prefix="/indicator-calc", tags=["indicator-calc"])
 
 
 @router.post("/compute", response_model=dict)
-async def compute_all():
+async def compute_all(date: Optional[date] = Query(None, description="计算日期 (YYYY-MM-DD)，默认最近交易日")):
     """Trigger batch computation. Long-running (up to ~3 min).
 
     Frontend should call via the longRunningApi client (300s timeout).
     """
     service = IndicatorCalcService()
-    return service.compute_all()
+    return service.compute_all(end_date=date)
 
 
 @router.get("/last", response_model=dict)

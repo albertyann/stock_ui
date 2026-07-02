@@ -23,11 +23,6 @@ const routes = [
     props: true
   },
   {
-    path: '/buy-reference',
-    name: 'BuyReference',
-    component: () => import('@/views/BuyReference.vue')
-  },
-  {
     path: '/realtime-price',
     name: 'RealtimePrice',
     component: () => import('@/views/RealtimePrice.vue')
@@ -53,12 +48,6 @@ const routes = [
     name: 'SectorDetail',
     component: () => import('@/views/SectorDetail.vue'),
     meta: { title: '板块详情' }
-  },
-  {
-    path: '/sector-large-orders',
-    name: 'SectorLargeOrder',
-    component: () => import('@/views/SectorLargeOrder.vue'),
-    meta: { title: '板块大单' }
   },
   {
     path: '/stock-query',
@@ -93,7 +82,8 @@ const routes = [
   {
     path: '/sync-tasks',
     name: 'SyncTasks',
-    component: () => import('@/views/SyncTasks.vue')
+    component: () => import('@/views/SyncTasks.vue'),
+    meta: { title: '数据同步' }
   },
   {
     path: '/snapshot-manage',
@@ -190,12 +180,6 @@ const routes = [
     name: 'BuyPointQuery',
     component: () => import('@/views/BuyPointQuery.vue'),
     meta: { title: '买点查询' }
-  },
-  {
-    path: '/strategy-stock-picker',
-    name: 'StrategyStockPicker',
-    component: () => import('@/views/StrategyStockPicker.vue'),
-    meta: { title: '策略选股' }
   },
   {
     path: '/daily-scores',

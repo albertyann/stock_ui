@@ -18,10 +18,6 @@
             <el-icon><HomeFilled /></el-icon>
             <span>仪表盘</span>
           </el-menu-item>
-          <el-menu-item index="/buy-reference">
-            <el-icon><TrendCharts /></el-icon>
-            <span>买入参考</span>
-          </el-menu-item>
           <el-sub-menu index="group-realtime">
             <template #title>
               <el-icon><DataLine /></el-icon>
@@ -73,10 +69,6 @@
               <el-icon><DataAnalysis /></el-icon>
               <span>指标计算</span>
             </el-menu-item>
-            <el-menu-item index="/strategy-stock-picker">
-              <el-icon><Filter /></el-icon>
-              <span>策略选股</span>
-            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="group-analysis">
             <template #title>
@@ -94,10 +86,6 @@
             <el-menu-item index="/sector-heat">
               <el-icon><TrendCharts /></el-icon>
               <span>板块热度</span>
-            </el-menu-item>
-            <el-menu-item index="/sector-large-orders">
-              <el-icon><Money /></el-icon>
-              <span>板块大单</span>
             </el-menu-item>
             <el-menu-item index="/snapshot-manage">
               <el-icon><Camera /></el-icon>

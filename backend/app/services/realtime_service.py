@@ -531,11 +531,12 @@ class RealtimePriceService:
 
                 # 参数化绑定防止 SQL 注入
                 query = """
-                    SELECT ts_code, trade_date, close, pct_chg
-                    FROM daily_data
-                    WHERE ts_code = ANY(:codes)
-                    AND trade_date = ANY(:dates)
-                    ORDER BY ts_code, trade_date
+                    SELECT d.ts_code, d.trade_date, d.close, d.pct_chg, a.adj_factor
+                    FROM daily_data d
+                    LEFT JOIN adj_factor a ON d.ts_code = a.ts_code AND d.trade_date = a.trade_date
+                    WHERE d.ts_code = ANY(:codes)
+                    AND d.trade_date = ANY(:dates)
+                    ORDER BY d.ts_code, d.trade_date
                 """
                 result = conn.execute(
                     text(query),
@@ -548,6 +549,7 @@ class RealtimePriceService:
                     price_map[(row.ts_code, date_str)] = {
                         "close": float(row.close or 0),
                         "pct_chg": float(row.pct_chg or 0),
+                        "adj_factor": float(row.adj_factor) if row.adj_factor is not None else None,
                     }
 
                 stock_names = {}
@@ -573,6 +575,7 @@ class RealtimePriceService:
                             row_data[f"date_{label}"] = date_str
                             row_data[f"close_{label}"] = price_info["close"]
                             row_data[f"pct_chg_{label}"] = price_info["pct_chg"]
+                            row_data[f"adj_factor_{label}"] = price_info.get("adj_factor")
 
                             if label == "T+0":
                                 base_price = price_info["close"]
@@ -580,6 +583,7 @@ class RealtimePriceService:
                             row_data[f"date_{label}"] = date_str
                             row_data[f"close_{label}"] = None
                             row_data[f"pct_chg_{label}"] = None
+                            row_data[f"adj_factor_{label}"] = None
 
                     for day in days:
                         label = f"T+{day}"

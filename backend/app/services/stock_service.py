@@ -180,27 +180,6 @@ class StockService:
                     """),
                         {"ts_code": ts_code, "limit": limit},
                     )
-                elif period == "weekly":
-                    result = conn.execute(
-                        text("""
-                        SELECT 
-                            w.trade_date as date,
-                            w.open,
-                            w.high,
-                            w.low,
-                            w.close,
-                            w.vol as volume,
-                            w.amount,
-                            w.pct_chg as change_pct,
-                            a.adj_factor
-                        FROM weekly_data w
-                        LEFT JOIN adj_factor a ON w.ts_code = a.ts_code AND w.trade_date = a.trade_date
-                        WHERE w.ts_code = :ts_code
-                        ORDER BY w.trade_date DESC
-                        LIMIT :limit
-                    """),
-                        {"ts_code": ts_code, "limit": limit},
-                    )
                 else:
                     result = conn.execute(
                         text("""
@@ -225,9 +204,6 @@ class StockService:
                 kline_data = []
                 for row in result:
                     change_pct = float(row.change_pct) if row.change_pct else 0
-                    # weekly_data 中 pct_chg 存储为小数(如0.05表示5%)，需乘以100
-                    if period == "weekly":
-                        change_pct = change_pct * 100
                     kline_data.append(
                         {
                             "date": row.date.strftime("%Y-%m-%d"),
@@ -242,44 +218,6 @@ class StockService:
                             "turnover_rate": float(row.turnover_rate) if row.turnover_rate else None,
                         }
                     )
-
-                if period == "weekly" and kline_data:
-                    last_weekly_date = kline_data[0]["date"]
-                    supp_result = conn.execute(
-                        text("""
-                        SELECT
-                            s.trade_date as date,
-                            s.open, s.high, s.low, s.close,
-                            s.vol as volume,
-                            s.amount,
-                            s.pct_chg as change_pct,
-                            a.adj_factor
-                        FROM stk_weekly_monthly s
-                        LEFT JOIN adj_factor a ON s.ts_code = a.ts_code AND s.trade_date = a.trade_date
-                        WHERE s.ts_code = :ts_code AND s.freq = 'week'
-                        ORDER BY s.trade_date DESC
-                        LIMIT 1
-                    """),
-                        {"ts_code": ts_code},
-                    )
-                    supp_row = supp_result.fetchone()
-                    if supp_row and supp_row.date:
-                        supp_date_str = supp_row.date.strftime("%Y-%m-%d")
-                        if not last_weekly_date or supp_date_str > last_weekly_date:
-                            supp_pct = float(supp_row.change_pct) if supp_row.change_pct else 0
-                            # stk_weekly_monthly 的 pct_chg 也是小数，需乘以100
-                            # supp_pct = supp_pct
-                            kline_data.insert(0, {
-                                "date": supp_date_str,
-                                "open": float(supp_row.open) if supp_row.open is not None else None,
-                                "high": float(supp_row.high) if supp_row.high is not None else None,
-                                "low": float(supp_row.low) if supp_row.low is not None else None,
-                                "close": float(supp_row.close) if supp_row.close is not None else None,
-                                "volume": int(supp_row.volume) if supp_row.volume is not None else None,
-                                "amount": float(supp_row.amount) if supp_row.amount is not None else None,
-                                "change_pct": supp_pct,
-                                "adj_factor": float(supp_row.adj_factor) if supp_row.adj_factor else None,
-                            })
 
                 return list(reversed(kline_data))
 

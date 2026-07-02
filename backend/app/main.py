@@ -18,6 +18,7 @@ from app.routers import (
     daily_scores,
     ai_chat,
     indicator_calc,
+    stock_eval,
 )
 from app.market.middleware import MarketMiddleware
 from app.tasks.scheduler import task_manager
@@ -71,6 +72,7 @@ app.include_router(strategies.router, prefix=api_prefix)
 app.include_router(daily_scores.router, prefix=api_prefix)
 app.include_router(ai_chat.router, prefix=api_prefix)
 app.include_router(indicator_calc.router, prefix=api_prefix)
+app.include_router(stock_eval.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 

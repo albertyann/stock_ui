@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2>同步任务管理</h2>
+      <h2>数据同步</h2>
       <el-button type="primary" @click="openEnableDialog">
         启用任务
       </el-button>

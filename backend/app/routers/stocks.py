@@ -39,7 +39,7 @@ async def get_stock_detail(ts_code: str):
 @router.get("/{ts_code}/kline", response_model=dict)
 async def get_kline_data(
     ts_code: str,
-    period: str = Query("daily", description="daily, weekly, monthly"),
+    period: str = Query("daily", description="daily, monthly"),
     limit: int = Query(60, ge=1, le=365),
 ):
     service = StockService()

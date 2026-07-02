@@ -97,7 +97,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { watchlistApi } from '@/api'
 
@@ -222,9 +222,12 @@ const confirmFollow = async () => {
       watch_date: form.value.watch_date,
       notes: form.value.notes
     })
-    ElMessage.success(`${props.stock.name} (${props.stock.ts_code}) 已添加到关注列表`)
     emit('success')
     handleClose()
+    // 在弹窗关闭后显示成功提示，避免 ElMessage 被 dialog 遮罩遮挡
+    nextTick(() => {
+      ElMessage.success(`${props.stock.name} (${props.stock.ts_code}) 已添加到关注列表`)
+    })
   } catch (error) {
     console.error('Follow failed:', error)
     ElMessage.error('关注失败: ' + (error.response?.data?.detail || error.message))

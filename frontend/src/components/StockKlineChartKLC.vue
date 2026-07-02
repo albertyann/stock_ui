@@ -18,7 +18,7 @@
  *    输出 开/收/高/低/涨跌 + 信号明细; MA 数值由指标 legend 自动显示在主图顶部。
  */
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { init, dispose } from 'klinecharts'
+import { init, dispose, registerIndicator } from 'klinecharts'
 
 const props = defineProps({
   tsCode: { type: String, required: true },
@@ -27,7 +27,20 @@ const props = defineProps({
   height: { type: String, default: '200px' },
   minHeight: { type: String, default: '200px' },
   maPeriods: { type: Array, default: () => [5, 20, 30, 60] },
-  buySignals: { type: Array, default: () => [] }
+  buySignals: { type: Array, default: () => [] },
+  /** 指标可见性控制: { ma: { ma5, ma10, ma20, ma30, ma60, ma120 }, ema: { ema9, ema21 }, boll: boolean } */
+  indicatorSettings: {
+    type: Object,
+    default: () => ({
+      ma: { ma5: true, ma10: false, ma20: true, ma30: false, ma60: true, ma120: false },
+      ema: { ema9: true, ema21: true },
+      boll: false
+    })
+  },
+  /** 可视区固定显示的 K 线根数；0 表示全部显示 */
+  visibleBarCount: { type: Number, default: 0 },
+  /** 评估分数: [{ date: 'YYYY-MM-DD', score: number, ... }] */
+  evalScores: { type: Array, default: () => [] }
 })
 
 const chartRef = ref(null)
@@ -41,6 +54,79 @@ const maColors = {
   60: '#ea7ccc',
   120: '#91cc75'
 }
+
+const maPeriods = [
+  { period: 5, color: '#ee6666', settingKey: 'ma5' },
+  { period: 10, color: '#fac858', settingKey: 'ma10' },
+  { period: 20, color: '#3ba272', settingKey: 'ma20' },
+  { period: 30, color: '#5470c6', settingKey: 'ma30' },
+  { period: 60, color: '#ea7ccc', settingKey: 'ma60' },
+  { period: 120, color: '#91cc75', settingKey: 'ma120' }
+]
+
+// 注册独立的 MA 指标，每个周期一个 indicator，从而可以单独控制显隐
+const createMAIndicator = (period) => ({
+  name: `MA${period}`,
+  shortName: `MA${period}`,
+  calcParams: [period],
+  precision: 2,
+  shouldOhlc: true,
+  figures: [{ key: 'ma', title: `MA${period}: `, type: 'line' }],
+  calc: (dataList, indicator) => {
+    const { calcParams, figures } = indicator
+    const p = calcParams[0]
+    let closeSum = 0
+    return dataList.map((kLineData, i) => {
+      const close = kLineData.close
+      closeSum += close
+      const ma = {}
+      if (i >= p - 1) {
+        ma[figures[0].key] = closeSum / p
+        closeSum -= dataList[i - (p - 1)].close
+      }
+      return ma
+    })
+  }
+})
+
+maPeriods.forEach(({ period }) => registerIndicator(createMAIndicator(period)))
+
+const emaPeriods = [
+  { period: 9, color: '#00d4aa', settingKey: 'ema9' },
+  { period: 21, color: '#9a60b4', settingKey: 'ema21' }
+]
+
+// 注册独立的 EMA 指标，每个周期一个 indicator，从而可以单独控制显隐
+const createEMAIndicator = (period) => ({
+  name: `EMA${period}`,
+  shortName: `EMA${period}`,
+  calcParams: [period],
+  precision: 2,
+  shouldOhlc: true,
+  figures: [{ key: 'ema', title: `EMA${period}: `, type: 'line' }],
+  calc: (dataList, indicator) => {
+    const { calcParams, figures } = indicator
+    const p = calcParams[0]
+    let closeSum = 0
+    let emaValue = null
+    return dataList.map((kLineData, i) => {
+      const close = kLineData.close
+      closeSum += close
+      const ema = {}
+      if (i >= p - 1) {
+        if (i > p - 1) {
+          emaValue = (2 * close + (p - 1) * emaValue) / (p + 1)
+        } else {
+          emaValue = closeSum / p
+        }
+        ema[figures[0].key] = emaValue
+      }
+      return ema
+    })
+  }
+})
+
+emaPeriods.forEach(({ period }) => registerIndicator(createEMAIndicator(period)))
 
 // 日期 'YYYY-MM-DD' -> 本地 0 点时间戳, 避免时区偏移导致日期错位
 const toTimestamp = (dateStr) => new Date(`${dateStr}T00:00:00`).getTime()
@@ -61,6 +147,30 @@ const buildBars = () => {
     change_pct: item.change_pct,
     signal: signalMap[item.date] || null
   }))
+}
+
+// 用 simpleAnnotation overlay 标注评估分数 (主图顶部)
+const applyEvalScoreMarkers = () => {
+  if (!chart || !props.evalScores || props.evalScores.length === 0) return
+  const dataList = chart.getDataList()
+  const scoreColor = '#9c27b0'
+  props.evalScores.forEach((entry) => {
+    if (entry.score == null) return
+    const ts = toTimestamp(entry.date)
+    const bar = dataList.find((d) => d.timestamp === ts)
+    if (!bar) return
+    // Place score label at the candle high (chart margin.top 提供留白)
+    const scoreText = `${entry.score.toFixed(0)}`
+    chart.createOverlay({
+      name: 'simpleAnnotation',
+      points: [{ timestamp: bar.timestamp, value: bar.high }],
+      extendData: scoreText,
+      styles: {
+        point: { color: scoreColor, borderColor: '#ffffff', borderSize: 1, radius: 3 },
+        text: { color: scoreColor, size: 11, weight: 'bold', family: 'sans-serif', backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 2, paddingLeft: 2, paddingRight: 2, paddingTop: 0, paddingBottom: 0 }
+      }
+    })
+  })
 }
 
 // 用 simpleAnnotation overlay 标注买卖点 (主图)
@@ -112,6 +222,104 @@ const applyMarkers = () => {
   })
 }
 
+// 根据 indicatorSettings 创建/更新主图指标 (MA, EMA, BOLL)
+const createIndicators = () => {
+  if (!chart) return
+
+  maPeriods.forEach(({ period, color, settingKey }) => {
+    chart.createIndicator(
+      {
+        name: `MA${period}`,
+        calcParams: [period],
+        styles: {
+          lines: [
+            { color, size: 1.5, style: 'solid', smooth: true, dashedValue: [2, 2] }
+          ]
+        },
+        visible: !!props.indicatorSettings.ma?.[settingKey]
+      },
+      true,
+      { id: 'candle_pane' }
+    )
+  })
+
+  emaPeriods.forEach(({ period, color, settingKey }) => {
+    chart.createIndicator(
+      {
+        name: `EMA${period}`,
+        calcParams: [period],
+        styles: {
+          lines: [
+            { color, size: 1.5, style: 'solid', smooth: true, dashedValue: [2, 2] }
+          ]
+        },
+        visible: !!props.indicatorSettings.ema?.[settingKey]
+      },
+      true,
+      { id: 'candle_pane' }
+    )
+  })
+
+  // BOLL 布林带，默认参数 [20, 2]
+  chart.createIndicator(
+    {
+      name: 'BOLL',
+      calcParams: [20, 2],
+      styles: {
+        lines: [
+          { color: '#409eff', size: 1.5, style: 'solid', smooth: true, dashedValue: [2, 2] },
+          { color: '#67c23a', size: 1.5, style: 'dashed', smooth: true, dashedValue: [2, 2] },
+          { color: '#f56c6c', size: 1.5, style: 'dashed', smooth: true, dashedValue: [2, 2] }
+        ]
+      },
+      visible: props.indicatorSettings.boll
+    },
+    true,
+    { id: 'candle_pane' }
+  )
+}
+
+// 切换指标可见性 (klinecharts 推荐用 overrideIndicator 做纯可见性变更)
+const updateIndicatorVisibility = () => {
+  if (!chart) return
+  maPeriods.forEach(({ period, settingKey }) => {
+    chart.overrideIndicator({
+      paneId: 'candle_pane',
+      name: `MA${period}`,
+      visible: !!props.indicatorSettings.ma?.[settingKey]
+    })
+  })
+  emaPeriods.forEach(({ period, settingKey }) => {
+    chart.overrideIndicator({
+      paneId: 'candle_pane',
+      name: `EMA${period}`,
+      visible: !!props.indicatorSettings.ema?.[settingKey]
+    })
+  })
+  chart.overrideIndicator({
+    paneId: 'candle_pane',
+    name: 'BOLL',
+    visible: !!props.indicatorSettings.boll
+  })
+}
+
+// 当数据量大于可视根数时，调整 barSpace 并滚动到末尾，使视口只展示最后 N 根 K 线
+// 同时保留更早的数据供 MA60 等指标计算
+const fitVisibleBars = () => {
+  if (!chart || !chartRef.value || props.visibleBarCount <= 0) return
+  const dataList = chart.getDataList()
+  if (!dataList || dataList.length <= props.visibleBarCount) return
+
+  const chartWidth = chartRef.value.clientWidth
+  if (!chartWidth) return
+
+  const barSpace = chartWidth / props.visibleBarCount
+  // 限制在合理范围，避免极端值
+  const clampedBarSpace = Math.max(2, Math.min(barSpace, 50))
+  chart.setBarSpace(clampedBarSpace)
+  chart.scrollToTimestamp(dataList[dataList.length - 1].timestamp)
+}
+
 const renderChart = () => {
   if (!chart) return
   const bars = buildBars()
@@ -123,6 +331,9 @@ const renderChart = () => {
   // 覆盖物在 applyNewData 后保留, 先清再加, 避免重复
   chart.removeOverlay()
   applyMarkers()
+  applyEvalScoreMarkers()
+  // 数据量超过可视根数时，仅展示最后 N 根，保证指标有足够历史计算
+  fitVisibleBars()
 }
 
 const initChart = () => {
@@ -132,6 +343,8 @@ const initChart = () => {
     styles: {
       candle: {
         type: 'candle_solid',
+        // 顶部留 25% 空间供评分标注文本显示
+        margin: { top: 0.25, bottom: 0.05 },
         // A 股红涨绿跌 (KLineChart 默认是国际绿涨红跌, 这里翻转)
         bar: {
           upColor: '#f56c6c',
@@ -158,6 +371,20 @@ const initChart = () => {
               { title: '低', value: cur.low.toFixed(2) },
               { title: '涨跌', value: { text: `${up ? '+' : ''}${pct.toFixed(2)}%`, color: pctColor } }
             ]
+            // 在 tooltip 中显示评估分数
+            if (props.evalScores && props.evalScores.length > 0) {
+              const evalEntry = props.evalScores.find(e => {
+                const eTs = toTimestamp(e.date)
+                return eTs === cur.timestamp
+              })
+              if (evalEntry && evalEntry.score != null) {
+                legends.push({
+                  title: { text: '评估', color: '#9c27b0' },
+                  value: `评分 ${evalEntry.score.toFixed(0)}`
+                })
+              }
+            }
+
             const s = cur.signal
             if (s) {
               if (s.ma2560) {
@@ -204,19 +431,8 @@ const initChart = () => {
   })
   if (!chart) return
 
-  // MA 指标叠加在主图 (isStack=true), 周期与颜色按 props 配置
-  const lines = props.maPeriods.map((p) => ({
-    color: maColors[p] || '#5470c6',
-    size: 1.5,
-    style: 'solid',
-    smooth: true,
-    dashedValue: [2, 2]
-  }))
-  chart.createIndicator(
-    { name: 'MA', calcParams: props.maPeriods, styles: { lines } },
-    true,
-    { id: 'candle_pane' }
-  )
+  // 根据 indicatorSettings 创建指标 (MA, EMA)
+  createIndicators()
 
   // 去掉 K 线右侧多余的空白间隙
   chart.setOffsetRightDistance(0)
@@ -228,6 +444,7 @@ const initChart = () => {
 
 const resize = () => {
   chart?.resize()
+  fitVisibleBars()
 }
 
 defineExpose({ resize })
@@ -244,6 +461,28 @@ watch(
     if (chart) {
       chart.removeOverlay()
       applyMarkers()
+    }
+  },
+  { deep: true }
+)
+
+watch(
+  () => props.indicatorSettings,
+  () => {
+    if (chart) {
+      updateIndicatorVisibility()
+    }
+  },
+  { deep: true }
+)
+
+watch(
+  () => props.evalScores,
+  () => {
+    if (chart) {
+      chart.removeOverlay()
+      applyMarkers()
+      applyEvalScoreMarkers()
     }
   },
   { deep: true }

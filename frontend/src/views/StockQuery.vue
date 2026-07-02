@@ -141,9 +141,10 @@
               link
               type="primary"
               size="small"
+              :disabled="row.isWatched"
               @click.stop="openFollowDialog(row)"
             >
-              关注
+              {{ row.isWatched ? '已关注' : '关注' }}
             </el-button>
             <el-button
               link
@@ -338,6 +339,18 @@ const getCumulativeChange = (row, day) => {
   if (basePrice === null || basePrice === undefined || targetPrice === null || targetPrice === undefined) {
     return null
   }
+  // 使用前复权价格计算累计涨幅，以消除送股、配股、分红等事件对价格的影响
+  // 前复权: adj_price = close * adj_factor / latest_adj_factor
+  // 累计涨幅 = (adj_close_T+N / adj_close_T+0 - 1) * 100
+  // latest_adj_factor 在分子分母中抵消，只需 (close * adj_factor) 的比值
+  const baseAdj = row['adj_factor_T+0']
+  const targetAdj = row['adj_factor_T+' + day]
+  if (baseAdj !== null && baseAdj !== undefined && targetAdj !== null && targetAdj !== undefined && baseAdj !== 0 && targetAdj !== 0) {
+    const adjBase = basePrice * baseAdj
+    const adjTarget = targetPrice * targetAdj
+    return ((adjTarget - adjBase) / adjBase) * 100
+  }
+  // 无复权因子时回退到原始价格计算
   return ((targetPrice - basePrice) / basePrice) * 100
 }
 
@@ -469,12 +482,22 @@ const handleQuery = async () => {
     queryResult.value = (result.data || []).map(row => {
       const enriched = { ...row }
       const base = row['close_T+0']
+      const baseAdj = row['adj_factor_T+0']
       for (const day of selectedDays.value) {
         const target = row['close_T+' + day]
-        enriched['cumulative_change_T+' + day] =
-          base !== null && base !== undefined && target !== null && target !== undefined
-            ? ((target - base) / base) * 100
-            : null
+        const targetAdj = row['adj_factor_T+' + day]
+        if (base !== null && base !== undefined && target !== null && target !== undefined) {
+          // 使用前复权价格计算累计涨幅
+          if (baseAdj !== null && baseAdj !== undefined && targetAdj !== null && targetAdj !== undefined && baseAdj !== 0 && targetAdj !== 0) {
+            const adjBase = base * baseAdj
+            const adjTarget = target * targetAdj
+            enriched['cumulative_change_T+' + day] = ((adjTarget - adjBase) / adjBase) * 100
+          } else {
+            enriched['cumulative_change_T+' + day] = ((target - base) / base) * 100
+          }
+        } else {
+          enriched['cumulative_change_T+' + day] = null
+        }
       }
       return enriched
     })
@@ -484,12 +507,30 @@ const handleQuery = async () => {
       ElMessage.info('未查询到数据')
     } else {
       saveQueryHistory(codes, queryDate.value)
+      await checkWatchStatus(queryResult.value)
     }
   } catch (error) {
     console.error('Query failed:', error)
     ElMessage.error('查询失败: ' + (error.response?.data?.detail || error.message))
   } finally {
     loading.value = false
+  }
+}
+
+const checkWatchStatus = async (stockList) => {
+  if (!stockList || stockList.length === 0) return
+  const tsCodes = stockList.map(s => s.ts_code).filter(Boolean)
+  if (tsCodes.length === 0) return
+  try {
+    const response = await watchlistApi.checkStocks(tsCodes)
+    if (response.success && response.data && response.data.watched_codes) {
+      const watchedSet = new Set(response.data.watched_codes)
+      stockList.forEach(stock => {
+        stock.isWatched = watchedSet.has(stock.ts_code)
+      })
+    }
+  } catch (error) {
+    console.error('Failed to check watch status:', error)
   }
 }
 
@@ -585,33 +626,35 @@ const confirmFollow = async () => {
   }
 }
 
-const handleDelete = async (row) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定要删除 ${row.name} (${row.ts_code}) 吗？`,
-      '确认删除',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
+const handleDelete = (row) => {
+  ElMessageBox.confirm(
+    `确定要删除 ${row.name} (${row.ts_code}) 吗？`,
+    '确认删除',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+      customClass: 'delete-confirm-box',
+      center: true,
+    }
+  )
+    .then(() => {
+      queryResult.value = queryResult.value.filter(
+        (item) => item.ts_code !== row.ts_code
+      )
+
+      if (selectedRow.value?.ts_code === row.ts_code) {
+        selectedRow.value = null
       }
-    )
 
-    queryResult.value = queryResult.value.filter(
-      (item) => item.ts_code !== row.ts_code
-    )
-
-    if (selectedRow.value?.ts_code === row.ts_code) {
-      selectedRow.value = null
-    }
-
-    ElMessage.success('已删除')
-  } catch (error) {
-    if (error !== 'cancel') {
-      console.error('Delete failed:', error)
-      ElMessage.error('删除失败')
-    }
-  }
+      ElMessage.success('已删除')
+    })
+    .catch((error) => {
+      if (error !== 'cancel') {
+        console.error('Delete failed:', error)
+        ElMessage.error('删除失败')
+      }
+    })
 }
 </script>
 
@@ -751,5 +794,14 @@ const handleDelete = async (row) => {
   color: #909399;
   font-size: 12px;
   margin-left: 4px;
+}
+
+:deep(.delete-confirm-box) {
+  position: fixed;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  margin: 0 !important;
+  background-color: #ffffff;
 }
 </style>

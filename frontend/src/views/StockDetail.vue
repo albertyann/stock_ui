@@ -76,6 +76,20 @@
                       <span class="legend-dot legend-rect"></span>双命中
                     </span>
                   </span>
+                  <div class="kline-indicator-toggles">
+                    <el-button size="small" link @click="openKlineIndicatorDialog">
+                      <el-icon><Setting /></el-icon>指标
+                    </el-button>
+                    <el-button
+                      size="small"
+                      type="success"
+                      link
+                      :loading="evalLoading"
+                      @click="openEvalDialog"
+                    >
+                      股票评估
+                    </el-button>
+                  </div>
                   <el-radio-group v-model="adjType" size="small" class="adj-type-selector">
                     <el-radio-button value="forward">前复权</el-radio-button>
                     <el-radio-button value="backward">后复权</el-radio-button>
@@ -91,6 +105,9 @@
               :tsCode="props.tsCode"
               :klineData="adjustedKlineData"
               :buySignals="buySignalsData"
+              :indicatorSettings="klineIndicatorSettings"
+              :visibleBarCount="KLINE_DISPLAY_DAYS"
+              :evalScores="evalScores"
               height="360px"
             />
           </el-card>
@@ -109,23 +126,23 @@
             </template>
             <StockRsiChart
               ref="rsiChartRef"
-              :klineData="adjustedKlineData"
+              :klineData="indicatorKlineData"
             />
             <StockVolumeChart
               ref="volumeChartRef"
-              :klineData="adjustedKlineData"
+              :klineData="indicatorKlineData"
             />
             <StockTurnoverChart
               ref="turnoverChartRef"
-              :klineData="adjustedKlineData"
+              :klineData="indicatorKlineData"
             />
             <StockMacdChart
               ref="macdChartRef"
-              :klineData="adjustedKlineData"
+              :klineData="indicatorKlineData"
             />
             <StockAdxChart
               ref="adxChartRef"
-              :klineData="adjustedKlineData"
+              :klineData="indicatorKlineData"
             />
             
           </el-card>
@@ -805,7 +822,7 @@
               :disabled="deleteStockLoading || !watchlistStockInfo"
               @click="handleDeleteStock"
             >
-              删除股票
+              取消关注
             </el-button>
           </div>
         </el-form-item>
@@ -815,6 +832,113 @@
         <el-button @click="showSettingsDialog = false">关闭</el-button>
       </template>
     </el-dialog>
+    <!-- 日K主图指标设置弹窗 -->
+    <el-dialog v-model="showKlineIndicatorDialog" title="指标设置" width="420px">
+      <el-form label-width="50px">
+        <div class="indicator-group">
+          <div class="indicator-group__header">
+            <span class="indicator-group__title">MA</span>
+            <el-button size="small" link @click="toggleMaGroup">
+              {{ isAllMaSelected ? '取消全选' : '全选' }}
+            </el-button>
+          </div>
+          <div class="indicator-group__items">
+            <div
+              v-for="item in maIndicatorOptions"
+              :key="item.key"
+              class="indicator-item"
+            >
+              <span
+                class="indicator-color-dot"
+                :style="{ backgroundColor: item.color }"
+              ></span>
+              <el-checkbox v-model="klineIndicatorSettingsDraft.ma[item.key]" size="small">
+                {{ item.label }}
+              </el-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <div class="indicator-group">
+          <div class="indicator-group__header">
+            <span class="indicator-group__title">EMA</span>
+            <el-button size="small" link @click="toggleEmaGroup">
+              {{ isAllEmaSelected ? '取消全选' : '全选' }}
+            </el-button>
+          </div>
+          <div class="indicator-group__items">
+            <div
+              v-for="item in emaIndicatorOptions"
+              :key="item.key"
+              class="indicator-item"
+            >
+              <span
+                class="indicator-color-dot"
+                :style="{ backgroundColor: item.color }"
+              ></span>
+              <el-checkbox v-model="klineIndicatorSettingsDraft.ema[item.key]" size="small">
+                {{ item.label }}
+              </el-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <div class="indicator-group">
+          <div class="indicator-group__header">
+            <span class="indicator-group__title">BOLL</span>
+          </div>
+          <div class="indicator-group__items">
+            <div class="indicator-item">
+              <span class="indicator-color-dot" style="background-color: #409eff"></span>
+              <span class="indicator-color-dot" style="background-color: #67c23a"></span>
+              <span class="indicator-color-dot" style="background-color: #f56c6c"></span>
+              <el-checkbox v-model="klineIndicatorSettingsDraft.boll" size="small">布林带</el-checkbox>
+            </div>
+          </div>
+        </div>
+      </el-form>
+
+      <template #footer>
+        <el-button size="small" @click="resetKlineIndicatorSettings">重置默认</el-button>
+        <el-button size="small" @click="cancelKlineIndicatorDialog">取消</el-button>
+        <el-button size="small" type="primary" @click="confirmKlineIndicatorDialog">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 股票评估弹窗 -->
+    <el-dialog v-model="showEvalDialog" title="股票评估（RSI强势评分）" width="420px">
+      <el-form label-width="80px">
+        <el-form-item label="股票">
+          <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
+        </el-form-item>
+        <el-form-item label="评估日期">
+          <el-date-picker
+            v-model="evalDate"
+            type="date"
+            placeholder="选择评估日期"
+            value-format="YYYY-MM-DD"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="说明">
+          <el-text type="info" size="small">
+            将使用 RSI强势策略引擎，计算评估日期往前 5 个交易日的评分。
+          </el-text>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showEvalDialog = false" :disabled="evalLoading">取消</el-button>
+        <el-button
+          type="success"
+          :loading="evalLoading"
+          :disabled="evalLoading"
+          @click="handleEvaluate"
+        >
+          开始评估
+        </el-button>
+      </template>
+    </el-dialog>
+
     <StockChatAssistant
       :tsCode="props.tsCode"
       :stock="stock"
@@ -924,6 +1048,34 @@ const syncKlineLoading = ref(false)
 const syncKlineResult = ref(null)
 const deleteStockLoading = ref(false)
 
+// 股票评估
+const showEvalDialog = ref(false)
+const evalDate = ref(loadSavedEvalDate())
+const evalLoading = ref(false)
+const evalScores = ref([])
+
+// 从 localStorage 读取上次选中的评估日期
+function loadSavedEvalDate() {
+  try {
+    const saved = localStorage.getItem('stockDetailEvalDate')
+    if (saved) return saved
+  } catch (error) {
+    console.warn('Failed to load saved eval date:', error)
+  }
+  return new Date().toISOString().slice(0, 10)
+}
+
+// 评估日期变化时写入 localStorage
+watch(evalDate, (newVal) => {
+  if (newVal) {
+    try {
+      localStorage.setItem('stockDetailEvalDate', newVal)
+    } catch (error) {
+      console.warn('Failed to save eval date:', error)
+    }
+  }
+})
+
 const router = useRouter()
 
 // 板块类型计算属性
@@ -952,6 +1104,101 @@ const boardType = computed(() => {
 
 // 复权方式: forward=前复权, backward=后复权, none=不复权
 const adjType = ref('forward')
+
+// K 线图主图指标可见性
+const defaultKlineIndicatorSettings = {
+  ma: { ma5: true, ma10: false, ma20: true, ma30: false, ma60: true, ma120: false },
+  ema: { ema9: true, ema21: true },
+  boll: false
+}
+
+const cloneIndicatorSettings = (settings) => JSON.parse(JSON.stringify(settings))
+
+const loadSavedKlineIndicatorSettings = () => {
+  try {
+    const saved = localStorage.getItem('stockDetailKlineIndicators')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return {
+        ma: { ...defaultKlineIndicatorSettings.ma, ...(parsed.ma || {}) },
+        ema: { ...defaultKlineIndicatorSettings.ema, ...(parsed.ema || {}) },
+        boll: parsed.boll ?? defaultKlineIndicatorSettings.boll
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load kline indicator settings:', error)
+  }
+  return cloneIndicatorSettings(defaultKlineIndicatorSettings)
+}
+
+const klineIndicatorSettings = ref(loadSavedKlineIndicatorSettings())
+
+// 日K主图指标设置弹窗
+const showKlineIndicatorDialog = ref(false)
+const klineIndicatorSettingsDraft = ref(cloneIndicatorSettings(klineIndicatorSettings.value))
+
+const maIndicatorOptions = [
+  { key: 'ma5', label: 'MA5', color: '#ee6666' },
+  { key: 'ma10', label: 'MA10', color: '#fac858' },
+  { key: 'ma20', label: 'MA20', color: '#3ba272' },
+  { key: 'ma30', label: 'MA30', color: '#5470c6' },
+  { key: 'ma60', label: 'MA60', color: '#ea7ccc' },
+  { key: 'ma120', label: 'MA120', color: '#91cc75' }
+]
+
+const emaIndicatorOptions = [
+  { key: 'ema9', label: 'EMA9', color: '#00d4aa' },
+  { key: 'ema21', label: 'EMA21', color: '#9a60b4' }
+]
+
+const isAllMaSelected = computed(() =>
+  maIndicatorOptions.every((item) => klineIndicatorSettingsDraft.value.ma[item.key])
+)
+
+const isAllEmaSelected = computed(() =>
+  emaIndicatorOptions.every((item) => klineIndicatorSettingsDraft.value.ema[item.key])
+)
+
+const saveKlineIndicatorSettings = () => {
+  try {
+    localStorage.setItem('stockDetailKlineIndicators', JSON.stringify(klineIndicatorSettings.value))
+  } catch (error) {
+    console.warn('Failed to save kline indicator settings:', error)
+  }
+}
+
+const openKlineIndicatorDialog = () => {
+  klineIndicatorSettingsDraft.value = cloneIndicatorSettings(klineIndicatorSettings.value)
+  showKlineIndicatorDialog.value = true
+}
+
+const confirmKlineIndicatorDialog = () => {
+  klineIndicatorSettings.value = cloneIndicatorSettings(klineIndicatorSettingsDraft.value)
+  saveKlineIndicatorSettings()
+  showKlineIndicatorDialog.value = false
+}
+
+const cancelKlineIndicatorDialog = () => {
+  showKlineIndicatorDialog.value = false
+}
+
+const resetKlineIndicatorSettings = () => {
+  klineIndicatorSettingsDraft.value = cloneIndicatorSettings(defaultKlineIndicatorSettings)
+}
+
+const toggleMaGroup = () => {
+  const next = !isAllMaSelected.value
+  maIndicatorOptions.forEach((item) => {
+    klineIndicatorSettingsDraft.value.ma[item.key] = next
+  })
+}
+
+const toggleEmaGroup = () => {
+  const next = !isAllEmaSelected.value
+  emaIndicatorOptions.forEach((item) => {
+    klineIndicatorSettingsDraft.value.ema[item.key] = next
+  })
+}
 
 // 复权计算：对K线数据中的价格字段做前复权/后复权/不复权处理
 // 前复权: price * adj_factor / latest_adj_factor (以最新价格为基准)
@@ -1005,8 +1252,20 @@ const applyAdjustment = (rawData) => {
   return rawData
 }
 
+// 日K主图请求与显示的交易日数：请求更多用于指标计算，视口只显示最近 N 天
+const KLINE_DISPLAY_DAYS = 90
+const INDICATOR_DISPLAY_DAYS = 120
+const KLINE_LOAD_DAYS = 180
+
 // 调整后的日K线数据（用于所有日线图表组件）
 const adjustedKlineData = computed(() => applyAdjustment(klineData.value))
+
+// 下方指标卡片统一显示最近 120 天
+const indicatorKlineData = computed(() => {
+  const data = adjustedKlineData.value
+  if (!data || data.length <= INDICATOR_DISPLAY_DAYS) return data
+  return data.slice(-INDICATOR_DISPLAY_DAYS)
+})
 
 // 调整后的周K线数据
 const adjustedWeeklyKlineData = computed(() => applyAdjustment(weeklyKlineData.value))
@@ -1128,6 +1387,7 @@ const loadStockDetail = async () => {
     await loadAudit()
     await loadFinaIndicator()
     await loadSurveys()
+    await loadEvalScores()
   } catch (error) {
     console.error('Failed to load stock detail:', error)
     ElMessage.error('加载失败')
@@ -1310,7 +1570,8 @@ watch(showLargeOnly, () => {
 
 const loadKline = async () => {
   try {
-    const dailyResponse = await stockApi.getKline(props.tsCode, 'daily', 120)
+    // 日线请求 180 天：保证 MA60 等指标在可见范围内能正确计算
+    const dailyResponse = await stockApi.getKline(props.tsCode, 'daily', KLINE_LOAD_DAYS)
     klineData.value = dailyResponse.data.data || []
   } catch (error) {
     console.error('Failed to load daily kline:', error)
@@ -1830,6 +2091,53 @@ const handleDeleteStock = async () => {
   }
 }
 
+// 打开股票评估弹窗
+const openEvalDialog = () => {
+  // 保留上次选中的日期（已从 localStorage 加载），如果没有则用今天
+  if (!evalDate.value) {
+    evalDate.value = new Date().toISOString().slice(0, 10)
+  }
+  showEvalDialog.value = true
+}
+
+// 执行股票评估
+const handleEvaluate = async () => {
+  if (!stock.value?.ts_code) return
+  evalLoading.value = true
+  try {
+    const response = await stockApi.evaluateStock(stock.value.ts_code, evalDate.value)
+    if (response.success) {
+      showEvalDialog.value = false
+      ElMessage.success('评估完成')
+      // 从缓存刷新评估分数
+      await loadEvalScores()
+    } else {
+      ElMessage.error(response.error || '评估失败')
+    }
+  } catch (error) {
+    console.error('Failed to evaluate stock:', error)
+    ElMessage.error('评估请求失败')
+  } finally {
+    evalLoading.value = false
+  }
+}
+
+// 加载缓存的评估分数（页面加载时调用）
+const loadEvalScores = async () => {
+  if (!stock.value?.ts_code) return
+  try {
+    const response = await stockApi.getEvalScores(stock.value.ts_code)
+    if (response.success && response.data?.scores) {
+      evalScores.value = response.data.scores
+    } else {
+      evalScores.value = []
+    }
+  } catch (error) {
+    // 无缓存数据时静默失败
+    evalScores.value = []
+  }
+}
+
 // 打开编辑信息弹窗
 const openEditInfoDialog = (info) => {
   infoDialogMode.value = 'edit'
@@ -2263,6 +2571,17 @@ const deleteStockInfo = async (infoId) => {
   gap: 16px;
 }
 
+.kline-indicator-toggles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.kline-indicator-toggles :deep(.el-checkbox__label) {
+  font-size: 12px;
+}
+
 .signal-legend {
   display: flex;
   align-items: center;
@@ -2676,5 +2995,50 @@ const deleteStockInfo = async (infoId) => {
 
 .fina-table .muted {
   color: #909399;
+}
+
+/* 日K主图指标设置 */
+.indicator-group {
+  margin-bottom: 16px;
+}
+
+.indicator-group__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-left: 12px;
+}
+
+.indicator-group__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+}
+
+.indicator-group__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-left: 12px;
+}
+
+.indicator-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.indicator-color-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.indicator-group :deep(.el-checkbox__label),
+.indicator-item :deep(.el-checkbox__label) {
+  font-size: 12px;
 }
 </style>

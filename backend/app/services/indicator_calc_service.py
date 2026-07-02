@@ -1,13 +1,13 @@
 """Indicator Calculation Service.
 
-Batch-computes three buy-point indicators (rsi12-continuous, ma10-proximity,
-ma2560-proximity) for ALL watchlist stocks in one go and caches the result in
-Redis so that page reads are O(1) instead of triggering per-stock subprocess
-calls.
+Batch-computes four buy-point indicators (rsi12-continuous, ma10-proximity,
+ma2560-proximity, ma30-proximity) for ALL watchlist stocks in one go and caches
+the result in Redis so that page reads are O(1) instead of triggering per-stock
+subprocess calls.
 
 Flow:
     1. Resolve latest trade date.
-    2. Fan out 3 stock-cli subprocess calls (concurrency=4, but only 3 jobs),
+    2. Fan out 4 stock-cli subprocess calls (concurrency=4),
        each in `--save` mode so they write passed signals into m_signals.
     3. Read m_signals for the latest date and build per-stock indicator map.
     4. Write the per-stock map + summary into Redis.
@@ -55,6 +55,11 @@ INDICATORS: Dict[str, Dict[str, Any]] = {
         "signal_type": "MA25_PROXIMITY",  # screener writes MA25_PROXIMITY, not MA2560_*
         "needs_watchlist_flag": True,
     },
+    "ma30": {
+        "cli_name": "ma30-proximity",
+        "signal_type": "MA30_PROXIMITY",
+        "needs_watchlist_flag": True,
+    },
 }
 
 REDIS_KEY_RESULT_PREFIX = "indicator:calc:result"
@@ -69,14 +74,19 @@ class IndicatorCalcService:
         sync_url = self.settings.database_url.replace("+asyncpg", "")
         self.engine = create_engine(sync_url)
 
-    def compute_all(self) -> Dict[str, Any]:
+    def compute_all(self, end_date: Optional[date] = None) -> Dict[str, Any]:
         """Run all three indicators against the full watchlist and cache results.
+
+        Args:
+            end_date: Target calculation date. If None, the latest trading day
+                up to today is used.
 
         Returns a summary dict; never raises — failures land in `errors`.
         """
         started_at = datetime.now()
 
-        end_date = self._get_latest_trade_date()
+        if end_date is None:
+            end_date = self._get_latest_trade_date()
         if not end_date:
             return {"success": False, "error": "no trade date available"}
 

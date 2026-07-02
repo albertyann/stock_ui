@@ -88,7 +88,7 @@
         stripe
       >
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column prop="amount_rank" label="成交额排名" width="110" sortable align="center">
+        <el-table-column prop="amount_rank" label="排名" width="110" sortable align="center">
           <template #default="{ row }">
             <el-tag :type="row.amount_rank <= 3 ? 'danger' : row.amount_rank <= 10 ? 'warning' : 'info'" effect="dark">
               {{ row.amount_rank }}

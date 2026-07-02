@@ -2,15 +2,26 @@
   <div class="page-container">
     <div class="page-header">
       <h2>指标计算</h2>
-      <el-button
-        type="primary"
-        :loading="computing"
-        :disabled="computing"
-        @click="handleCompute"
-      >
-        <el-icon v-if="!computing"><Refresh /></el-icon>
-        {{ computing ? '计算中...' : '刷新计算' }}
-      </el-button>
+      <div class="header-actions">
+        <el-date-picker
+          v-model="selectedDate"
+          type="date"
+          placeholder="选择计算日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :disabled="computing"
+          style="margin-right: 12px"
+        />
+        <el-button
+          type="primary"
+          :loading="computing"
+          :disabled="computing || !selectedDate"
+          @click="handleCompute"
+        >
+          <el-icon v-if="!computing"><Refresh /></el-icon>
+          {{ computing ? '计算中...' : '刷新计算' }}
+        </el-button>
+      </div>
     </div>
 
     <el-alert
@@ -20,7 +31,7 @@
       show-icon
       style="margin-bottom: 16px"
     >
-      正在批量计算 watchlist 全部股票的 RSI12 / MA10 / MA25 三项指标，预计 1-3 分钟，请勿关闭页面...
+      正在批量计算 watchlist 全部股票的 RSI12 / MA10 / MA25 / MA30 四项指标，预计 1-3 分钟，请勿关闭页面...
     </el-alert>
 
     <el-alert
@@ -65,6 +76,10 @@
           <div class="summary-value hit">{{ summary.passed_counts?.ma2560 ?? 0 }} 只</div>
         </div>
         <div class="summary-item">
+          <div class="summary-label">MA30 命中</div>
+          <div class="summary-value hit">{{ summary.passed_counts?.ma30 ?? 0 }} 只</div>
+        </div>
+        <div class="summary-item">
           <div class="summary-label">计算时间</div>
           <div class="summary-value small">{{ formatTime(summary.computed_at) }}</div>
         </div>
@@ -80,6 +95,7 @@
         :default-sort="{ prop: 'hitCount', order: 'descending' }"
         :row-class-name="rowClassName"
         @sort-change="handleSortChange"
+        @row-click="handleRowClick"
       >
         <el-table-column prop="ts_code" label="代码" width="120">
           <template #default="{ row }">
@@ -121,7 +137,7 @@
             <span v-else class="muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="RSI12强势" width="130" align="center">
+        <el-table-column label="RSI12强势" width="130" align="center" sortable :sort-method="sortByRsi12">
           <template #default="{ row }">
             <el-tag v-if="row.rsi12" type="success" size="small">
               {{ row.rsi12.score.toFixed(0) }} 分
@@ -141,6 +157,14 @@
           <template #default="{ row }">
             <el-tag v-if="row.ma2560" type="primary" size="small">
               {{ row.ma2560.score.toFixed(0) }} 分
+            </el-tag>
+            <span v-else class="muted">—</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="MA30回踩" width="130" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.ma30" type="success" size="small">
+              {{ row.ma30.score.toFixed(0) }} 分
             </el-tag>
             <span v-else class="muted">—</span>
           </template>
@@ -174,7 +198,7 @@
 import { computed, defineCustomElement, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { indicatorCalcApi, watchlistApi } from '@/api'
+import { indicatorCalcApi, watchlistApi, basicDataApi } from '@/api'
 
 const router = useRouter()
 
@@ -184,6 +208,10 @@ const summary = ref(null)
 const stocksMap = ref({})
 const nameMap = ref({})
 const priceMap = ref({})
+const selectedDate = ref('')
+
+// 行选中相关
+const selectedRowCode = ref(null)
 
 const getBoardType = (tsCode) => {
   if (!tsCode) return { emoji: '', label: '', type: 'info' }
@@ -224,7 +252,7 @@ const filterBoard = (value, row) => {
 const tableRows = computed(() => {
   const rows = Object.values(stocksMap.value)
   return rows.map((r) => {
-    const hitCount = [r.rsi12, r.ma10, r.ma2560].filter(Boolean).length
+    const hitCount = [r.rsi12, r.ma10, r.ma2560, r.ma30].filter(Boolean).length
     const priceInfo = priceMap.value[r.ts_code]
     return {
       ...r,
@@ -232,7 +260,7 @@ const tableRows = computed(() => {
       hitCount,
       boardType: getBoardType(r.ts_code),
       close_price: priceInfo?.close_price ?? null,
-      change_pct: priceInfo?.change_pct ?? r.pct_chg ?? null,
+      change_pct: priceInfo?.change_pct ?? null,
     }
   })
 })
@@ -274,6 +302,15 @@ const fetchNameMap = async () => {
   }
 }
 
+const fetchLastTradeDate = async () => {
+  try {
+    const resp = await basicDataApi.getLastTradeDate()
+    selectedDate.value = resp?.data || ''
+  } catch (e) {
+    console.error('Failed to load last trade date:', e)
+  }
+}
+
 const fetchLast = async () => {
   try {
     const resp = await indicatorCalcApi.getLast()
@@ -301,13 +338,17 @@ const fetchAll = async () => {
 }
 
 const handleCompute = async () => {
+  if (!selectedDate.value) {
+    ElMessage.warning('请选择计算日期')
+    return
+  }
   computing.value = true
   try {
-    const resp = await indicatorCalcApi.compute()
+    const resp = await indicatorCalcApi.compute(selectedDate.value)
     if (resp?.success) {
       summary.value = resp?.data || summary.value
       ElMessage.success('指标批量计算完成')
-      await fetchAll()
+      await Promise.all([fetchAll(), fetchPriceMap()])
     } else {
       ElMessage.error(resp?.error || '计算失败')
     }
@@ -325,9 +366,15 @@ const goDetail = (tsCode) => {
 }
 
 const rowClassName = ({ row }) => {
-  if (row.hitCount >= 3) return 'row-hit-strong'
-  if (row.hitCount === 2) return 'row-hit-medium'
-  return ''
+  const classes = []
+  if (row.hitCount >= 3) classes.push('row-hit-strong')
+  else if (row.hitCount === 2) classes.push('row-hit-medium')
+  if (row.ts_code === selectedRowCode.value) classes.push('selected-row')
+  return classes.join(' ')
+}
+
+const handleRowClick = (row) => {
+  selectedRowCode.value = row.ts_code
 }
 
 const getChangeClass = (changePct) => {
@@ -337,6 +384,12 @@ const getChangeClass = (changePct) => {
 }
 
 const handleSortChange = () => {}
+
+const sortByRsi12 = (a, b) => {
+  const av = a.rsi12?.score ?? Number.NEGATIVE_INFINITY
+  const bv = b.rsi12?.score ?? Number.NEGATIVE_INFINITY
+  return av - bv
+}
 
 const sortByChangePct = (a, b) => {
   const av = a.change_pct ?? Number.NEGATIVE_INFINITY
@@ -363,7 +416,7 @@ const formatDuration = (sec) => {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchLast(), fetchNameMap(), fetchPriceMap()])
+  await Promise.all([fetchLast(), fetchNameMap(), fetchPriceMap(), fetchLastTradeDate()])
   if (summary.value) {
     await fetchAll()
   }
@@ -386,6 +439,11 @@ onMounted(async () => {
   margin: 0;
   font-size: 20px;
   color: #303133;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
 }
 
 .summary-card {
@@ -458,12 +516,41 @@ onMounted(async () => {
   color: #f56c6c;
 }
 
+.hit-4 {
+  background: #f0f9eb;
+  color: #b3e19d;
+}
+
 :deep(.row-hit-strong) {
   background-color: #fef9f0 !important;
 }
 
 :deep(.row-hit-medium) {
   background-color: #fdfbf7 !important;
+}
+
+:deep(.el-table .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+:deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
+}
+
+:deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
+  background-color: #d9ecff !important;
 }
 
 .change-text {
