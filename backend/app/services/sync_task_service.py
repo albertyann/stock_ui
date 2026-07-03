@@ -242,14 +242,23 @@ class SyncTaskService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    @staticmethod
+    def _ensure_tz(dt: Optional[datetime]) -> Optional[datetime]:
+        """Ensure datetime is timezone-aware; assume UTC if naive (old data)."""
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc)
+        return dt
+
     def _log_to_dict(self, log: SyncTaskLog) -> Dict:
         return {
             "id": log.id,
             "task_name": log.task_name,
             "task_type": log.task_type,
             "status": log.status,
-            "started_at": log.started_at.isoformat() if log.started_at else None,
-            "completed_at": log.completed_at.isoformat() if log.completed_at else None,
+            "started_at": self._ensure_tz(log.started_at).isoformat() if log.started_at else None,
+            "completed_at": self._ensure_tz(log.completed_at).isoformat() if log.completed_at else None,
             "duration_seconds": float(log.duration_seconds) if log.duration_seconds else None,
             "records_processed": log.records_processed or 0,
             "records_inserted": log.records_inserted or 0,
@@ -259,7 +268,7 @@ class SyncTaskService:
             "retry_count": log.retry_count or 0,
             "trigger_type": log.trigger_type,
             "triggered_by": log.triggered_by,
-            "created_at": log.created_at.isoformat() if log.created_at else None,
+            "created_at": self._ensure_tz(log.created_at).isoformat() if log.created_at else None,
         }
 
     def _task_to_dict(self, task: SyncTask) -> Dict:

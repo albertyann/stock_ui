@@ -40,7 +40,9 @@ const props = defineProps({
   /** 可视区固定显示的 K 线根数；0 表示全部显示 */
   visibleBarCount: { type: Number, default: 0 },
   /** 评估分数: [{ date: 'YYYY-MM-DD', score: number, ... }] */
-  evalScores: { type: Array, default: () => [] }
+  evalScores: { type: Array, default: () => [] },
+  /** 是否在主图下方显示成交量副图 */
+  showVolume: { type: Boolean, default: false }
 })
 
 const chartRef = ref(null)
@@ -143,6 +145,7 @@ const buildBars = () => {
     high: item.high,
     low: item.low,
     close: item.close,
+    volume: item.volume ?? 0,
     // 额外字段 (KLineData 允许任意 key), tooltip 回调里取用
     change_pct: item.change_pct,
     signal: signalMap[item.date] || null
@@ -433,6 +436,25 @@ const initChart = () => {
 
   // 根据 indicatorSettings 创建指标 (MA, EMA)
   createIndicators()
+
+  // 创建成交量副图
+  if (props.showVolume) {
+    chart.createIndicator(
+      {
+        name: 'VOL',
+        calcParams: [5],
+        styles: {
+          bars: [{
+            upColor: '#f56c6c',
+            downColor: '#67c23a',
+            noChangeColor: '#888888'
+          }]
+        }
+      },
+      false,
+      { height: 80 }
+    )
+  }
 
   // 去掉 K 线右侧多余的空白间隙
   chart.setOffsetRightDistance(0)

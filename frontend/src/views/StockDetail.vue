@@ -108,6 +108,7 @@
               :indicatorSettings="klineIndicatorSettings"
               :visibleBarCount="KLINE_DISPLAY_DAYS"
               :evalScores="evalScores"
+              :showVolume="true"
               height="360px"
             />
           </el-card>
@@ -117,19 +118,10 @@
             <template #header>
               <div class="card-header">
                 <span>指标</span>
-                <span class="volume-legend">
-                  <span class="legend-item"><span class="dot" style="background-color:#f56c6c;"></span>阳线</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#67c23a;"></span>阴线</span>
-                  <span class="legend-item"><span class="dot" style="background-color:#e6a23c;"></span>MA5量</span>
-                </span>
               </div>
             </template>
             <StockRsiChart
               ref="rsiChartRef"
-              :klineData="indicatorKlineData"
-            />
-            <StockVolumeChart
-              ref="volumeChartRef"
               :klineData="indicatorKlineData"
             />
             <StockTurnoverChart
@@ -269,6 +261,7 @@
               :klineData="adjustedWeeklyKlineData"
               height="360px"
               :maPeriods="[5, 10]"
+              :showVolume="true"
             />
           </el-card>
 
@@ -957,10 +950,8 @@ import { EditPen, Plus, Edit, Delete, Setting } from '@element-plus/icons-vue'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import StockKlineChartKLC from '@/components/StockKlineChartKLC.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
-import StockVolumeChart from '@/components/StockVolumeChart.vue'
-import StockMacdChart from '@/components/StockMacdChart.vue'
-import StockRsiChart from '@/components/StockRsiChart.vue'
 import StockTurnoverChart from '@/components/StockTurnoverChart.vue'
+import StockRsiChart from '@/components/StockRsiChart.vue'
 import StockChipChart from '@/components/StockChipChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 import StockChatAssistant from '@/components/StockChatAssistant.vue'
@@ -975,7 +966,6 @@ const latestSignal = ref(null)
 const klineChartRef = ref(null)
 const weeklyKlineChartRef = ref(null)
 const adxChartRef = ref(null)
-const volumeChartRef = ref(null)
 const macdChartRef = ref(null)
 const rsiChartRef = ref(null)
 const turnoverChartRef = ref(null)
@@ -1354,7 +1344,6 @@ const handleResize = () => {
   klineChartRef.value?.resize()
   weeklyKlineChartRef.value?.resize()
   adxChartRef.value?.resize()
-  volumeChartRef.value?.resize()
   macdChartRef.value?.resize()
   rsiChartRef.value?.resize()
   turnoverChartRef.value?.resize()

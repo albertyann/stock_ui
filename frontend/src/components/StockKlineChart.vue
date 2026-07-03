@@ -40,6 +40,11 @@ const props = defineProps({
   buySignals: {
     type: Array,
     default: () => []
+  },
+  // 是否在主图下方显示成交量副图
+  showVolume: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -70,6 +75,15 @@ const renderChart = () => {
   const data = props.klineData
   const dates = data.map(item => item.date)
   const values = data.map(item => [item.open, item.close, item.low, item.high])
+  const hasVolume = props.showVolume && data.some(item => item.volume != null)
+  const volumeData = hasVolume
+    ? data.map(item => ({
+        value: item.volume,
+        itemStyle: {
+          color: item.close >= item.open ? '#f56c6c' : '#67c23a'
+        }
+      }))
+    : []
 
   // 根据 maPeriods 动态计算移动平均线
   const maMap = {}
@@ -101,6 +115,15 @@ const renderChart = () => {
       <div>低: ${item.low.toFixed(2)}</div>
       <div>涨跌: ${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</div>
     `
+
+    if (hasVolume && item.volume != null) {
+      const volStr = item.volume >= 100000000
+        ? (item.volume / 100000000).toFixed(2) + '亿'
+        : item.volume >= 10000
+          ? (item.volume / 10000).toFixed(2) + '万'
+          : item.volume.toString()
+      html += `<div>成交量: ${volStr}</div>`
+    }
     
     params.forEach(param => {
       if (param.seriesName && param.seriesName.startsWith('MA') && param.value) {
@@ -123,45 +146,120 @@ const renderChart = () => {
   }
 
   // 构建grid配置
-  const grids = [
-    {
-      left: '8%',
-      right: '5%',
-      top: '8%',
-      bottom: '18%'
-    }
-  ]
-
-  const xAxes = [
-    {
-      type: 'category',
-      data: dates,
-      scale: true,
-      boundaryGap: false,
-      axisLine: { onZero: false, lineStyle: { color: '#777' } },
-      splitLine: { show: false },
-      axisLabel: {
-        formatter: function (value) {
-          return value.substring(5)
+  const grids = hasVolume
+    ? [
+        {
+          left: '8%',
+          right: '5%',
+          top: '8%',
+          bottom: '30%'
+        },
+        {
+          left: '8%',
+          right: '5%',
+          top: '73%',
+          bottom: '12%',
+          height: '15%'
         }
-      },
-      min: 'dataMin',
-      max: 'dataMax',
-      axisPointer: { z: 100 }
-    }
-  ]
-
-  const yAxes = [
-    {
-      scale: true,
-      splitArea: {
-        show: true,
-        areaStyle: {
-          color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
+      ]
+    : [
+        {
+          left: '8%',
+          right: '5%',
+          top: '8%',
+          bottom: '18%'
         }
-      }
-    }
-  ]
+      ]
+
+  const xAxes = hasVolume
+    ? [
+        {
+          type: 'category',
+          data: dates,
+          scale: true,
+          boundaryGap: false,
+          axisLine: { onZero: false, lineStyle: { color: '#777' } },
+          splitLine: { show: false },
+          axisLabel: {
+            formatter: function (value) {
+              return value.substring(5)
+            }
+          },
+          min: 'dataMin',
+          max: 'dataMax',
+          axisPointer: { z: 100 }
+        },
+        {
+          type: 'category',
+          gridIndex: 1,
+          data: dates,
+          scale: true,
+          boundaryGap: false,
+          axisLine: { onZero: false, lineStyle: { color: '#777' } },
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          min: 'dataMin',
+          max: 'dataMax'
+        }
+      ]
+    : [
+        {
+          type: 'category',
+          data: dates,
+          scale: true,
+          boundaryGap: false,
+          axisLine: { onZero: false, lineStyle: { color: '#777' } },
+          splitLine: { show: false },
+          axisLabel: {
+            formatter: function (value) {
+              return value.substring(5)
+            }
+          },
+          min: 'dataMin',
+          max: 'dataMax',
+          axisPointer: { z: 100 }
+        }
+      ]
+
+  const yAxes = hasVolume
+    ? [
+        {
+          scale: true,
+          splitArea: {
+            show: true,
+            areaStyle: {
+              color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
+            }
+          }
+        },
+        {
+          scale: true,
+          gridIndex: 1,
+          splitNumber: 2,
+          axisLabel: {
+            fontSize: 10,
+            formatter: (value) => {
+              if (Math.abs(value) >= 100000000) return (value / 100000000).toFixed(1) + '亿'
+              if (Math.abs(value) >= 10000) return (value / 10000).toFixed(0) + '万'
+              return value
+            }
+          },
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { type: 'dashed', color: '#eee' } }
+        }
+      ]
+    : [
+        {
+          scale: true,
+          splitArea: {
+            show: true,
+            areaStyle: {
+              color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
+            }
+          }
+        }
+      ]
 
   const buildBuyMarkPoints = () => {
     if (!props.buySignals || props.buySignals.length === 0) return []
@@ -232,6 +330,17 @@ const renderChart = () => {
     }))
   ]
 
+  if (hasVolume) {
+    series.push({
+      name: '成交量',
+      type: 'bar',
+      xAxisIndex: 1,
+      yAxisIndex: 1,
+      data: volumeData,
+      barWidth: '60%'
+    })
+  }
+
   const option = {
     title: {
       text: props.stockName || '',
@@ -261,6 +370,7 @@ const renderChart = () => {
     dataZoom: [
       {
         type: 'inside',
+        xAxisIndex: hasVolume ? [0, 1] : [0],
         start: 50,
         end: 100,
         zoomOnMouseWheel: false,
@@ -269,6 +379,7 @@ const renderChart = () => {
       {
         show: true,
         type: 'slider',
+        xAxisIndex: hasVolume ? [0, 1] : [0],
         top: '92%',
         start: 50,
         end: 100,

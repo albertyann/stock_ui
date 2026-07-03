@@ -107,9 +107,9 @@
             {{ row.trigger_type === 'manual' ? '手动' : '定时' }}
           </template>
         </el-table-column>
-        <el-table-column prop="started_at" label="开始时间" width="180">
+        <el-table-column prop="completed_at" label="最后执行时间" width="180">
           <template #default="{ row }">
-            {{ formatTime(row.started_at) }}
+            {{ formatTime(row.completed_at) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="80" fixed="right">
@@ -318,8 +318,17 @@ const disabledCount = computed(() => sortedAvailableTypes.value.filter(t => !t.e
 
 const formatTime = (isoStr) => {
   const d = new Date(isoStr)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  const s = d.toLocaleString('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  return s.replace(/\//g, '-')
 }
 const dialogVisible = ref(false)
 const isEdit = ref(false)
