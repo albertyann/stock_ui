@@ -18,14 +18,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import * as echarts from '@/utils/echarts'
+import { ref, onMounted } from 'vue'
+import { useECharts } from '@/composables/useECharts'
 import { watchlistApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 
-const chartRef = ref(null)
-let chart = null
+const { chartRef, chartInstance, render, clear, resize } = useECharts()
 const loading = ref(false)
 
 // 格式化成交量
@@ -65,15 +64,11 @@ const fetchData = async () => {
  * 渲染折线图
  */
 const renderChart = ({ dates, sectors }) => {
-  if (!chartRef.value) return
-
-  if (!chart) {
-    chart = echarts.init(chartRef.value)
-  }
+  if (!chartInstance.value) return
 
   const sectorNames = Object.keys(sectors)
   if (sectorNames.length === 0) {
-    chart.clear()
+    clear()
     return
   }
 
@@ -185,24 +180,13 @@ const renderChart = ({ dates, sectors }) => {
     animationDuration: 500
   }
 
-  chart.setOption(option, true)
+  render(option)
 }
 
-const handleResize = () => {
-  chart?.resize()
-}
+defineExpose({ resize })
 
 onMounted(() => {
   fetchData()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
 })
 </script>
 

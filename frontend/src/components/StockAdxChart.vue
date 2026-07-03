@@ -3,8 +3,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from '@/utils/echarts'
+import { watch } from 'vue'
+import { useECharts } from '@/composables/useECharts'
 
 const props = defineProps({
   // K线数据 (需要 high, low, close 字段)
@@ -26,8 +26,26 @@ const props = defineProps({
 
 const emit = defineEmits(['hoverDate', 'mouseleave'])
 
-const chartRef = ref(null)
-let chart = null
+const { chartRef, render, resize } = useECharts({
+  onInit(instance) {
+    // 监听 axis pointer 变化（鼠标悬停时触发）
+    instance.on('updateAxisPointer', (event) => {
+      const xAxisInfo = event.axesInfo?.[0]
+      if (xAxisInfo && xAxisInfo.value != null) {
+        const data = props.klineData
+        const idx = xAxisInfo.value
+        if (data && idx >= 0 && idx < data.length) {
+          emit('hoverDate', data[idx].date)
+        }
+      }
+    })
+
+    // 监听鼠标离开图表
+    instance.getZr().on('globalout', () => {
+      emit('mouseleave')
+    })
+  }
+})
 
 // 计算ADX (Average Directional Index)
 const calculateADX = (data, period = 14) => {
@@ -122,7 +140,7 @@ const calculateADX = (data, period = 14) => {
 
 // 渲染图表
 const renderChart = () => {
-  if (!chart || !props.klineData || props.klineData.length === 0) return
+  if (!props.klineData || props.klineData.length === 0) return
 
   const data = props.klineData
   const dates = data.map(item => item.date)
@@ -233,59 +251,15 @@ const renderChart = () => {
     ]
   }
 
-  chart.setOption(option, true)
-}
-
-// 初始化图表
-const initChart = () => {
-  if (!chartRef.value) return
-  chart = echarts.init(chartRef.value)
-
-  // 监听 axis pointer 变化（鼠标悬停时触发）
-  chart.on('updateAxisPointer', (event) => {
-    const xAxisInfo = event.axesInfo?.[0]
-    if (xAxisInfo && xAxisInfo.value != null) {
-      const data = props.klineData
-      const idx = xAxisInfo.value
-      if (data && idx >= 0 && idx < data.length) {
-        emit('hoverDate', data[idx].date)
-      }
-    }
-  })
-
-  // 监听鼠标离开图表
-  chart.getZr().on('globalout', () => {
-    emit('mouseleave')
-  })
-
-  if (props.klineData && props.klineData.length > 0) {
-    renderChart()
-  }
+  render(option)
 }
 
 // 调整大小
-const resize = () => {
-  chart?.resize()
-}
-
 defineExpose({ resize })
 
 watch(() => props.klineData, () => {
-  if (chart) {
-    renderChart()
-  }
+  renderChart()
 }, { deep: true })
-
-onMounted(() => {
-  initChart()
-})
-
-onUnmounted(() => {
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
-})
 </script>
 
 <style scoped>

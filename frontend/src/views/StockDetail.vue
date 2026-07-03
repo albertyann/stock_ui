@@ -17,8 +17,12 @@
           </div>
           <div class="stock-info-top__metrics">
             <div class="stock-info-top__metric">
-              <span class="metric-label">成交量</span>
-              <span class="metric-value">{{ formatVolume(stock.volume) }}</span>
+              <el-tooltip placement="bottom" :content="volumeTooltipText">
+                <div class="stock-info-top__metric-tooltip-wrapper">
+                  <span class="metric-label">成交量</span>
+                  <span class="metric-value">{{ formatVolume(stock.volume) }}</span>
+                </div>
+              </el-tooltip>
             </div>
             <div class="stock-info-top__metric">
               <span class="metric-label">成交额</span>
@@ -99,9 +103,10 @@
               </div>
             </template>
             
-            <!-- POC: 日 K 改用 KLineChart 渲染 (周 K 仍为 ECharts, 便于同页对比) -->
-            <StockKlineChartKLC
+            <!-- 日K 使用 KLineChart 引擎，周K 使用 ECharts 引擎 -->
+            <StockKlineChart
               ref="klineChartRef"
+              engine="klc"
               :tsCode="props.tsCode"
               :klineData="adjustedKlineData"
               :buySignals="buySignalsData"
@@ -950,12 +955,14 @@ import { useRouter } from 'vue-router'
 import * as echarts from '@/utils/echarts'
 import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi, aiChatApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { EditPen, Plus, Edit, Delete, Setting } from '@element-plus/icons-vue'
+import { EditPen, Edit, Delete, Setting } from '@element-plus/icons-vue'
+import { openXueqiu } from '@/utils/stock'
 import StockKlineChart from '@/components/StockKlineChart.vue'
-import StockKlineChartKLC from '@/components/StockKlineChartKLC.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
 import StockTurnoverChart from '@/components/StockTurnoverChart.vue'
 import StockRsiChart from '@/components/StockRsiChart.vue'
+import StockVolumeChart from '@/components/StockVolumeChart.vue'
+import StockMacdChart from '@/components/StockMacdChart.vue'
 import StockChipChart from '@/components/StockChipChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 import StockChatAssistant from '@/components/StockChatAssistant.vue'
@@ -966,13 +973,13 @@ const stock = ref(null)
 const klineData = ref([])
 const buySignalsData = ref([])
 const weeklyKlineData = ref([])
-const latestSignal = ref(null)
 const klineChartRef = ref(null)
 const weeklyKlineChartRef = ref(null)
 const adxChartRef = ref(null)
 const macdChartRef = ref(null)
 const rsiChartRef = ref(null)
 const turnoverChartRef = ref(null)
+const volumeChartRef = ref(null)
 
 const moneyflowLoading = ref(false)
 const moneyflowData = ref([])
@@ -1264,6 +1271,23 @@ const indicatorKlineData = computed(() => {
 // 调整后的周K线数据
 const adjustedWeeklyKlineData = computed(() => applyAdjustment(weeklyKlineData.value))
 
+// 成交量较前一交易日涨幅（K线数据为时间升序，最后一条为最新）
+const volumeChangePct = computed(() => {
+  const data = adjustedKlineData.value
+  if (!data || data.length < 2) return null
+  const current = data[data.length - 1]?.volume
+  const prev = data[data.length - 2]?.volume
+  if (!current || !prev || prev === 0) return null
+  return ((current - prev) / prev) * 100
+})
+
+const volumeTooltipText = computed(() => {
+  const pct = volumeChangePct.value
+  if (pct == null) return '较昨日: --'
+  const sign = pct > 0 ? '+' : ''
+  return `较昨日: ${sign}${pct.toFixed(2)}%`
+})
+
 // 可选标签列表（排除已选中的）
 const availableTagsList = computed(() => {
   return allTags.value.filter(tag => !popoverSelectedTags.value.includes(tag))
@@ -1351,6 +1375,7 @@ const handleResize = () => {
   macdChartRef.value?.resize()
   rsiChartRef.value?.resize()
   turnoverChartRef.value?.resize()
+  volumeChartRef.value?.resize()
   chipChartRef.value?.resize()
   if (moneyflowChartInstance) {
     moneyflowChartInstance.resize()
@@ -1367,7 +1392,6 @@ const loadStockDetail = async () => {
 
     await loadKline()
     await loadBuySignals()
-    await loadSignal()
     await loadMoneyflow()
     await loadCyqChips()
     await loadSignals()
@@ -1588,15 +1612,6 @@ const loadBuySignals = async () => {
   }
 }
 
-const loadSignal = async () => {
-  try {
-    const response = await signalApi.getLatest(props.tsCode)
-    latestSignal.value = response.data
-  } catch (error) {
-    console.error('Failed to load signal:', error)
-  }
-}
-
 const loadSignals = async () => {
   signalsLoading.value = true
   try {
@@ -1697,15 +1712,6 @@ const formatDateTime = (dateStr) => {
     hour: '2-digit',
     minute: '2-digit'
   }).replace(/\//g, '-')
-}
-
-// 打开雪球网
-const openXueqiu = (stock) => {
-  if (!stock || !stock.ts_code) return
-  // 转换格式: 300006.SZ -> SZ300006
-  const [code, exchange] = stock.ts_code.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
 // 关注股票
@@ -2255,6 +2261,12 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .stock-info-top__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stock-info-top__metric-tooltip-wrapper {
   display: flex;
   flex-direction: column;
   gap: 2px;

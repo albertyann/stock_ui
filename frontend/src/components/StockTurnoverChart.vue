@@ -3,8 +3,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from '@/utils/echarts'
+import { watch } from 'vue'
+import { useECharts } from '@/composables/useECharts'
 
 const props = defineProps({
   // K线数据 (需要 date, turnover_rate, change_pct 字段)
@@ -19,12 +19,11 @@ const props = defineProps({
   }
 })
 
-const chartRef = ref(null)
-let chart = null
+const { chartRef, render, resize } = useECharts()
 
 // 渲染图表
 const renderChart = () => {
-  if (!chart || !props.klineData || props.klineData.length === 0) return
+  if (!props.klineData || props.klineData.length === 0) return
 
   const data = props.klineData
   const dates = data.map(item => item.date)
@@ -142,41 +141,15 @@ const renderChart = () => {
     ]
   }
 
-  chart.setOption(option, true)
-}
-
-// 初始化图表
-const initChart = () => {
-  if (!chartRef.value) return
-  chart = echarts.init(chartRef.value)
-  if (props.klineData && props.klineData.length > 0) {
-    renderChart()
-  }
+  render(option)
 }
 
 // 调整大小
-const resize = () => {
-  chart?.resize()
-}
-
 defineExpose({ resize })
 
 watch(() => props.klineData, () => {
-  if (chart) {
-    renderChart()
-  }
+  renderChart()
 }, { deep: true })
-
-onMounted(() => {
-  initChart()
-})
-
-onUnmounted(() => {
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
-})
 </script>
 
 <style scoped>

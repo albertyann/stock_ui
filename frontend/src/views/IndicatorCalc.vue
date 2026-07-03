@@ -199,6 +199,7 @@ import { computed, defineCustomElement, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { indicatorCalcApi, watchlistApi, basicDataApi } from '@/api'
+import { getChangeClass } from '@/utils/stock'
 
 const router = useRouter()
 
@@ -375,12 +376,6 @@ const rowClassName = ({ row }) => {
 
 const handleRowClick = (row) => {
   selectedRowCode.value = row.ts_code
-}
-
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
 }
 
 const handleSortChange = () => {}

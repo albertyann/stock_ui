@@ -184,12 +184,12 @@
           
           <!-- 右侧：K线图 -->
           <div class="stock-chart-section">
-            <StockKlineChart
+            <StockSimpleKlineChart
               :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
               :ts-code="stock.ts_code"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
               :show-volume="true"
-              :height="360"
+              height="360px"
             />
           </div>
         </div>
@@ -219,14 +219,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, View, Star, Search } from '@element-plus/icons-vue'
+import { Refresh, Search } from '@element-plus/icons-vue'
 import { realtimeApi, sectorApi, watchlistApi } from '@/api'
-import StockKlineChart from '@/components/StockKlineChart.vue'
+import StockSimpleKlineChart from '@/components/StockSimpleKlineChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 import { forwardAdjustKlineData } from '@/utils/kline'
+import { getChangeClass, formatChange, formatVolume, formatAmount, openXueqiu } from '@/utils/stock'
+import { useStockKeyboardNav } from '@/composables/useStockKeyboardNav'
 
 const router = useRouter()
 
@@ -241,74 +243,6 @@ const pageSize = ref(50)
 
 // 选中股票索引（用于键盘导航）
 const selectedStockIndex = ref(0)
-
-// Ctrl+x 前缀键状态
-const ctrlXPressed = ref(false)
-
-// 键盘事件处理
-const handleKeydown = (event) => {
-  // 如果焦点在输入框或文本框中，不处理快捷键
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
-    return
-  }
-
-  const maxIndex = paginatedStocks.value.length - 1
-
-  // 处理 Ctrl+x 前缀键
-  if (event.ctrlKey && event.key === 'x') {
-    event.preventDefault()
-    ctrlXPressed.value = true
-    return
-  }
-
-  // 处理 Ctrl+x 后的子命令
-  if (ctrlXPressed.value) {
-    ctrlXPressed.value = false
-    
-    if (event.key === 's') {
-      // Ctrl+x+s: 关注当前选中的股票
-      event.preventDefault()
-      const selectedStock = paginatedStocks.value[selectedStockIndex.value]
-      if (selectedStock && !selectedStock.isWatched) {
-        addToWatchlist(selectedStock)
-      }
-      return
-    } else if (event.key === 'o') {
-      // Ctrl+x+o: 打开雪球
-      event.preventDefault()
-      const selectedStock = paginatedStocks.value[selectedStockIndex.value]
-      if (selectedStock) {
-        openXueqiu(selectedStock)
-      }
-      return
-    }
-  }
-
-  // 原有的 j/k 导航
-  if (event.key === 'j') {
-    event.preventDefault()
-    if (selectedStockIndex.value < maxIndex) {
-      selectedStockIndex.value++
-      scrollToSelectedStock()
-    }
-  } else if (event.key === 'k') {
-    event.preventDefault()
-    if (selectedStockIndex.value > 0) {
-      selectedStockIndex.value--
-      scrollToSelectedStock()
-    }
-  }
-}
-
-// 滚动到选中的股票（居中显示）
-const scrollToSelectedStock = () => {
-  nextTick(() => {
-    const stockCards = document.querySelectorAll('.stock-card')
-    if (stockCards[selectedStockIndex.value]) {
-      stockCards[selectedStockIndex.value].scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  })
-}
 
 // 筛选相关
 const selectedDate = ref('')
@@ -493,55 +427,10 @@ watch(paginatedStocks, (newStocks) => {
   })
 }, { immediate: true })
 
-// 涨跌幅样式
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
-}
-
-// 格式化涨跌幅显示
-const formatChange = (changePct) => {
-  if (changePct > 0) return `+${changePct.toFixed(2)}%`
-  if (changePct < 0) return `${changePct.toFixed(2)}%`
-  return '0.00%'
-}
-
-// 格式化成交量
-const formatVolume = (volume) => {
-  if (!volume) return '-'
-  if (volume >= 100000000) {
-    return (volume / 100000000).toFixed(2) + '亿'
-  } else if (volume >= 10000) {
-    return (volume / 10000).toFixed(2) + '万'
-  }
-  return volume.toString()
-}
-
-// 格式化成交额
-const formatAmount = (amount) => {
-  if (!amount) return '-'
-  amount = amount * 1000
-  if (amount >= 100000000) {
-    return '¥' + (amount / 100000000).toFixed(2) + '亿'
-  } else if (amount >= 10000) {
-    return '¥' + (amount / 10000).toFixed(2) + '万'
-  }
-  return '¥' + amount.toFixed(0)
-}
-
 // 查看详情
 const viewDetail = (stock) => {
   const resolved = router.resolve(`/stock/${stock.ts_code}`)
   window.open(resolved.href, '_blank')
-}
-
-// 打开雪球网
-const openXueqiu = (stock) => {
-  // 转换格式: 300006.SZ -> SZ300006
-  const [code, exchange] = stock.ts_code.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
 // 检查股票是否已被关注
@@ -588,6 +477,14 @@ const addToWatchlist = async (stock) => {
   stock.addingToWatchlist = false
 }
 
+// 注册股票列表键盘导航
+useStockKeyboardNav({
+  items: paginatedStocks,
+  selectedIndex: selectedStockIndex,
+  openXueqiu,
+  addToWatchlist
+})
+
 // 数据缓存
 const klineDataCache = ref(new Map())
 const chartRefs = ref(new Map())
@@ -598,20 +495,17 @@ const handleResize = () => {
     chart.resize()
   })
 }
-window.addEventListener('resize', handleResize)
-
-// 组件挂载时加载数据
-fetchLimitUpStocks()
-fetchIndustryOptions()
+// 组件挂载时加载数据和注册全局监听
+onMounted(() => {
+  fetchLimitUpStocks()
+  fetchIndustryOptions()
+  window.addEventListener('resize', handleResize)
+})
 
 // 组件卸载时清理
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  window.removeEventListener('keydown', handleKeydown)
 })
-
-// 注册键盘事件监听
-window.addEventListener('keydown', handleKeydown)
 </script>
 
 <style scoped>
@@ -960,6 +854,7 @@ window.addEventListener('keydown', handleKeydown)
   align-items: center;
   justify-content: center;
   background: #fff;
+  overflow: hidden;
 }
 
 /* 响应式布局 */

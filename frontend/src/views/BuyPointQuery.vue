@@ -120,6 +120,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { signalApi, realtimeApi } from '@/api'
+import { openXueqiu } from '@/utils/stock'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -283,13 +284,6 @@ const tableRowClassName = ({ row }) => {
 const openStockDetail = (tsCode) => {
   if (!tsCode) return
   window.open(`/stock/${tsCode}`, '_blank')
-}
-
-const openXueqiu = (tsCode) => {
-  if (!tsCode) return
-  const [code, exchange] = tsCode.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
 const formatPct = (pct) => {

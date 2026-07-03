@@ -337,9 +337,11 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWatchlistStore } from '@/stores/watchlist'
 import { watchlistApi, stockApi, signalApi, realtimeApi } from '@/api'
+import { getChangeClass, formatChange, openXueqiu } from '@/utils/stock'
 import { ElMessage } from 'element-plus'
-import { Plus, Delete, Refresh, Switch, Camera } from '@element-plus/icons-vue'
+import { Plus, Refresh, Camera } from '@element-plus/icons-vue'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { useStockKeyboardNav } from '@/composables/useStockKeyboardNav'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 
 const route = useRoute()
@@ -375,8 +377,6 @@ const stockNotesInput = ref('')
 const notesLoading = ref(false)
 // 标签相关
 const allTags = ref([])
-const tagPopoverVisible = ref({})
-const popoverSelectedTags = ref([])
 
 // 快照相关
 const snapshotLoading = ref(false)
@@ -390,9 +390,6 @@ const chartRefs = ref(new Map())
 // 选中股票索引（用于键盘导航）
 const selectedStockIndex = ref(0)
 
-// Ctrl+x 前缀键状态
-const ctrlXPressed = ref(false)
-
 let priceRefreshInterval = null
 const { onMessageType, offMessageType } = useWebSocket()
 
@@ -402,63 +399,6 @@ const handleNotesUpdated = ({ ts_code, notes }) => {
   if (stock) {
     stock.notes = notes
   }
-}
-
-// 键盘事件处理
-const handleKeydown = (event) => {
-  // 如果焦点在输入框或文本框中，不处理快捷键
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
-    return
-  }
-
-  const maxIndex = filteredStocks.value.length - 1
-
-  // 处理 Ctrl+x 前缀键
-  if (event.ctrlKey && event.key === 'x') {
-    event.preventDefault()
-    ctrlXPressed.value = true
-    return
-  }
-
-  // 处理 Ctrl+x 后的子命令
-  if (ctrlXPressed.value) {
-    ctrlXPressed.value = false
-
-    if (event.key === 'o') {
-      // Ctrl+x+o: 打开雪球
-      event.preventDefault()
-      const selectedStock = filteredStocks.value[selectedStockIndex.value]
-      if (selectedStock) {
-        openXueqiu(selectedStock.ts_code)
-      }
-      return
-    }
-  }
-
-  // j/k 导航
-  if (event.key === 'j') {
-    event.preventDefault()
-    if (selectedStockIndex.value < maxIndex) {
-      selectedStockIndex.value++
-      scrollToSelectedStock()
-    }
-  } else if (event.key === 'k') {
-    event.preventDefault()
-    if (selectedStockIndex.value > 0) {
-      selectedStockIndex.value--
-      scrollToSelectedStock()
-    }
-  }
-}
-
-// 滚动到选中的股票（居中显示）
-const scrollToSelectedStock = () => {
-  nextTick(() => {
-    const stockCards = document.querySelectorAll('.stock-card')
-    if (stockCards[selectedStockIndex.value]) {
-      stockCards[selectedStockIndex.value].scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  })
 }
 
 const filteredStocks = computed(() => {
@@ -480,13 +420,18 @@ const filteredStocks = computed(() => {
   return stocks
 })
 
+// 注册股票列表键盘导航
+useStockKeyboardNav({
+  items: filteredStocks,
+  selectedIndex: selectedStockIndex,
+  openXueqiu
+})
+
 onMounted(async () => {
   await loadLastTradingDay()
   await loadWatchlist(selectedDate.value || null)
   await loadAllTags()
   onMessageType('notes_updated', handleNotesUpdated)
-  // 注册键盘事件监听
-  window.addEventListener('keydown', handleKeydown)
 })
 
 // 监听路由参数变化，当切换到不同的 watchlist 时重新加载
@@ -510,8 +455,6 @@ onUnmounted(() => {
     clearInterval(priceRefreshInterval)
   }
   offMessageType('notes_updated', handleNotesUpdated)
-  // 注销键盘事件监听
-  window.removeEventListener('keydown', handleKeydown)
 })
 
 const loadLastTradingDay = async () => {
@@ -698,17 +641,6 @@ const addStocks = async () => {
   }
 }
 
-const setStockCalm = async (stock) => {
-  try {
-    await watchlistApi.updateStockStatus(props.id, stock.id, 2)
-    ElMessage.success(`已将 ${stock.name || stock.symbol} 设为冷静状态`)
-    await loadWatchlist(selectedDate.value)
-  } catch (error) {
-    console.error('Failed to set stock calm:', error)
-    ElMessage.error('设置冷静状态失败')
-  }
-}
-
 // 打开切换分组弹窗
 const openSwitchGroupDialog = async (stock) => {
   selectedStockForSwitch.value = stock
@@ -759,18 +691,6 @@ const switchStockGroup = async () => {
   }
 }
 
-const getChangeClass = (change) => {
-  if (!change) return 'flat'
-  return change > 0 ? 'up' : change < 0 ? 'down' : 'flat'
-}
-
-const formatChange = (changePct) => {
-  if (!changePct) return '0.00%'
-  if (changePct > 0) return `+${changePct.toFixed(2)}%`
-  if (changePct < 0) return `${changePct.toFixed(2)}%`
-  return '0.00%'
-}
-
 const getSignalType = (type) => {
   const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
   return map[type] || 'info'
@@ -790,13 +710,6 @@ const formatMarketCap = (cap) => {
   if (!cap) return ''
   // total_mv from stock_service.getDetail is in 万元, 10000万 = 1亿
   return (cap / 10000).toFixed(2) + '亿'
-}
-
-const openXueqiu = (tsCode) => {
-  // 转换格式: 300006.SZ -> SZ300006
-  const [code, exchange] = tsCode.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
 const openStockDetail = (tsCode) => {

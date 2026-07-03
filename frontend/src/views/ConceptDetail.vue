@@ -87,7 +87,7 @@
         </div>
 
         <el-table
-          :data="displayStocks"
+          :data="stocks"
           style="width: 100%"
           stripe
           border
@@ -207,11 +207,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onUnmounted, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, ArrowUp, ArrowDown, Sort, Search } from '@element-plus/icons-vue'
 import { watchlistApi, sectorApi } from '@/api'
+import { getChangeClass, formatChange, formatVolume, formatAmount, openXueqiu } from '@/utils/stock'
+import { useStockKeyboardNav } from '@/composables/useStockKeyboardNav'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
 const router = useRouter()
@@ -221,13 +223,10 @@ const route = useRoute()
 const selectedRow = ref(null)
 const selectedStockIndex = ref(0)
 
-// Ctrl+x 前缀键状态
-const ctrlXPressed = ref(false)
-
 // 表格行点击选中
 const selectRow = (row) => {
   selectedRow.value = row
-  const index = displayStocks.value.findIndex(item => item.ts_code === row.ts_code)
+  const index = stocks.value.findIndex(item => item.ts_code === row.ts_code)
   if (index !== -1) {
     selectedStockIndex.value = index
   }
@@ -244,99 +243,12 @@ const getRowClassName = ({ row }) => {
   return ''
 }
 
-// 按涨跌幅排序
-const sortByChangePct = (a, b) => {
-  return (a.change_pct || 0) - (b.change_pct || 0)
-}
-
 // 点击涨跌幅列头切换后端全局排序: default → desc → asc → default
 const toggleChangeSort = () => {
   const cycle = { default: 'desc', desc: 'asc', asc: 'default' }
   sortOrder.value = cycle[sortOrder.value] || 'default'
   handleSortChange()
 }
-
-// 键盘事件处理
-const handleKeydown = (event) => {
-  // 如果焦点在输入框或文本框中，不处理快捷键
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
-    return
-  }
-
-  const maxIndex = displayStocks.value.length - 1
-
-  // 处理 Ctrl+x 前缀键
-  if (event.ctrlKey && event.key === 'x') {
-    event.preventDefault()
-    ctrlXPressed.value = true
-    return
-  }
-
-  // 处理 Ctrl+x 后的子命令
-  if (ctrlXPressed.value) {
-    ctrlXPressed.value = false
-    
-    if (event.key === 's') {
-      // Ctrl+x+s: 关注当前选中的股票
-      event.preventDefault()
-      const selectedStock = displayStocks.value[selectedStockIndex.value]
-      if (selectedStock && !selectedStock.isWatched) {
-        addToWatchlist(selectedStock)
-      }
-      return
-    } else if (event.key === 'o') {
-      // Ctrl+x+o: 打开雪球
-      event.preventDefault()
-      const selectedStock = displayStocks.value[selectedStockIndex.value]
-      if (selectedStock) {
-        openXueqiu(selectedStock)
-      }
-      return
-    }
-  }
-
-  // 原有的 j/k 导航
-  if (event.key === 'j') {
-    event.preventDefault()
-    if (selectedStockIndex.value < maxIndex) {
-      selectedStockIndex.value++
-      const nextStock = displayStocks.value[selectedStockIndex.value]
-      if (nextStock) {
-        selectRow(nextStock)
-      }
-    }
-  } else if (event.key === 'k') {
-    event.preventDefault()
-    if (selectedStockIndex.value > 0) {
-      selectedStockIndex.value--
-      const prevStock = displayStocks.value[selectedStockIndex.value]
-      if (prevStock) {
-        selectRow(prevStock)
-      }
-    }
-  }
-
-  // h/l 翻页
-  const totalPages = Math.ceil(totalStocks.value / pageSize.value)
-  if (event.key === 'l') {
-    event.preventDefault()
-    if (currentPage.value < totalPages) {
-      handlePageChange(currentPage.value + 1, true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-  } else if (event.key === 'h') {
-    event.preventDefault()
-    if (currentPage.value > 1) {
-      handlePageChange(currentPage.value - 1, true)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    }
-  }
-}
-
-// 页面标题
-const pageTitle = computed(() => {
-  return route.query.sectorName ? `${route.query.sectorName} - 板块股票` : '板块股票'
-})
 
 // 板块信息
 const sectorInfo = ref(null)
@@ -352,11 +264,6 @@ const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
 const sortOrder = ref('default') // 'default' | 'asc' | 'desc' | 'volume_asc' | 'volume_desc'
 const trendFilter = ref('all') // 'all' | 'up' | 'down'
-
-// 股票列表（后端已按选定规则排序）
-const displayStocks = computed(() => {
-  return stocks.value
-})
 
 // 返回板块列表
 const goBack = () => {
@@ -505,46 +412,7 @@ onMounted(() => {
   if (route.query.code) {
     fetchSectorStocks()
   }
-  // 注册键盘事件监听
-  window.addEventListener('keydown', handleKeydown)
 })
-
-// 涨跌幅样式
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
-}
-
-// 格式化涨跌幅显示
-const formatChange = (changePct) => {
-  if (changePct > 0) return `+${changePct.toFixed(2)}%`
-  if (changePct < 0) return `${changePct.toFixed(2)}%`
-  return '0.00%'
-}
-
-// 格式化成交量
-const formatVolume = (volume) => {
-  if (!volume) return '-'
-  if (volume >= 100000000) {
-    return (volume / 100000000).toFixed(2) + '亿'
-  } else if (volume >= 10000) {
-    return (volume / 10000).toFixed(2) + '万'
-  }
-  return volume.toString()
-}
-
-// 格式化成交额
-const formatAmount = (amount) => {
-  if (!amount) return '-'
-  amount = amount * 1000
-  if (amount >= 100000000) {
-    return '¥' + (amount / 100000000).toFixed(2) + '亿'
-  } else if (amount >= 10000) {
-    return '¥' + (amount / 10000).toFixed(2) + '万'
-  }
-  return '¥' + amount.toFixed(0)
-}
 
 // 查看详情
 const viewDetail = (stock) => {
@@ -552,23 +420,27 @@ const viewDetail = (stock) => {
   window.open(`/stock/${stock.ts_code}`, '_blank')
 }
 
-// 打开雪球网
-const openXueqiu = (stock) => {
-  // 转换格式: 300006.SZ -> SZ300006
-  const [code, exchange] = stock.ts_code.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
-}
-
 // 添加到关注列表
 const addToWatchlist = (stock) => {
   openFollowDialog(stock)
 }
 
-// 组件卸载时清理
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
+// 注册股票列表键盘导航
+useStockKeyboardNav({
+  items: stocks,
+  selectedIndex: selectedStockIndex,
+  onSelect: (stock) => selectRow(stock),
+  openXueqiu,
+  addToWatchlist,
+  pageTurn: {
+    currentPage,
+    pageSize,
+    totalItems: totalStocks,
+    onPageChange: handlePageChange
+  },
+  scrollSelector: false
 })
+
 </script>
 
 <style scoped>

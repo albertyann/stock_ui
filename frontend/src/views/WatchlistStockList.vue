@@ -279,6 +279,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { watchlistApi } from '@/api'
 import { useWebSocket } from '@/composables/useWebSocket'
+import { getChangeClass, openXueqiu } from '@/utils/stock'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -434,29 +435,9 @@ const tableRowClassName = ({ row }) => {
   return ''
 }
 
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
-}
-
-const getXueqiuLink = (tsCode) => {
-  if (!tsCode) return '#'
-  const [code, exchange] = tsCode.split('.')
-  const xueqiuCode = exchange + code
-  return `https://xueqiu.com/S/${xueqiuCode}`
-}
-
 const openStockDetail = (tsCode) => {
   if (!tsCode) return
   window.open(`/stock/${tsCode}`, '_blank')
-}
-
-const openXueqiu = (tsCode) => {
-  if (!tsCode) return
-  const [code, exchange] = tsCode.split('.')
-  const xueqiuCode = exchange + code
-  window.open(`https://xueqiu.com/S/${xueqiuCode}`, '_blank')
 }
 
 // 复制当前页所有 ts_code 到剪贴板

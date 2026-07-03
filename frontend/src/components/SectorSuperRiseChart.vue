@@ -23,14 +23,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from '@/utils/echarts'
+import { ref, onMounted, watch } from 'vue'
+import { useECharts } from '@/composables/useECharts'
 import { watchlistApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 
-const chartRef = ref(null)
-let chart = null
+const { chartRef, chartInstance, render, clear, resize } = useECharts()
 const loading = ref(false)
 const showAll = ref(false)
 let chartData = null
@@ -88,17 +87,13 @@ watch(showAll, () => {
  * 渲染折线图
  */
 const renderChart = () => {
-  if (!chartRef.value || !chartData) return
-
-  if (!chart) {
-    chart = echarts.init(chartRef.value)
-  }
+  if (!chartInstance.value || !chartData) return
 
   const { dates, sectors } = chartData
   const filteredSectors = filterSectors(sectors)
   const sectorNames = Object.keys(filteredSectors)
   if (sectorNames.length === 0) {
-    chart.clear()
+    clear()
     return
   }
 
@@ -210,24 +205,13 @@ const renderChart = () => {
     animationDuration: 500
   }
 
-  chart.setOption(option, true)
+  render(option)
 }
 
-const handleResize = () => {
-  chart?.resize()
-}
+defineExpose({ resize })
 
 onMounted(() => {
   fetchData()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
 })
 </script>
 

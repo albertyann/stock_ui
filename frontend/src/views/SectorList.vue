@@ -83,8 +83,8 @@
               <span class="stat-value">{{ formatVolume(sector.total_volume) }}</span>
             </div>
             <div class="stat-item">
-              <span class="stat-label">总成交额</span>
-              <span class="stat-value">{{ formatAmount(sector.total_amount) }}</span>
+            <span class="stat-label">总成交额</span>
+            <span class="stat-value">{{ formatAmount(sector.total_amount, { symbol: true }) }}</span>
             </div>
           </div>
         </el-card>
@@ -98,7 +98,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
-import api from '@/api'
+import { sectorApi } from '@/api'
+import { getChangeClass, formatChange, formatVolume, formatAmount } from '@/utils/stock'
 
 const router = useRouter()
 
@@ -136,7 +137,7 @@ const downCount = computed(() => filteredSectors.value.filter(s => s.change_pct 
 const fetchSectors = async () => {
   loading.value = true
   try {
-    const response = await api.get('/sectors')
+    const response = await sectorApi.getAllSectors()
     if (response.success) {
       sectors.value = response.data || []
       ElMessage.success(`成功获取 ${sectors.value.length} 个板块`)
@@ -174,47 +175,11 @@ const goToSector = (sector) => {
   })
 }
 
-// 涨跌幅样式
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
-}
-
 // 板块卡片样式
 const getSectorClass = (changePct) => {
   if (changePct > 0) return 'sector-up'
   if (changePct < 0) return 'sector-down'
   return 'sector-flat'
-}
-
-// 格式化涨跌幅显示
-const formatChange = (changePct) => {
-  if (changePct > 0) return `+${changePct.toFixed(2)}%`
-  if (changePct < 0) return `${changePct.toFixed(2)}%`
-  return '0.00%'
-}
-
-// 格式化成交量
-const formatVolume = (volume) => {
-  if (!volume) return '-'
-  if (volume >= 100000000) {
-    return (volume / 100000000).toFixed(2) + '亿'
-  } else if (volume >= 10000) {
-    return (volume / 10000).toFixed(2) + '万'
-  }
-  return volume.toString()
-}
-
-// 格式化成交额
-const formatAmount = (amount) => {
-  if (!amount) return '-'
-  if (amount >= 100000000) {
-    return '¥' + (amount / 100000000).toFixed(2) + '亿'
-  } else if (amount >= 10000) {
-    return '¥' + (amount / 10000).toFixed(2) + '万'
-  }
-  return '¥' + amount.toFixed(0)
 }
 
 onMounted(() => {

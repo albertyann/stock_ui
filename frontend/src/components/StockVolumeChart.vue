@@ -3,8 +3,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from '@/utils/echarts'
+import { watch } from 'vue'
+import { useECharts } from '@/composables/useECharts'
 
 const props = defineProps({
   // K线数据 (需要 date, open, close, volume 字段)
@@ -19,12 +19,11 @@ const props = defineProps({
   }
 })
 
-const chartRef = ref(null)
-let chart = null
+const { chartRef, render, resize } = useECharts()
 
 // 渲染图表
 const renderChart = () => {
-  if (!chart || !props.klineData || props.klineData.length === 0) return
+  if (!props.klineData || props.klineData.length === 0) return
 
   const data = props.klineData
   const dates = data.map(item => item.date)
@@ -53,37 +52,43 @@ const renderChart = () => {
 
   const option = {
     tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
+      trigger: 'item',
       confine: false,
       appendToBody: true,
       className: 'volume-tooltip',
       formatter: (params) => {
-        const idx = params[0].dataIndex
-        const item = data[idx]
-        const vol = item.volume
-        const volStr = vol >= 100000000 ? (vol / 100000000).toFixed(2) + '亿'
-          : vol >= 10000 ? (vol / 10000).toFixed(2) + '万'
-          : vol.toString()
-        let html = `<div style="font-weight:bold;margin-bottom:5px;">${dates[idx]}</div>`
-        html += `<div>成交量: <span style="font-weight:bold;">${volStr}</span></div>`
-        // 计算对比前一日的成交量增幅
-        if (idx > 0) {
-          const prevVol = data[idx - 1].volume
-          if (prevVol && prevVol > 0) {
-            const volChangePct = ((item.volume - prevVol) / prevVol) * 100
-            const volColor = volChangePct >= 0 ? '#f56c6c' : '#67c23a'
-            html += `<div>增幅: <span style="color:${volColor};font-weight:bold;">${volChangePct > 0 ? '+' : ''}${volChangePct.toFixed(2)}%</span></div>`
+        try {
+          const idx = params.dataIndex
+          const item = data[idx]
+          if (!item || !item.volume) return '成交量: -'
+          const vol = item.volume
+          const volStr = vol >= 100000000 ? (vol / 100000000).toFixed(2) + '亿'
+            : vol >= 10000 ? (vol / 10000).toFixed(2) + '万'
+            : vol.toString()
+          let html = `<div style="font-weight:bold;margin-bottom:5px;">${dates[idx] || ''}</div>`
+          html += `<div>成交量: <span style="font-weight:bold;">${volStr}</span></div>`
+          // 计算对比前一日的成交量增幅
+          if (idx > 0 && data[idx - 1]) {
+            const prevVol = data[idx - 1].volume
+            if (prevVol && prevVol > 0) {
+              const volChangePct = ((vol - prevVol) / prevVol) * 100
+              const volColor = volChangePct >= 0 ? '#f56c6c' : '#67c23a'
+              html += `<div>增幅: <span style="color:${volColor};font-weight:bold;">${volChangePct > 0 ? '+' : ''}${volChangePct.toFixed(2)}%</span></div>`
+            }
           }
+          if (item.change_pct != null) {
+            html += `<div>涨跌: <span style="color:${item.change_pct >= 0 ? '#f56c6c' : '#67c23a'};">${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</span></div>`
+          }
+          if (ma5Vol[idx] != null) {
+            const ma5Str = ma5Vol[idx] >= 100000000 ? (ma5Vol[idx] / 100000000).toFixed(2) + '亿'
+              : ma5Vol[idx] >= 10000 ? (ma5Vol[idx] / 10000).toFixed(2) + '万'
+              : ma5Vol[idx].toString()
+            html += `<div>5日均量: ${ma5Str}</div>`
+          }
+          return html
+        } catch (e) {
+          return '成交量: -'
         }
-        html += `<div>涨跌: <span style="color:${item.change_pct >= 0 ? '#f56c6c' : '#67c23a'};">${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</span></div>`
-        if (ma5Vol[idx] !== null) {
-          const ma5Str = ma5Vol[idx] >= 100000000 ? (ma5Vol[idx] / 100000000).toFixed(2) + '亿'
-            : ma5Vol[idx] >= 10000 ? (ma5Vol[idx] / 10000).toFixed(2) + '万'
-            : ma5Vol[idx].toString()
-          html += `<div>5日均量: ${ma5Str}</div>`
-        }
-        return html
       }
     },
     legend: { show: false },
@@ -143,41 +148,15 @@ const renderChart = () => {
     ]
   }
 
-  chart.setOption(option, true)
-}
-
-// 初始化图表
-const initChart = () => {
-  if (!chartRef.value) return
-  chart = echarts.init(chartRef.value)
-  if (props.klineData && props.klineData.length > 0) {
-    renderChart()
-  }
+  render(option)
 }
 
 // 调整大小
-const resize = () => {
-  chart?.resize()
-}
-
 defineExpose({ resize })
 
 watch(() => props.klineData, () => {
-  if (chart) {
-    renderChart()
-  }
+  renderChart()
 }, { deep: true })
-
-onMounted(() => {
-  initChart()
-})
-
-onUnmounted(() => {
-  if (chart) {
-    chart.dispose()
-    chart = null
-  }
-})
 </script>
 
 <style scoped>

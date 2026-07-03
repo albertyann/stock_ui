@@ -1,55 +1,37 @@
 import axios from 'axios'
 import { useMarketStore } from '@/stores/market'
 
-const api = axios.create({
-  baseURL: '/api/v1',
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+function createApi({ timeout, errorLabel }) {
+  const instance = axios.create({
+    baseURL: '/api/v1',
+    timeout,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
 
-const longRunningApi = axios.create({
-  baseURL: '/api/v1',
-  timeout: 300000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
+  instance.interceptors.request.use(
+    (config) => {
+      const marketStore = useMarketStore()
+      config.headers['X-Market'] = marketStore.currentMarket
+      return config
+    },
+    (error) => Promise.reject(error)
+  )
 
-api.interceptors.request.use(
-  (config) => {
-    const marketStore = useMarketStore()
-    config.headers['X-Market'] = marketStore.currentMarket
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+  instance.interceptors.response.use(
+    (response) => response.data,
+    (error) => {
+      console.error(`${errorLabel}:`, error)
+      return Promise.reject(error)
+    }
+  )
 
-longRunningApi.interceptors.request.use(
-  (config) => {
-    const marketStore = useMarketStore()
-    config.headers['X-Market'] = marketStore.currentMarket
-    return config
-  },
-  (error) => Promise.reject(error)
-)
+  return instance
+}
 
-longRunningApi.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    console.error('Long Running API Error:', error)
-    return Promise.reject(error)
-  }
-)
-
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    console.error('API Error:', error)
-    return Promise.reject(error)
-  }
-)
+const api = createApi({ timeout: 30000, errorLabel: 'API Error' })
+const longRunningApi = createApi({ timeout: 300000, errorLabel: 'Long Running API Error' })
 
 export const watchlistApi = {
   getAll: () => api.get('/watchlists'),
@@ -250,10 +232,16 @@ export const sectorApi = {
   getSectorDetail: (sectorCode, sectorType = 'industry') => 
     api.get(`/sectors/${sectorCode}?sector_type=${sectorType}`),
   // 获取板块内的股票列表
-  getSectorStocks: (sectorCode, sectorType = 'industry', page = 1, pageSize = 20, search = null) => {
+  getSectorStocks: (sectorCode, sectorType = 'industry', page = 1, pageSize = 20, search = null, sort = null, trend = null) => {
     let url = `/sectors/${sectorCode}/stocks?sector_type=${sectorType}&page=${page}&page_size=${pageSize}`
     if (search) {
       url += `&search=${encodeURIComponent(search)}`
+    }
+    if (sort && sort !== 'default') {
+      url += `&sort=${sort}`
+    }
+    if (trend) {
+      url += `&trend=${trend}`
     }
     return api.get(url)
   },
@@ -521,12 +509,6 @@ export const stockInfoApi = {
   create: (data) => api.post('/stock-info/', data),
   update: (id, data) => api.put(`/stock-info/${id}`, data),
   delete: (id) => api.delete(`/stock-info/${id}`)
-}
-
-export const strategyApi = {
-  getStrategies: () => api.get('/strategies/list'),
-  executeStrategy: (data) => api.post('/strategies/execute', data),
-  getTaskStatus: (taskId) => api.get(`/strategies/execute/${taskId}`),
 }
 
 export const indicatorCalcApi = {

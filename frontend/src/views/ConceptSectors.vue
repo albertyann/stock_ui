@@ -116,7 +116,7 @@
             </div>
             <div class="stat-item">
               <span class="stat-label">总市值</span>
-              <span class="stat-value">{{ formatAmount(sector.total_mv) }}</span>
+              <span class="stat-value">{{ formatAmount(sector.total_mv, { symbol: true }) }}</span>
             </div>
           </div>
         </el-card>
@@ -131,6 +131,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
 import { sectorApi } from '@/api'
+import { getChangeClass, formatChange, formatAmount } from '@/utils/stock'
 
 const router = useRouter()
 const route = useRoute()
@@ -234,12 +235,6 @@ const goToSector = (sector) => {
   })
 }
 
-const getChangeClass = (changePct) => {
-  if (changePct > 0) return 'up'
-  if (changePct < 0) return 'down'
-  return 'flat'
-}
-
 const getSectorClass = (changePct) => {
   if (changePct > 0) return 'sector-up'
   if (changePct < 0) return 'sector-down'
@@ -262,22 +257,6 @@ const getSectorTagText = (type) => {
     'concept': '概念'
   }
   return tagTexts[type] || '板块'
-}
-
-const formatChange = (changePct) => {
-  if (changePct > 0) return `+${changePct.toFixed(2)}%`
-  if (changePct < 0) return `${changePct.toFixed(2)}%`
-  return '0.00%'
-}
-
-const formatAmount = (amount) => {
-  if (!amount) return '-'
-  if (amount >= 100000000) {
-    return '¥' + (amount / 100000000).toFixed(2) + '亿'
-  } else if (amount >= 10000) {
-    return '¥' + (amount / 10000).toFixed(2) + '万'
-  }
-  return '¥' + amount.toFixed(0)
 }
 
 // 同步板块类型到 URL 查询参数
