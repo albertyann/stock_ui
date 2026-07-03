@@ -188,7 +188,7 @@
               :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
               :ts-code="stock.ts_code"
               :kline-data="klineDataCache.get(stock.ts_code) || []"
-              :show-m-a-c-d="true"
+              :show-volume="true"
               :height="360"
             />
           </div>
@@ -226,6 +226,7 @@ import { Refresh, View, Star, Search } from '@element-plus/icons-vue'
 import { realtimeApi, sectorApi, watchlistApi } from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
+import { forwardAdjustKlineData } from '@/utils/kline'
 
 const router = useRouter()
 
@@ -420,7 +421,9 @@ const fetchKlineData = async (tsCode) => {
     // 获取180天K线数据
     const response = await realtimeApi.getKline(tsCode, 'daily', 180)
     if (response.success && response.data && response.data.data) {
-      klineDataCache.value.set(tsCode, response.data.data)
+      // 使用前复权处理K线价格，消除送股、配股、分红等事件的影响
+      const adjustedData = forwardAdjustKlineData(response.data.data)
+      klineDataCache.value.set(tsCode, adjustedData)
     }
     
   } catch (error) {

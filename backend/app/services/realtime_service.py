@@ -171,17 +171,19 @@ class RealtimePriceService:
                     result = conn.execute(
                         text("""
                             SELECT 
-                                trade_date as date,
-                                open,
-                                high,
-                                low,
-                                close,
-                                vol as volume,
-                                amount,
-                                pct_chg as change_pct
-                            FROM daily_data 
-                            WHERE ts_code = :ts_code
-                            ORDER BY trade_date DESC
+                                d.trade_date as date,
+                                d.open,
+                                d.high,
+                                d.low,
+                                d.close,
+                                d.vol as volume,
+                                d.amount,
+                                d.pct_chg as change_pct,
+                                a.adj_factor
+                            FROM daily_data d
+                            LEFT JOIN adj_factor a ON d.ts_code = a.ts_code AND d.trade_date = a.trade_date
+                            WHERE d.ts_code = :ts_code
+                            ORDER BY d.trade_date DESC
                             LIMIT :limit
                         """),
                         {"ts_code": ts_code, "limit": limit},
@@ -190,17 +192,19 @@ class RealtimePriceService:
                     result = conn.execute(
                         text("""
                             SELECT 
-                                trade_date as date,
-                                open,
-                                high,
-                                low,
-                                close,
-                                vol as volume,
-                                amount,
-                                pct_chg as change_pct
-                            FROM weekly_data 
-                            WHERE ts_code = :ts_code
-                            ORDER BY trade_date DESC
+                                w.trade_date as date,
+                                w.open,
+                                w.high,
+                                w.low,
+                                w.close,
+                                w.vol as volume,
+                                w.amount,
+                                w.pct_chg as change_pct,
+                                a.adj_factor
+                            FROM weekly_data w
+                            LEFT JOIN adj_factor a ON w.ts_code = a.ts_code AND w.trade_date = a.trade_date
+                            WHERE w.ts_code = :ts_code
+                            ORDER BY w.trade_date DESC
                             LIMIT :limit
                         """),
                         {"ts_code": ts_code, "limit": limit},
@@ -244,6 +248,7 @@ class RealtimePriceService:
                             "volume": int(row.volume or 0),
                             "amount": float(row.amount or 0),
                             "change_pct": float(row.change_pct or 0),
+                            "adj_factor": float(row.adj_factor) if row.adj_factor is not None else None,
                         }
                     )
 
