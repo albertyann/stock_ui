@@ -128,6 +128,10 @@
               ref="turnoverChartRef"
               :klineData="indicatorKlineData"
             />
+            <StockVolumeChart
+              ref="volumeChartRef"
+              :klineData="indicatorKlineData"
+            />
             <StockMacdChart
               ref="macdChartRef"
               :klineData="indicatorKlineData"
