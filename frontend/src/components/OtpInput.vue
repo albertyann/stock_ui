@@ -98,7 +98,7 @@ watch(() => props.modelValue, syncFromProp, { immediate: true })
   padding: 0;
   border-radius: var(--radius-sm, 10px);
   background: rgba(2, 6, 23, 0.45);
-  border: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.12));
+  border: 1px solid var(--border-subtle, #e2e8f0);
   color: var(--text-primary, #f8fafc);
   font-size: 20px;
   font-weight: 600;

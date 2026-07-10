@@ -96,9 +96,9 @@ function renderChart(data) {
         confine: false,
         extraCssText: 'z-index: 9999;',
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderColor: '#e4e7ed',
+        borderColor: '#e2e8f0',
         borderWidth: 1,
-        textStyle: { color: '#303133' },
+        textStyle: { color: '#1e293b' },
         formatter(params) {
           if (!params || params.length === 0) return ''
           const p = params[0]
@@ -120,9 +120,9 @@ function renderChart(data) {
       type: 'category',
       data: dates,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: '#dcdfe6' } },
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
       axisLabel: {
-        color: '#606266',
+        color: '#94a3b8',
         rotate: 45,
         formatter: (v) => (v ? v.substring(5) : ''),
       },
@@ -131,8 +131,8 @@ function renderChart(data) {
     yAxis: {
       type: 'value',
       min: 0,
-      axisLabel: { color: '#606266' },
-      splitLine: { lineStyle: { color: '#ebeef5', type: 'dashed' } },
+      axisLabel: { color: '#94a3b8' },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
     },
 
     series: [
@@ -195,9 +195,9 @@ function renderStackChart(data) {
       confine: false,
       extraCssText: 'z-index: 9999;',
       backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#e4e7ed',
+      borderColor: '#e2e8f0',
       borderWidth: 1,
-      textStyle: { color: '#303133' },
+      textStyle: { color: '#1e293b' },
       formatter(params) {
         if (!params || params.length === 0) return ''
         let html =
@@ -220,7 +220,7 @@ function renderStackChart(data) {
       type: 'scroll',
       bottom: 0,
       icon: 'roundRect',
-      textStyle: { color: '#606266', fontSize: 11 },
+      textStyle: { color: '#94a3b8', fontSize: 11 },
     },
     grid: {
       left: '3%',
@@ -233,20 +233,20 @@ function renderStackChart(data) {
       type: 'category',
       data: dates,
       axisLabel: {
-        color: '#606266',
+        color: '#94a3b8',
         rotate: 45,
         formatter: (v) => (v ? v.substring(5) : ''),
       },
-      axisLine: { lineStyle: { color: '#dcdfe6' } },
+      axisLine: { lineStyle: { color: '#e2e8f0' } },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value',
       min: 0,
-      axisLabel: { color: '#606266' },
-      splitLine: { lineStyle: { color: '#ebeef5', type: 'dashed' } },
+      axisLabel: { color: '#94a3b8' },
+      splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } },
       name: '股票数',
-      nameTextStyle: { color: '#909399', fontSize: 11 },
+      nameTextStyle: { color: '#94a3b8', fontSize: 11 },
     },
     series: industries.map((ind) => ({
       name: ind,
@@ -333,7 +333,7 @@ onUnmounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 24px;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -353,13 +353,13 @@ onUnmounted(() => {
 .stat-value {
   font-size: 22px;
   font-weight: bold;
-  color: #409eff;
+  color: var(--accent);
   margin-bottom: 4px;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .chart-card {
@@ -385,9 +385,9 @@ onUnmounted(() => {
 
 .chart-card-header {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-secondary);
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-subtle);
 }
 </style>

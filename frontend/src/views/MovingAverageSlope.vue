@@ -359,17 +359,17 @@ const getRowClassName = ({ row }) => {
 }
 
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 500;
 }
 
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 500;
 }
 
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -378,10 +378,10 @@ const getRowClassName = ({ row }) => {
 }
 
 :deep(.selected-row) {
-  background-color: #e6f7ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.selected-row:hover > td) {
-  background-color: #e6f7ff !important;
+  background-color: var(--bg-hover) !important;
 }
 </style>

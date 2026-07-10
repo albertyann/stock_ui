@@ -683,7 +683,7 @@ onUnmounted(() => {
 }
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 .filter-card {
@@ -704,13 +704,13 @@ onUnmounted(() => {
   font-weight: bold;
 }
 .stat-up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 .stat-down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 .stat-separator {
-  color: #909399;
+  color: var(--text-muted);
   margin: 0 4px;
 }
 .pagination-wrapper {
@@ -719,13 +719,13 @@ onUnmounted(() => {
   justify-content: flex-end;
 }
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 .flat {
-  color: #909399;
+  color: var(--text-muted);
 }
 .notes-cell {
   display: block;
@@ -741,31 +741,31 @@ onUnmounted(() => {
   word-break: break-all;
   line-height: 1.6;
   font-size: 13px;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 /* 板块列头筛选 */
@@ -780,7 +780,7 @@ onUnmounted(() => {
 }
 .industry-filter-icon {
   cursor: pointer;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 14px;
   transition: color 0.2s;
 }
@@ -805,11 +805,11 @@ onUnmounted(() => {
 }
 .filter-panel-title {
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 .filter-panel-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 .filter-panel-search {
   width: 100%;
@@ -836,10 +836,10 @@ onUnmounted(() => {
   padding-right: 4px;
 }
 .filter-panel-option .option-name {
-  color: #303133;
+  color: var(--text-primary);
 }
 .filter-panel-option .option-count {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
   margin-left: 8px;
 }

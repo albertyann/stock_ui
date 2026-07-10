@@ -268,7 +268,7 @@ const formatDate = (dateStr) => {
 
 h2 {
   margin: 0 0 20px 0;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .settings-card {
@@ -288,6 +288,6 @@ h2 {
 }
 
 .watchlist-name .el-icon {
-  color: #409EFF;
+  color: var(--accent);
 }
 </style>

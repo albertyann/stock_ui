@@ -210,7 +210,7 @@ onMounted(() => {
 }
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 .filter-card {
@@ -222,7 +222,7 @@ onMounted(() => {
   justify-content: flex-end;
 }
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
   cursor: pointer;
 }

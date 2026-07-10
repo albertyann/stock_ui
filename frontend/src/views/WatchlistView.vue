@@ -829,9 +829,9 @@ const loadSnapshots = async () => {
 /* 股票卡片 - 横向布局 */
 .stock-card {
   display: flex;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card-solid);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   border: 2px solid transparent;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -839,24 +839,24 @@ const loadSnapshots = async () => {
 
 .stock-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-hover);
 }
 
 .stock-card.up {
-  border-color: #f56c6c;
+  border-color: var(--stock-up);
 }
 
 .stock-card.down {
-  border-color: #67c23a;
+  border-color: var(--stock-down);
 }
 
 .stock-card.flat {
-  border-color: #dcdfe6;
+  border-color: var(--border-subtle);
 }
 
 .stock-card.selected {
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
-  border-color: #409eff !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+  border-color: var(--accent) !important;
   transform: translateY(-2px);
   position: relative;
 }
@@ -868,16 +868,16 @@ const loadSnapshots = async () => {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #409eff 0%, #66b1ff 100%);
-  border-radius: 12px 0 0 12px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-cyan) 100%);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 /* 左侧信息区域 */
 .stock-info-section {
   flex: 0 0 320px;
   padding: 20px;
-  background: #fafbfc;
-  border-right: 1px solid #ebeef5;
+  background: var(--bg-input);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
 }
@@ -896,13 +896,13 @@ const loadSnapshots = async () => {
 .stock-name {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .stock-code {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .status-tag {
@@ -923,15 +923,15 @@ const loadSnapshots = async () => {
 }
 
 .change-badge.up {
-  background: linear-gradient(135deg, #f56c6c 0%, #ff8c8c 100%);
+  background: linear-gradient(135deg, var(--stock-up) 0%, rgba(239, 68, 68, 0.7) 100%);
 }
 
 .change-badge.down {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: linear-gradient(135deg, var(--stock-down) 0%, rgba(34, 197, 94, 0.7) 100%);
 }
 
 .change-badge.flat {
-  background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%);
+  background: linear-gradient(135deg, var(--stock-flat) 0%, rgba(100, 116, 139, 0.7) 100%);
 }
 
 .stock-body {
@@ -942,7 +942,7 @@ const loadSnapshots = async () => {
   text-align: center;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .current-price {
@@ -952,15 +952,15 @@ const loadSnapshots = async () => {
 }
 
 .current-price.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .current-price.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .current-price.flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .change-info {
@@ -968,15 +968,15 @@ const loadSnapshots = async () => {
 }
 
 .change-info .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .change-info .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .change-info .flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .volume-section {
@@ -996,13 +996,13 @@ const loadSnapshots = async () => {
 
 .volume-row .label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .volume-row .value {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .signal-section {
@@ -1017,12 +1017,12 @@ const loadSnapshots = async () => {
 
 .signal-row .label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .signal-strength {
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .watch-reason-section {
@@ -1037,12 +1037,12 @@ const loadSnapshots = async () => {
 
 .reason-row .label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .time-section {
   font-size: 11px;
-  color: #909399;
+  color: var(--text-muted);
   text-align: center;
   margin-bottom: 12px;
 }
@@ -1053,7 +1053,7 @@ const loadSnapshots = async () => {
 
 .stock-footer {
   padding-top: 12px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -1062,7 +1062,7 @@ const loadSnapshots = async () => {
 .stock-tags {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .tags-display {
@@ -1093,8 +1093,8 @@ const loadSnapshots = async () => {
 .input-hint {
   margin-top: 10px;
   padding: 8px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  background-color: var(--bg-input);
+  border-radius: var(--radius-xs);
 }
 
 /* 右侧图表区域 */
@@ -1104,7 +1104,7 @@ const loadSnapshots = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--bg-input);
   min-height: 280px;
 }
 
@@ -1124,7 +1124,7 @@ const loadSnapshots = async () => {
     flex: none;
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .stock-chart-section {

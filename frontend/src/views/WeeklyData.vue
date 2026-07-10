@@ -235,7 +235,7 @@ onMounted(() => {
 }
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 .filter-card {
@@ -247,9 +247,9 @@ onMounted(() => {
   justify-content: flex-end;
 }
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 </style>

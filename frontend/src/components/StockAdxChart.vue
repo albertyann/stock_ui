@@ -187,7 +187,7 @@ const renderChart = () => {
       type: 'category',
       data: dates,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: '#777' } },
+      axisLine: { lineStyle: { color: '#dcdfe6' } },
       axisTick: { show: false },
       splitLine: { show: false },
       axisLabel: {
@@ -201,7 +201,7 @@ const renderChart = () => {
       axisLabel: { fontSize: 10 },
       axisLine: { show: false },
       axisTick: { show: false },
-      splitLine: { lineStyle: { type: 'dashed', color: '#eee' } }
+      splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }
     },
     dataZoom: [
       { type: 'inside', start: 50, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }

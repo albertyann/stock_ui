@@ -164,25 +164,27 @@ const formatDate = (dateStr) => {
 
 .stat-card {
   text-align: center;
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-subtle);
 }
 
 .stat-value {
   font-size: 36px;
   font-weight: bold;
-  color: #409EFF;
+  color: var(--accent);
 }
 
 .stat-card.buy .stat-value {
-  color: #67C23A;
+  color: var(--stock-up);
 }
 
 .stat-card.sell .stat-value {
-  color: #F56C6C;
+  color: var(--stock-down);
 }
 
 .stat-label {
   margin-top: 10px;
-  color: #606266;
+  color: var(--text-muted);
 }
 
 .mt-20 {
@@ -208,23 +210,24 @@ const formatDate = (dateStr) => {
 
 .stock-name {
   font-weight: bold;
+  color: var(--text-primary);
 }
 
 .signal-info {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .quick-access-card {
   cursor: pointer;
   transition: all 0.3s ease;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(6, 182, 212, 0.12) 100%);
+  border: 1px solid var(--border-active);
 }
 
 .quick-access-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
 }
 
 .quick-access-card :deep(.el-card__body) {
@@ -235,13 +238,14 @@ const formatDate = (dateStr) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: white;
+  color: var(--text-primary);
 }
 
 .quick-icon {
   font-size: 48px;
   margin-right: 16px;
   opacity: 0.9;
+  color: var(--accent);
 }
 
 .quick-text {
@@ -256,6 +260,7 @@ const formatDate = (dateStr) => {
 
 .quick-desc {
   font-size: 14px;
-  opacity: 0.8;
+  opacity: 0.7;
+  color: var(--text-secondary);
 }
 </style>

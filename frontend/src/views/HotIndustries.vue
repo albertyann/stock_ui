@@ -385,7 +385,7 @@ onMounted(async () => {
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -402,7 +402,7 @@ onMounted(async () => {
 .stats-row {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .stat-card {
@@ -414,13 +414,13 @@ onMounted(async () => {
 .stat-value {
   font-size: 20px;
   font-weight: bold;
-  color: #409eff;
+  color: var(--accent);
   margin-bottom: 5px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .data-card {
@@ -428,26 +428,26 @@ onMounted(async () => {
 }
 
 .amount-value {
-  color: #409eff;
+  color: var(--accent);
   font-weight: 600;
 }
 
 .change-up {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 600;
 }
 
 .change-down {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 600;
 }
 
 .change-flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .sector-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
@@ -455,7 +455,7 @@ onMounted(async () => {
 
 .sector-link:hover {
   text-decoration: underline;
-  color: #66b1ff;
+  color: var(--accent-hover);
 }
 
 @media (max-width: 768px) {

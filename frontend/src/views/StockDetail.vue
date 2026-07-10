@@ -1558,6 +1558,8 @@ const renderMoneyflowChart = () => {
       confine: false,
       appendToBody: true,
       className: 'moneyflow-tooltip',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      textStyle: { color: '#1e293b' },
       formatter: (params) => {
         let html = `<div style="font-weight:bold;margin-bottom:5px">${params[0].name}</div>`
         let total = 0
@@ -1568,7 +1570,7 @@ const renderMoneyflowChart = () => {
           html += `<div>${p.marker} ${p.seriesName}: <span style="color:${color};font-weight:bold">${val >= 0 ? '+' : ''}${val.toFixed(2)}万</span></div>`
         })
         const totalColor = total >= 0 ? '#f56c6c' : '#67c23a'
-        html += `<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px;font-weight:bold">净流入: <span style="color:${totalColor}">${total >= 0 ? '+' : ''}${total.toFixed(2)}万</span></div>`
+        html += `<div style="margin-top:5px;border-top:1px solid #e2e8f0;padding-top:5px;font-weight:bold">净流入: <span style="color:${totalColor}">${total >= 0 ? '+' : ''}${total.toFixed(2)}万</span></div>`
         return html
       }
     },
@@ -1586,7 +1588,11 @@ const renderMoneyflowChart = () => {
       axisLabel: {
         formatter: (value) => value.substring(5),
         fontSize: 9,
-        rotate: 30
+        rotate: 30,
+        color: '#94a3b8'
+      },
+      axisLine: {
+        lineStyle: { color: '#dcdfe6' }
       }
     },
     yAxis: {
@@ -1596,10 +1602,14 @@ const renderMoneyflowChart = () => {
           if (Math.abs(value) >= 10000) return (value / 10000).toFixed(1) + '亿'
           return value + '万'
         },
-        fontSize: 9
+        fontSize: 9,
+        color: '#94a3b8'
+      },
+      axisLine: {
+        lineStyle: { color: '#dcdfe6' }
       },
       splitLine: {
-        lineStyle: { type: 'dashed', color: '#eee' }
+        lineStyle: { type: 'dashed', color: '#f0f0f0' }
       }
     },
     dataZoom: [{ type: 'inside', start: 0, end: 100, zoomOnMouseWheel: false, moveOnMouseWheel: false }],
@@ -2301,7 +2311,7 @@ const deleteStockInfo = async (infoId) => {
 .stock-info-top__price {
   font-size: 28px;
   font-weight: 700;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .stock-info-top__change {
@@ -2310,11 +2320,11 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .stock-info-top__change.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .stock-info-top__change.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .stock-info-top__metrics {
@@ -2338,13 +2348,13 @@ const deleteStockInfo = async (infoId) => {
 
 .stock-info-top__metric .metric-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .stock-info-top__metric .metric-value {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .stock-info-top__actions {
@@ -2370,7 +2380,7 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .info-item .label {
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .watchlist-info-grid {
@@ -2384,7 +2394,7 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .watchlist-info-grid .info-item .label {
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .signal-details {
@@ -2397,7 +2407,7 @@ const deleteStockInfo = async (infoId) => {
 
 .signal-item .label {
   display: block;
-  color: #606266;
+  color: var(--text-secondary);
   margin-bottom: 5px;
 }
 
@@ -2411,7 +2421,7 @@ const deleteStockInfo = async (infoId) => {
   display: flex;
   justify-content: space-around;
   padding: 10px 0 6px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 8px;
 }
 
@@ -2422,7 +2432,7 @@ const deleteStockInfo = async (infoId) => {
 .moneyflow-summary .summary-label {
   display: block;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -2432,11 +2442,11 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .moneyflow-summary .summary-value.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .moneyflow-summary .summary-value.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .moneyflow-legend {
@@ -2450,7 +2460,7 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .moneyflow-legend .dot {
@@ -2461,11 +2471,11 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .moneyflow-legend .dot.red {
-  background-color: #f56c6c;
+  background-color: var(--stock-up);
 }
 
 .moneyflow-legend .dot.green {
-  background-color: #67c23a;
+  background-color: var(--stock-down);
 }
 
 /* 信号时间线样式 */
@@ -2485,22 +2495,22 @@ const deleteStockInfo = async (infoId) => {
 
 .survey-query {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
   margin-bottom: 8px;
   padding: 8px 10px;
-  background-color: #f4f4f5;
+  background-color: var(--bg-input);
   border-radius: 4px;
 }
 
 .survey-result {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-primary);
   line-height: 1.6;
   word-break: break-word;
 }
 
 .survey-result pre {
-  background: #f5f7fa;
+  background: var(--bg-input);
   padding: 8px;
   border-radius: 4px;
   overflow-x: auto;
@@ -2508,7 +2518,7 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .survey-result code {
-  background: #f5f7fa;
+  background: var(--bg-input);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: monospace;
@@ -2516,7 +2526,7 @@ const deleteStockInfo = async (infoId) => {
 
 .signal-count {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .header-actions {
@@ -2543,19 +2553,19 @@ const deleteStockInfo = async (infoId) => {
 
 .signal-date {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .signal-strength {
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .signal-note {
   padding: 10px 12px;
-  background-color: #fdf6ec;
+  background-color: var(--bg-input);
   border-radius: 4px;
-  color: #606266;
+  color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -2564,7 +2574,7 @@ const deleteStockInfo = async (infoId) => {
 
 .signal-tags {
   padding: 10px 12px;
-  background-color: #f4f4f5;
+  background-color: var(--bg-input);
   border-radius: 4px;
   display: flex;
   flex-wrap: wrap;
@@ -2573,12 +2583,12 @@ const deleteStockInfo = async (infoId) => {
 
 .signal-result {
   padding: 10px 12px;
-  background-color: #f4f4f5;
+  background-color: var(--bg-input);
   border-radius: 4px;
 }
 
 .result-text {
-  color: #303133;
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -2586,7 +2596,7 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .result-empty {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
   font-style: italic;
 }
@@ -2609,7 +2619,7 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 /* 成交量图例 */
@@ -2618,7 +2628,7 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .volume-legend .legend-item {
@@ -2656,7 +2666,7 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .signal-legend .legend-item {
@@ -2678,14 +2688,14 @@ const deleteStockInfo = async (infoId) => {
   height: 0;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
-  border-bottom: 8px solid #409eff;
+  border-bottom: 8px solid var(--accent);
 }
 
 .signal-legend .legend-diamond {
   display: inline-block;
   width: 8px;
   height: 8px;
-  background: #9c27b0;
+  background: var(--accent-cyan);
   transform: rotate(45deg);
 }
 
@@ -2693,9 +2703,9 @@ const deleteStockInfo = async (infoId) => {
   display: inline-block;
   width: 10px;
   height: 10px;
-  background: #fff;
-  border: 2px solid #e6a23c;
-  box-shadow: inset 0 0 0 1.5px #409eff;
+  background: var(--bg-card-solid);
+  border: 2px solid var(--warning);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 
 /* MACD 图例 */
@@ -2704,7 +2714,7 @@ const deleteStockInfo = async (infoId) => {
   align-items: center;
   gap: 12px;
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .macd-legend .legend-item {
@@ -2736,11 +2746,11 @@ const deleteStockInfo = async (infoId) => {
 /* 指标说明卡片 */
 .indicator-guide-card .guide-feature {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 12px;
   padding: 8px 10px;
-  background-color: #f0f9eb;
+  background-color: var(--bg-input);
   border-radius: 4px;
 }
 
@@ -2751,19 +2761,19 @@ const deleteStockInfo = async (infoId) => {
 .indicator-guide-card .guide-title {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .indicator-guide-card .guide-text {
   font-size: 12px;
-  color: #606266;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
 .indicator-guide-card .guide-summary {
   font-size: 13px;
-  color: #303133;
+  color: var(--text-primary);
   line-height: 1.8;
 }
 
@@ -2773,20 +2783,20 @@ const deleteStockInfo = async (infoId) => {
 
 .indicator-guide-card .summary-label {
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 /* 筹码分布 */
 .chip-date {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .chip-summary {
   display: flex;
   justify-content: space-around;
   padding: 10px 0 6px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 8px;
 }
 
@@ -2797,14 +2807,14 @@ const deleteStockInfo = async (infoId) => {
 .chip-summary .summary-label {
   display: block;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .chip-summary .summary-value {
   font-size: 15px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--accent);
 }
 
 /* 标签显示 */
@@ -2819,7 +2829,7 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .empty-tag {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 已选标签容器 */
@@ -2829,7 +2839,7 @@ const deleteStockInfo = async (infoId) => {
   gap: 8px;
   align-items: center;
   padding: 8px;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--border-subtle);
   border-radius: 4px;
   min-height: 32px;
   width: 100%;
@@ -2862,9 +2872,9 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .available-tag:hover {
-  color: #409eff;
-  border-color: #409eff;
-  background-color: #ecf5ff;
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--bg-hover);
 }
 
 /* 股票信息列表 */
@@ -2877,13 +2887,13 @@ const deleteStockInfo = async (infoId) => {
 .stock-info-item {
   position: relative;
   padding: 10px 12px;
-  background-color: #f4f4f5;
+  background-color: var(--bg-input);
   border-radius: 4px;
   transition: all 0.2s;
 }
 
 .stock-info-item:hover {
-  background-color: #e9e9eb;
+  background-color: var(--bg-hover);
 }
 
 .stock-info-item:hover .info-actions {
@@ -2892,7 +2902,7 @@ const deleteStockInfo = async (infoId) => {
 
 .info-content {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-primary);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2931,7 +2941,7 @@ const deleteStockInfo = async (infoId) => {
 
 .sync-kline-desc {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -2943,13 +2953,13 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .sync-result.sync-success {
-  background-color: #f0f9eb;
-  color: #67c23a;
+  background-color: var(--bg-input);
+  color: var(--stock-down);
 }
 
 .sync-result.sync-error {
-  background-color: #fef0f0;
-  color: #f56c6c;
+  background-color: var(--bg-input);
+  color: var(--stock-up);
 }
 
 .delete-stock-section {
@@ -2960,7 +2970,7 @@ const deleteStockInfo = async (infoId) => {
 
 .delete-stock-desc {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
   line-height: 1.5;
 }
 
@@ -2977,7 +2987,7 @@ const deleteStockInfo = async (infoId) => {
 
 .audit-item {
   padding: 8px 10px;
-  background-color: #f4f4f5;
+  background-color: var(--bg-input);
   border-radius: 4px;
 }
 
@@ -2991,12 +3001,12 @@ const deleteStockInfo = async (infoId) => {
 .audit-item__period {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .audit-item__agency {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 4px;
   line-height: 1.4;
 }
@@ -3015,7 +3025,7 @@ const deleteStockInfo = async (infoId) => {
   grid-template-columns: 1.2fr 0.9fr 1.5fr 1.1fr 0.9fr;
   gap: 6px;
   padding: 9px 4px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-subtle);
   align-items: center;
 }
 
@@ -3025,9 +3035,9 @@ const deleteStockInfo = async (infoId) => {
 
 .fina-header {
   font-weight: 600;
-  color: #909399;
-  background-color: #fafafa;
-  border-bottom: 1px solid #ebeef5;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .fina-cell {
@@ -3038,11 +3048,11 @@ const deleteStockInfo = async (infoId) => {
 .fina-cell-period {
   text-align: left;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .fina-row-loss {
-  background-color: #fef0f0;
+  background-color: var(--bg-input);
 }
 
 .fina-tag {
@@ -3053,17 +3063,17 @@ const deleteStockInfo = async (infoId) => {
 }
 
 .fina-table .up {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 600;
 }
 
 .fina-table .down {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 600;
 }
 
 .fina-table .muted {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 日K主图指标设置 */
@@ -3082,7 +3092,7 @@ const deleteStockInfo = async (infoId) => {
 .indicator-group__title {
   font-size: 14px;
   font-weight: 500;
-  color: #606266;
+  color: var(--text-secondary);
 }
 
 .indicator-group__items {
@@ -3119,11 +3129,11 @@ const deleteStockInfo = async (infoId) => {
 .eval-scores-header {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 10px;
 }
 
 .score-low {
-  color: #909399;
+  color: var(--text-muted);
 }
 </style>

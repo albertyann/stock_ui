@@ -476,12 +476,15 @@ export default {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Sora:wght@400;600;700&display=swap');
-
 .login-page {
   --bg-deep: #070b14;
   --bg-panel: #0b1021;
   --bg-card: rgba(15, 22, 41, 0.72);
+  --bg-card-solid: #0f1629;
+  --bg-elevated: #131c33;
+  --bg-input: rgba(2, 6, 23, 0.45);
+  --bg-hover: rgba(16, 185, 129, 0.08);
+  --bg-active: rgba(16, 185, 129, 0.14);
   --border-subtle: rgba(148, 163, 184, 0.12);
   --border-active: rgba(16, 185, 129, 0.45);
   --text-primary: #f8fafc;
@@ -494,11 +497,8 @@ export default {
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 24px;
-  --transition-fast: 0.18s ease;
-  --transition-base: 0.3s ease;
-  --transition-slow: 0.5s ease;
-  --font-display: 'Sora', 'Noto Sans SC', sans-serif;
-  --font-body: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --shadow-card: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 
   min-height: 100vh;
   display: grid;

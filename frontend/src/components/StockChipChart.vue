@@ -93,7 +93,7 @@ const renderChart = () => {
         formatter: (value) => value.toFixed(1)
       },
       splitLine: {
-        lineStyle: { type: 'dashed', color: '#eee' }
+        lineStyle: { type: 'dashed', color: '#f0f0f0' }
       }
     },
     yAxis: {

@@ -132,12 +132,12 @@ const formatPct = (pct) => {
 }
 
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 500;
 }
 
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 500;
 }
 </style>

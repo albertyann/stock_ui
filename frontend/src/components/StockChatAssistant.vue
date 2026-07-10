@@ -246,28 +246,28 @@ watch(messages, scrollToBottom, { deep: true })
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-cyan) 100%);
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
   transition: all 0.3s ease;
 }
 
 .chat-fab:hover {
   transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.5);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
 }
 
 .chat-dialog {
   width: 380px;
   height: 520px;
-  background: #fff;
+  background: var(--bg-card-solid);
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-card);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -275,8 +275,8 @@ watch(messages, scrollToBottom, { deep: true })
 
 .chat-header {
   padding: 14px 16px;
-  background: #409eff;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -296,14 +296,14 @@ watch(messages, scrollToBottom, { deep: true })
 }
 
 .chat-actions .el-button {
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
-  background: #f5f7fa;
+  background: var(--bg-input);
 }
 
 .chat-message {
@@ -329,14 +329,14 @@ watch(messages, scrollToBottom, { deep: true })
 }
 
 .message-user .message-bubble {
-  background: #409eff;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-primary);
   border-bottom-right-radius: 4px;
 }
 
 .message-assistant .message-bubble {
-  background: #fff;
-  color: #303133;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
   border-bottom-left-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
@@ -344,15 +344,15 @@ watch(messages, scrollToBottom, { deep: true })
 .message-actions {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   gap: 8px;
 }
 
 .chat-input-area {
   padding: 12px;
-  background: #fff;
-  border-top: 1px solid #ebeef5;
+  background: var(--bg-card-solid);
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   gap: 8px;
   align-items: flex-end;
@@ -372,7 +372,7 @@ watch(messages, scrollToBottom, { deep: true })
 }
 
 :deep(.message-content pre) {
-  background: #f5f7fa;
+  background: var(--bg-input);
   padding: 8px;
   border-radius: 4px;
   overflow-x: auto;
@@ -380,7 +380,7 @@ watch(messages, scrollToBottom, { deep: true })
 }
 
 :deep(.message-content code) {
-  background: #f5f7fa;
+  background: var(--bg-input);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: monospace;

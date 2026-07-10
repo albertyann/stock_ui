@@ -543,7 +543,7 @@ onUnmounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -568,7 +568,7 @@ onUnmounted(() => {
 .sector-name {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .sector-change {
@@ -579,24 +579,24 @@ onUnmounted(() => {
 }
 
 .sector-change.up {
-  color: #f56c6c;
-  background: rgba(245, 108, 108, 0.1);
+  color: var(--stock-up);
+  background: var(--stock-up-glow);
 }
 
 .sector-change.down {
-  color: #67c23a;
-  background: rgba(103, 194, 58, 0.1);
+  color: var(--stock-down);
+  background: var(--stock-down-glow);
 }
 
 .sector-change.flat {
-  color: #909399;
-  background: rgba(144, 147, 153, 0.1);
+  color: var(--text-muted);
+  background: var(--bg-hover);
 }
 
 .sector-stats {
   display: flex;
   gap: 30px;
-  color: #606266;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -638,7 +638,7 @@ onUnmounted(() => {
 
 .parsed-info {
   font-size: 14px;
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .stats-row {
@@ -654,25 +654,25 @@ onUnmounted(() => {
 .stat-value {
   font-size: 32px;
   font-weight: bold;
-  color: #409eff;
+  color: var(--accent);
   margin-bottom: 5px;
 }
 
 .stat-card.up .stat-value {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .stat-card.down .stat-value {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .stat-card.flat .stat-value {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .stocks-container {
@@ -689,9 +689,9 @@ onUnmounted(() => {
 /* 股票卡片 - 横向布局 */
 .stock-card {
   display: flex;
-  background: #fff;
+  background: var(--bg-card-solid);
   border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 12px var(--shadow-card);
   border: 2px solid transparent;
   overflow: hidden;
   transition: all 0.3s ease;
@@ -699,24 +699,24 @@ onUnmounted(() => {
 
 .stock-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px var(--shadow-hover);
 }
 
 .stock-card.up {
-  border-color: #f56c6c;
+  border-color: var(--stock-up);
 }
 
 .stock-card.down {
-  border-color: #67c23a;
+  border-color: var(--stock-down);
 }
 
 .stock-card.flat {
-  border-color: #dcdfe6;
+  border-color: var(--border-subtle);
 }
 
 .stock-card.selected {
-  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
-  border-color: #409eff !important;
+  box-shadow: 0 8px 24px var(--accent-glow);
+  border-color: var(--accent) !important;
   transform: translateY(-2px);
   position: relative;
 }
@@ -728,7 +728,7 @@ onUnmounted(() => {
   top: 0;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, #409eff 0%, #66b1ff 100%);
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-cyan) 100%);
   border-radius: 12px 0 0 12px;
 }
 
@@ -736,8 +736,8 @@ onUnmounted(() => {
 .stock-info-section {
   flex: 0 0 320px;
   padding: 20px;
-  background: #fafbfc;
-  border-right: 1px solid #ebeef5;
+  background: var(--bg-input);
+  border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
 }
@@ -756,13 +756,13 @@ onUnmounted(() => {
 .stock-name {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .stock-code {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .industry-tag {
@@ -785,19 +785,19 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 14px;
   font-weight: 600;
-  color: white;
+  color: var(--text-primary);
 }
 
 .change-badge.up {
-  background: linear-gradient(135deg, #f56c6c 0%, #ff8c8c 100%);
+  background: linear-gradient(135deg, var(--stock-up) 0%, var(--stock-up) 100%);
 }
 
 .change-badge.down {
-  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+  background: linear-gradient(135deg, var(--stock-down) 0%, var(--stock-down) 100%);
 }
 
 .change-badge.flat {
-  background: linear-gradient(135deg, #909399 0%, #a6a9ad 100%);
+  background: linear-gradient(135deg, var(--text-muted) 0%, var(--stock-flat) 100%);
 }
 
 .stock-body {
@@ -808,7 +808,7 @@ onUnmounted(() => {
   text-align: center;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .current-price {
@@ -818,15 +818,15 @@ onUnmounted(() => {
 }
 
 .current-price.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .current-price.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .current-price.flat {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .change-info {
@@ -834,19 +834,19 @@ onUnmounted(() => {
 }
 
 .change-info .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .change-info .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .change-info .flat {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .price-details {
-  background-color: #fff;
+  background-color: var(--bg-card-solid);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 12px;
@@ -865,21 +865,21 @@ onUnmounted(() => {
 
 .detail-row .label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .detail-row .value {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .detail-row .value.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .detail-row .value.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .volume-section {
@@ -899,17 +899,17 @@ onUnmounted(() => {
 
 .volume-row .label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .volume-row .value {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .bid-ask-section {
-  background-color: #fff;
+  background-color: var(--bg-card-solid);
   border-radius: 8px;
   padding: 10px;
   margin-bottom: 12px;
@@ -928,13 +928,13 @@ onUnmounted(() => {
 }
 
 .bid .label {
-  color: #67c23a;
+  color: var(--stock-down);
   font-size: 11px;
   font-weight: 600;
 }
 
 .ask .label {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-size: 11px;
   font-weight: 600;
 }
@@ -942,17 +942,17 @@ onUnmounted(() => {
 .bid .value, .ask .value {
   font-size: 13px;
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .bid .volume, .ask .volume {
   font-size: 11px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .time-section {
   font-size: 11px;
-  color: #909399;
+  color: var(--text-muted);
   text-align: center;
   margin-bottom: 12px;
 }
@@ -963,12 +963,12 @@ onUnmounted(() => {
 
 .trade-time {
   margin-left: 8px;
-  color: #409eff;
+  color: var(--accent);
 }
 
 .stock-footer {
   padding-top: 12px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* 右侧图表区域 */
@@ -978,7 +978,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--bg-card-solid);
   min-height: 280px;
   overflow: hidden;
 }
@@ -999,7 +999,7 @@ onUnmounted(() => {
     flex: none;
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid #ebeef5;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
   .stock-chart-section {

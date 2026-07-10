@@ -276,7 +276,7 @@ onMounted(async () => {
 .page-header h2 {
   margin: 0;
   font-size: 1.5em;
-  color: #2d3748;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -303,25 +303,25 @@ onMounted(async () => {
 .stat-value {
   font-size: 2em;
   font-weight: bold;
-  color: #2d3748;
+  color: var(--text-primary);
   margin-bottom: 5px;
 }
 
 .stat-label {
-  color: #718096;
+  color: var(--text-muted);
   font-size: 0.9em;
 }
 
 .stat-bullish .stat-value {
-  color: #e53e3e;
+  color: var(--stock-up);
 }
 
 .stat-bearish .stat-value {
-  color: #38a169;
+  color: var(--stock-down);
 }
 
 .stat-neutral .stat-value {
-  color: #d69e2e;
+  color: var(--warning);
 }
 
 .table-card {
@@ -335,12 +335,12 @@ onMounted(async () => {
 }
 
 .date-label {
-  color: #718096;
+  color: var(--text-muted);
   font-size: 0.9em;
 }
 
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -349,12 +349,12 @@ onMounted(async () => {
 }
 
 .change-up {
-  color: #e53e3e;
+  color: var(--stock-up);
   font-weight: bold;
 }
 
 .change-down {
-  color: #38a169;
+  color: var(--stock-down);
   font-weight: bold;
 }
 </style>

@@ -216,7 +216,7 @@ onMounted(() => {
 }
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 .filter-card {

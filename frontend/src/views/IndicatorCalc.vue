@@ -433,7 +433,7 @@ onMounted(async () => {
 .page-header h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -442,7 +442,7 @@ onMounted(async () => {
 }
 
 .summary-card {
-  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-card-solid) 100%);
 }
 
 .summary-grid {
@@ -459,13 +459,13 @@ onMounted(async () => {
 
 .summary-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .summary-value {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .summary-value.small {
@@ -474,11 +474,11 @@ onMounted(async () => {
 }
 
 .summary-value.hit {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .muted {
-  color: #c0c4cc;
+  color: var(--text-muted);
 }
 
 .hit-badge {
@@ -492,60 +492,60 @@ onMounted(async () => {
 }
 
 .hit-0 {
-  background: #f4f4f5;
-  color: #909399;
+  background: var(--bg-input);
+  color: var(--text-muted);
 }
 
 .hit-1 {
-  background: #e9e9eb;
-  color: #909399;
+  background: var(--bg-input);
+  color: var(--text-muted);
 }
 
 .hit-2 {
-  background: #fdf6ec;
-  color: #e6a23c;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--warning);
 }
 
 .hit-3 {
-  background: #fef0f0;
-  color: #f56c6c;
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--stock-up);
 }
 
 .hit-4 {
-  background: #f0f9eb;
-  color: #b3e19d;
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
 }
 
 :deep(.row-hit-strong) {
-  background-color: #fef9f0 !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.row-hit-medium) {
-  background-color: #fdfbf7 !important;
+  background-color: var(--bg-input) !important;
 }
 
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 .change-text {
@@ -553,10 +553,10 @@ onMounted(async () => {
 }
 
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 </style>

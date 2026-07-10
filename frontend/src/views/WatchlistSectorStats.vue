@@ -240,7 +240,7 @@ onMounted(() => {
 .page-header h2 {
   margin: 0;
   font-size: 20px;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .summary-row {
@@ -253,22 +253,22 @@ onMounted(() => {
 
 .summary-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
 .summary-value {
   font-size: 28px;
   font-weight: 700;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .summary-value.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .summary-value.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .stats-table-card {
@@ -287,7 +287,7 @@ onMounted(() => {
   border-radius: 4px;
   overflow: hidden;
   font-size: 12px;
-  color: white;
+  color: var(--text-primary);
   line-height: 24px;
   text-align: center;
 }
@@ -301,28 +301,28 @@ onMounted(() => {
 }
 
 .bar-up {
-  background-color: #f56c6c;
+  background-color: var(--stock-up);
 }
 
 .bar-flat {
-  background-color: #909399;
+  background-color: var(--text-muted);
 }
 
 .bar-down {
-  background-color: #67c23a;
+  background-color: var(--stock-down);
 }
 
 .up-text {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 600;
 }
 
 .down-text {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 600;
 }
 
 .flat-text {
-  color: #909399;
+  color: var(--text-muted);
 }
 </style>

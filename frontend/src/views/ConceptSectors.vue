@@ -299,7 +299,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -330,21 +330,21 @@ onMounted(() => {
 .stat-value {
   font-size: 28px;
   font-weight: bold;
-  color: #409eff;
+  color: var(--accent);
   margin-bottom: 5px;
 }
 
 .stat-card.up .stat-value {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .stat-card.down .stat-value {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .sectors-container {
@@ -369,15 +369,15 @@ onMounted(() => {
 }
 
 .sector-card.sector-up {
-  border-color: #f56c6c;
+  border-color: var(--stock-up);
 }
 
 .sector-card.sector-down {
-  border-color: #67c23a;
+  border-color: var(--stock-down);
 }
 
 .sector-card.sector-flat {
-  border-color: #dcdfe6;
+  border-color: var(--border-subtle);
 }
 
 .sector-header {
@@ -394,13 +394,13 @@ onMounted(() => {
 .sector-name {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .sector-code {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -412,30 +412,30 @@ onMounted(() => {
 }
 
 .sector-change.up {
-  color: #f56c6c;
-  background: rgba(245, 108, 108, 0.1);
+  color: var(--stock-up);
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .sector-change.down {
-  color: #67c23a;
-  background: rgba(103, 194, 58, 0.1);
+  color: var(--stock-down);
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .sector-change.flat {
-  color: #909399;
-  background: rgba(144, 147, 153, 0.1);
+  color: var(--stock-flat);
+  background: rgba(100, 116, 139, 0.12);
 }
 
 .sector-leading {
   margin-bottom: 12px;
   padding: 8px 12px;
-  background: #f5f7fa;
+  background: var(--bg-input);
   border-radius: 6px;
 }
 
 .leading-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
@@ -448,7 +448,7 @@ onMounted(() => {
 .leading-name {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .leading-pct {
@@ -457,18 +457,18 @@ onMounted(() => {
 }
 
 .leading-pct.up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .leading-pct.down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .sector-stats {
   display: flex;
   justify-content: space-between;
   padding-top: 12px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .stat-item {
@@ -478,22 +478,22 @@ onMounted(() => {
 .stat-item .stat-label {
   display: block;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 4px;
 }
 
 .stat-item .stat-value {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .up-num {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .down-num {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 @media (max-width: 768px) {

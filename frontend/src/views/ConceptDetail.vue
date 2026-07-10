@@ -457,7 +457,7 @@ useStockKeyboardNav({
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -482,7 +482,7 @@ useStockKeyboardNav({
 .sector-name {
   font-size: 20px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
 }
 
 .sector-change {
@@ -493,24 +493,24 @@ useStockKeyboardNav({
 }
 
 .sector-change.up {
-  color: #f56c6c;
-  background: rgba(245, 108, 108, 0.1);
+  color: var(--stock-up);
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .sector-change.down {
-  color: #67c23a;
-  background: rgba(103, 194, 58, 0.1);
+  color: var(--stock-down);
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .sector-change.flat {
-  color: #909399;
-  background: rgba(144, 147, 153, 0.1);
+  color: var(--stock-flat);
+  background: rgba(100, 116, 139, 0.12);
 }
 
 .sector-stats {
   display: flex;
   gap: 30px;
-  color: #606266;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -548,19 +548,19 @@ useStockKeyboardNav({
 
 /* 表格样式 - 与 StockQuery.vue 保持一致 */
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -570,27 +570,27 @@ useStockKeyboardNav({
 
 /* 选中行高亮 - 与 StockQuery.vue 保持一致 */
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 
@@ -601,7 +601,7 @@ useStockKeyboardNav({
 
 .trade-time-small {
   font-size: 12px;
-  color: #409eff;
+  color: var(--accent);
   margin-top: 2px;
 }
 

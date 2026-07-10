@@ -217,11 +217,16 @@ const buildChartOption = () => {
       left: 'center',
       textStyle: {
         fontSize: 16,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
+        color: '#1e293b'
       }
     },
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      textStyle: {
+        color: '#1e293b'
+      },
       axisPointer: {
         type: 'cross'
       },
@@ -238,7 +243,7 @@ const buildChartOption = () => {
           const dailyStr = dailyValue >= 0 ? `+${dailyValue.toFixed(2)}` : dailyValue.toFixed(2)
 
           html += `<div style="margin: 4px 0;">${p.marker} <span style="color:${color}">${p.seriesName}</span></div>`
-          html += `<div style="margin-left: 20px; font-size: 12px; color: #666;">累计: ${cumValue}亿 | 当日: ${dailyStr}亿</div>`
+          html += `<div style="margin-left: 20px; font-size: 12px; color: #94a3b8;">累计: ${cumValue}亿 | 当日: ${dailyStr}亿</div>`
         })
         return html
       }
@@ -247,7 +252,10 @@ const buildChartOption = () => {
       type: 'scroll',
       top: 30,
       left: 'center',
-      right: 40
+      right: 40,
+      textStyle: {
+        color: '#94a3b8'
+      }
     },
     grid: {
       left: '3%',
@@ -261,18 +269,29 @@ const buildChartOption = () => {
       boundaryGap: false,
       data: dates.value,
       axisLabel: {
+        color: '#94a3b8',
         formatter: (value) => value.substring(5),
         rotate: 45
+      },
+      axisLine: {
+        lineStyle: {
+          color: '#e2e8f0'
+        }
       }
     },
     yAxis: {
       type: 'value',
       name: '累计净流入（亿）',
+      nameTextStyle: {
+        color: '#94a3b8'
+      },
       axisLabel: {
+        color: '#94a3b8',
         formatter: (value) => value.toFixed(0)
       },
       splitLine: {
         lineStyle: {
+          color: '#f0f0f0',
           type: 'dashed'
         }
       }
@@ -289,7 +308,15 @@ const buildChartOption = () => {
         bottom: '2%',
         start: 0,
         end: 100,
-        height: 20
+        height: 20,
+        textStyle: {
+          color: '#94a3b8'
+        },
+        borderColor: '#e2e8f0',
+        fillerColor: 'rgba(16, 185, 129, 0.2)',
+        handleStyle: {
+          color: '#10b981'
+        }
       }
     ],
     series
@@ -352,7 +379,7 @@ onUnmounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -369,14 +396,14 @@ onUnmounted(() => {
 .stats-row {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .stat-card {
   text-align: center;
   padding: 15px;
   border-radius: 8px;
-  background: #f5f7fa;
+  background: var(--bg-input);
 }
 
 .stat-value {
@@ -387,7 +414,7 @@ onUnmounted(() => {
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .chart-card {
@@ -405,21 +432,21 @@ onUnmounted(() => {
 }
 
 .amount-up {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 600;
 }
 
 .amount-down {
-  color: #67c23a;
+  color: var(--stock-down);
   font-weight: 600;
 }
 
 .amount-flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
   font-weight: 500;
   cursor: pointer;
@@ -427,7 +454,7 @@ onUnmounted(() => {
 
 .stock-link:hover {
   text-decoration: underline;
-  color: #66b1ff;
+  color: var(--accent-hover);
 }
 
 @media (max-width: 768px) {

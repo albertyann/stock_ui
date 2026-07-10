@@ -162,19 +162,19 @@ const initChart = () => {
         }
       },
       grid: {
-        horizontal: { show: true, line: { style: 'dashed', size: 1, color: '#eeeeee', dashedValue: [2, 4] } },
-        vertical: { show: false, line: { style: 'dashed', size: 1, color: '#eeeeee', dashedValue: [2, 4] } }
+        horizontal: { show: true, line: { style: 'dashed', size: 1, color: '#f0f0f0', dashedValue: [2, 4] } },
+        vertical: { show: false, line: { style: 'dashed', size: 1, color: '#f0f0f0', dashedValue: [2, 4] } }
       },
       crosshair: {
         horizontal: {
           show: true,
-          line: { show: true, style: 'dashed', size: 1, color: '#888888', dashedValue: [2, 2] },
-          text: { show: true, color: '#fff', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#5470c6', borderSize: 0, borderRadius: 2 }
+          line: { show: true, style: 'dashed', size: 1, color: '#94a3b8', dashedValue: [2, 2] },
+          text: { show: true, color: '#f8fafc', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#10b981', borderSize: 0, borderRadius: 2 }
         },
         vertical: {
           show: true,
-          line: { show: true, style: 'dashed', size: 1, color: '#888888', dashedValue: [2, 2] },
-          text: { show: true, color: '#fff', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#5470c6', borderSize: 0, borderRadius: 2 }
+          line: { show: true, style: 'dashed', size: 1, color: '#94a3b8', dashedValue: [2, 2] },
+          text: { show: true, color: '#f8fafc', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#10b981', borderSize: 0, borderRadius: 2 }
         }
       }
     }

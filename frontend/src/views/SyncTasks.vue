@@ -626,7 +626,7 @@ onUnmounted(() => {
 }
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -634,8 +634,8 @@ onUnmounted(() => {
 .running-banner {
   margin-bottom: 20px;
   padding: 16px 20px 12px;
-  background: linear-gradient(135deg, #ecf5ff 0%, #f0f9eb 100%);
-  border: 1px solid #b3d8ff;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
+  border: 1px solid var(--border-active);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -651,7 +651,7 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #409eff;
+  color: var(--accent);
 }
 .banner-icon {
   font-size: 18px;
@@ -667,19 +667,19 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  background: #ffffff;
+  background: var(--bg-card-solid);
   border-radius: 4px;
-  border: 1px solid #d9ecff;
+  border: 1px solid var(--bg-active);
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 .banner-task-name {
   font-weight: 500;
-  color: #303133;
+  color: var(--text-primary);
 }
 .banner-task-elapsed {
   font-variant-numeric: tabular-nums;
-  color: #409eff;
+  color: var(--accent);
   font-weight: 500;
   min-width: 30px;
   text-align: right;
@@ -728,22 +728,22 @@ onUnmounted(() => {
 }
 .enable-dialog-count {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
 }
 .command-item {
   padding: 12px 14px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: #fafafa;
+  background: var(--bg-input);
 }
 .command-item:hover {
-  border-color: #409eff;
-  background: #ecf5ff;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.15);
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
 }
 .command-item.disabled {
   opacity: 0.5;
@@ -757,12 +757,12 @@ onUnmounted(() => {
 .command-task-type {
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
   font-family: 'SF Mono', 'Fira Code', monospace;
 }
 .command-display-name {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 .command-schedule {
@@ -770,7 +770,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 .command-schedule .el-icon {
@@ -779,7 +779,7 @@ onUnmounted(() => {
 .no-results {
   grid-column: 1 / -1;
   text-align: center;
-  color: #909399;
+  color: var(--text-muted);
   padding: 24px 0;
   font-size: 14px;
 }
@@ -814,19 +814,19 @@ onUnmounted(() => {
   align-items: center;
 }
 .result-output.error pre {
-  background-color: #fef0f0;
-  color: #f56c6c;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--stock-up);
 }
 .output-label {
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 4px;
-  color: #606266;
+  color: var(--text-secondary);
 }
 .result-output pre {
   margin: 0;
   padding: 12px;
-  background-color: #f5f7fa;
+  background-color: var(--bg-input);
   border-radius: 4px;
   font-size: 12px;
   line-height: 1.5;

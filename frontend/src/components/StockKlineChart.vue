@@ -229,8 +229,8 @@ const renderEChartsChart = () => {
           data: dates,
           scale: true,
           boundaryGap: false,
-          axisLine: { onZero: false, lineStyle: { color: '#777' } },
-          splitLine: { show: false },
+    axisLine: { onZero: false, lineStyle: { color: '#dcdfe6' } },
+    splitLine: { show: false },
           axisLabel: {
             formatter: function (value) {
               return value.substring(5)
@@ -246,8 +246,8 @@ const renderEChartsChart = () => {
           data: dates,
           scale: true,
           boundaryGap: false,
-          axisLine: { onZero: false, lineStyle: { color: '#777' } },
-          splitLine: { show: false },
+    axisLine: { onZero: false, lineStyle: { color: '#dcdfe6' } },
+    splitLine: { show: false },
           axisLabel: { show: false },
           min: 'dataMin',
           max: 'dataMax'
@@ -259,8 +259,8 @@ const renderEChartsChart = () => {
           data: dates,
           scale: true,
           boundaryGap: false,
-          axisLine: { onZero: false, lineStyle: { color: '#777' } },
-          splitLine: { show: false },
+    axisLine: { onZero: false, lineStyle: { color: '#dcdfe6' } },
+    splitLine: { show: false },
           axisLabel: {
             formatter: function (value) {
               return value.substring(5)
@@ -279,7 +279,7 @@ const renderEChartsChart = () => {
           splitArea: {
             show: true,
             areaStyle: {
-              color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
+              color: ['rgba(250,250,250,0.6)', 'rgba(200,200,200,0.3)']
             }
           }
         },
@@ -297,7 +297,7 @@ const renderEChartsChart = () => {
           },
           axisLine: { show: false },
           axisTick: { show: false },
-          splitLine: { lineStyle: { type: 'dashed', color: '#eee' } }
+          splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } }
         }
       ]
     : [
@@ -306,7 +306,7 @@ const renderEChartsChart = () => {
           splitArea: {
             show: true,
             areaStyle: {
-              color: ['rgba(250,250,250,0.3)', 'rgba(200,200,200,0.3)']
+              color: ['rgba(250,250,250,0.6)', 'rgba(200,200,200,0.3)']
             }
           }
         }
@@ -813,19 +813,19 @@ const initKLCChart = () => {
       },
       // 让默认字体/颜色偏暗, 贴合现有深色背景观感
       grid: {
-        horizontal: { show: true, line: { style: 'dashed', size: 1, color: '#eeeeee', dashedValue: [2, 4] } },
-        vertical: { show: false, line: { style: 'dashed', size: 1, color: '#eeeeee', dashedValue: [2, 4] } }
+  horizontal: { show: true, line: { style: 'dashed', size: 1, color: '#f0f0f0', dashedValue: [2, 4] } },
+    vertical: { show: false, line: { style: 'dashed', size: 1, color: '#f0f0f0', dashedValue: [2, 4] } }
       },
       crosshair: {
         horizontal: {
           show: true,
-          line: { show: true, style: 'dashed', size: 1, color: '#888888', dashedValue: [2, 2] },
-          text: { show: true, color: '#fff', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#5470c6', borderSize: 0, borderRadius: 2 }
+  line: { show: true, style: 'dashed', size: 1, color: '#94a3b8', dashedValue: [2, 2] },
+    text: { show: true, color: '#f8fafc', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#10b981', borderSize: 0, borderRadius: 2 }
         },
         vertical: {
           show: true,
-          line: { show: true, style: 'dashed', size: 1, color: '#888888', dashedValue: [2, 2] },
-          text: { show: true, color: '#fff', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#5470c6', borderSize: 0, borderRadius: 2 }
+  line: { show: true, style: 'dashed', size: 1, color: '#94a3b8', dashedValue: [2, 2] },
+    text: { show: true, color: '#f8fafc', size: 10, family: 'sans-serif', weight: 'normal', backgroundColor: '#10b981', borderSize: 0, borderRadius: 2 }
         }
       }
     }

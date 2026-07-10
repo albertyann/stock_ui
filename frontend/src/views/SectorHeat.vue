@@ -236,7 +236,7 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 24px;
 }
 
@@ -253,7 +253,7 @@ onMounted(() => {
 .stats-row {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .stat-card {
@@ -265,13 +265,13 @@ onMounted(() => {
 .stat-value {
   font-size: 20px;
   font-weight: bold;
-  color: #409eff;
+  color: var(--accent);
   margin-bottom: 5px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .data-card {
@@ -279,7 +279,7 @@ onMounted(() => {
 }
 
 .sector-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
 }
 .sector-link:hover {
@@ -287,12 +287,12 @@ onMounted(() => {
 }
 
 .amount-value {
-  color: #409eff;
+  color: var(--accent);
   font-weight: 600;
 }
 
 .pct-value {
-  color: #f56c6c;
+  color: var(--stock-up);
   font-weight: 600;
 }
 

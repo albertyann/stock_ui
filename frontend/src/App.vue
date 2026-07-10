@@ -11,9 +11,6 @@
           :default-active="$route.path"
           router
           class="el-menu-vertical"
-          background-color="#304156"
-          text-color="#bfcbd9"
-          active-text-color="#409EFF"
         >
           <el-menu-item index="/">
             <el-icon><HomeFilled /></el-icon>
@@ -238,12 +235,12 @@ async function handleUserCommand(command) {
 }
 
 .sidebar {
-  background-color: #304156;
-  color: white;
+  background: var(--bg-sidebar);
   height: 100vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  border-right: 1px solid var(--border-subtle);
 }
 
 .logo {
@@ -252,14 +249,17 @@ async function handleUserCommand(command) {
   align-items: center;
   justify-content: center;
   font-size: 18px;
-  font-weight: bold;
-  border-bottom: 1px solid #1f2d3d;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
 
 .logo .el-icon {
   margin-right: 10px;
   font-size: 24px;
+  color: var(--accent);
 }
 
 .el-menu-vertical {
@@ -267,53 +267,81 @@ async function handleUserCommand(command) {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 8px;
 }
 
-/* 自定义滚动条样式 */
 .el-menu-vertical::-webkit-scrollbar {
   width: 6px;
 }
 
 .el-menu-vertical::-webkit-scrollbar-thumb {
-  background-color: #1f2d3d;
+  background-color: var(--border-subtle);
   border-radius: 3px;
 }
 
 .el-menu-vertical::-webkit-scrollbar-track {
-  background-color: #304156;
+  background-color: transparent;
 }
 
-/* 侧边栏分割线样式 */
+/* Sub-menu items have less horizontal padding */
+.el-menu-vertical :deep(.el-sub-menu__title),
+.el-menu-vertical :deep(.el-menu-item) {
+  border-radius: var(--radius-sm);
+  margin: 2px 0;
+  height: 44px;
+  line-height: 44px;
+}
+
+/* Sidebar divider */
 .sidebar-divider {
-  margin: 10px 20px;
-  border-color: #1f2d3d;
+  margin: 10px 12px;
+  border-color: var(--border-subtle);
   opacity: 0.5;
 }
 
-/* 主内容区域样式 */
+/* Main content area */
 :deep(.el-main) {
   overflow-y: auto;
   height: calc(100vh - 60px);
+  background: var(--bg-deep);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  height: 60px;
+  position: relative;
 }
 
-.header-left h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #303133;
+.header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 70% 50%, rgba(16, 185, 129, 0.03), transparent 40%);
+  pointer-events: none;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.header-left i {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-style: italic;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 16px;
+  position: relative;
 }
 
 .user-info {
@@ -321,15 +349,22 @@ async function handleUserCommand(command) {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  color: #303133;
+  color: var(--text-primary);
   outline: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.user-info:hover {
+  border-color: var(--border-active);
+  background: var(--bg-hover);
 }
 
 .user-phone {
   font-size: 14px;
-}
-
-.el-menu-vertical {
-  border-right: none;
+  color: var(--text-primary);
 }
 </style>

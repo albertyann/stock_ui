@@ -249,9 +249,9 @@ const confirmFollow = async () => {
 .stock-basic-info h4,
 .follow-form h4 {
   margin: 0 0 12px 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 16px;
-  border-left: 4px solid #409eff;
+  border-left: 4px solid var(--accent);
   padding-left: 8px;
 }
 

@@ -46,7 +46,7 @@ export function useECharts(options = {}) {
   onMounted(() => {
     if (!chartRef.value) return
 
-    chartInstance.value = echarts.init(chartRef.value)
+    chartInstance.value = echarts.init(chartRef.value, 'dark-navy')
 
     if (onInit) {
       onInit(chartInstance.value)

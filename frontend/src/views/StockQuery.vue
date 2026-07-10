@@ -685,19 +685,19 @@ const handleDelete = (row) => {
 }
 
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 
 .flat {
-  color: #909399;
+  color: var(--stock-flat);
 }
 
 .stock-link {
-  color: #409eff;
+  color: var(--accent);
   text-decoration: none;
 }
 
@@ -707,27 +707,27 @@ const handleDelete = (row) => {
 
 /* 选中行 */
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
 }
 
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: rgba(16, 185, 129, 0.08) !important;
 }
 
 :deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
 }
 
 :deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: rgba(16, 185, 129, 0.12) !important;
 }
 
 .follow-dialog-content {
@@ -741,9 +741,9 @@ const handleDelete = (row) => {
 .stock-basic-info h4,
 .follow-form h4 {
   margin: 0 0 12px 0;
-  color: #303133;
+  color: var(--text-primary);
   font-size: 16px;
-  border-left: 4px solid #409eff;
+  border-left: 4px solid var(--accent);
   padding-left: 8px;
 }
 
@@ -760,7 +760,7 @@ const handleDelete = (row) => {
 
 .history-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-secondary);
   white-space: nowrap;
   line-height: 32px;
 }
@@ -776,13 +776,13 @@ const handleDelete = (row) => {
 }
 
 .history-tag:hover {
-  background-color: #ecf5ff;
+  background-color: var(--bg-hover);
 }
 
 .config-summary {
   margin-left: 8px;
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .code-tag {
@@ -791,7 +791,7 @@ const handleDelete = (row) => {
 }
 
 .more-codes {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
   margin-left: 4px;
 }
@@ -802,6 +802,6 @@ const handleDelete = (row) => {
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   margin: 0 !important;
-  background-color: #ffffff;
+  background-color: var(--bg-elevated);
 }
 </style>

@@ -337,36 +337,36 @@ onMounted(() => {
   justify-content: flex-end;
 }
 .up {
-  color: #f56c6c;
+  color: var(--stock-up);
 }
 .down {
-  color: #67c23a;
+  color: var(--stock-down);
 }
 .flat {
-  color: #909399;
+  color: var(--text-muted);
 }
 
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
-  background-color: #ecf5ff !important;
+  background-color: var(--bg-hover) !important;
 }
 
 :deep(.el-table .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: #d9ecff !important;
+  background-color: var(--bg-active) !important;
 }
 </style>
