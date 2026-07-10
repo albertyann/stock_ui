@@ -1,5 +1,6 @@
 <template>
-  <div class="app-container">
+  <router-view v-if="$route.meta.public" />
+  <div v-else class="app-container">
     <el-container>
       <el-aside width="200px" class="sidebar">
         <div class="logo">
@@ -27,28 +28,28 @@
               <el-icon><TrendCharts /></el-icon>
               <span>实时股价</span>
             </el-menu-item>
-            <el-menu-item index="/watchlist-stocks">
+            <el-menu-item v-if="authStore.isAdmin" index="/watchlist-stocks">
               <el-icon><Star /></el-icon>
               <span>关注清单</span>
             </el-menu-item>
-            <el-menu-item index="/watchlist-sector-stats">
+            <el-menu-item v-if="authStore.isAdmin" index="/watchlist-sector-stats">
               <el-icon><Grid /></el-icon>
               <span>关注板块</span>
             </el-menu-item>
-            <el-menu-item index="/watchlist-sector-trend">
+            <el-menu-item v-if="authStore.isAdmin" index="/watchlist-sector-trend">
               <el-icon><TrendCharts /></el-icon>
               <span>板块趋势</span>
             </el-menu-item>
-            <el-menu-item index="/limit-up">
+            <el-menu-item v-if="authStore.isAdmin" index="/limit-up">
               <el-icon><TrendCharts /></el-icon>
               <span>今日涨停</span>
             </el-menu-item>
-            <el-menu-item index="/buy-point-query">
+            <el-menu-item v-if="authStore.isAdmin" index="/buy-point-query">
               <el-icon><Search /></el-icon>
               <span>买点查询</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="group-tools">
+          <el-sub-menu v-if="authStore.isAdmin" index="group-tools">
             <template #title>
               <el-icon><Tools /></el-icon>
               <span>股票工具</span>
@@ -70,7 +71,7 @@
               <span>指标计算</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="group-analysis">
+          <el-sub-menu v-if="authStore.isAdmin" index="group-analysis">
             <template #title>
               <el-icon><TrendCharts /></el-icon>
               <span>分析工具</span>
@@ -115,8 +116,12 @@
               <el-icon><Histogram /></el-icon>
               <span>每日量化评分</span>
             </el-menu-item>
+            <el-menu-item index="/trading-heat">
+              <el-icon><TrendCharts /></el-icon>
+              <span>交易热度</span>
+            </el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="group-basic-data">
+          <el-sub-menu v-if="authStore.isAdmin" index="group-basic-data">
             <template #title>
               <el-icon><DataLine /></el-icon>
               <span>基础数据</span>
@@ -146,7 +151,7 @@
               <span>股票分组</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-sub-menu index="group-sync">
+          <el-sub-menu v-if="authStore.isAdmin" index="group-sync">
             <template #title>
               <el-icon><Refresh /></el-icon>
               <span>数据同步</span>
@@ -156,14 +161,24 @@
               <span>同步任务管理</span>
             </el-menu-item>
           </el-sub-menu>
-          <el-divider class="sidebar-divider" />
-          <el-menu-item index="/settings">
+          <el-sub-menu v-if="authStore.isAdmin" index="group-admin">
+            <template #title>
+              <el-icon><User /></el-icon>
+              <span>用户管理</span>
+            </template>
+            <el-menu-item index="/admin/users">
+              <el-icon><UserFilled /></el-icon>
+              <span>用户列表</span>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-divider v-if="authStore.isAdmin" class="sidebar-divider" />
+          <el-menu-item v-if="authStore.isAdmin" index="/settings">
             <el-icon><Setting /></el-icon>
             <span>设置</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
-      
+
       <el-container>
         <el-header class="header">
           <div class="header-left">
@@ -171,9 +186,27 @@
           </div>
           <div class="header-right">
             <MarketSwitcher />
+            <el-dropdown v-if="authStore.isAuthenticated" trigger="click" @command="handleUserCommand">
+              <span class="user-info">
+                <el-icon><UserFilled /></el-icon>
+                <span class="user-phone">{{ authStore.phone }}</span>
+                <el-tag size="small" :type="authStore.isAdmin ? 'danger' : 'primary'">
+                  {{ authStore.isAdmin ? '管理员' : '用户' }}
+                </el-tag>
+                <el-icon><ArrowDown /></el-icon>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="logout">
+                    <el-icon><SwitchButton /></el-icon>
+                    退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </el-header>
-        
+
         <el-main>
           <router-view />
         </el-main>
@@ -184,7 +217,19 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
 import MarketSwitcher from '@/components/MarketSwitcher.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
+
+async function handleUserCommand(command) {
+  if (command === 'logout') {
+    await authStore.logout()
+    router.push('/login')
+  }
+}
 </script>
 
 <style scoped>
@@ -268,6 +313,20 @@ import MarketSwitcher from '@/components/MarketSwitcher.vue'
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #303133;
+  outline: none;
+}
+
+.user-phone {
+  font-size: 14px;
 }
 
 .el-menu-vertical {

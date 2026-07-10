@@ -112,7 +112,7 @@
               :buySignals="buySignalsData"
               :indicatorSettings="klineIndicatorSettings"
               :visibleBarCount="KLINE_DISPLAY_DAYS"
-              :evalScores="evalScores"
+              :evalScores="highEvalScores"
               :showVolume="true"
               height="360px"
             />
@@ -274,6 +274,71 @@
             />
           </el-card>
 
+          <!-- 概念板块 -->
+          <el-card class="mt-20" v-loading="conceptLoading">
+            <template #header>
+              <div class="card-header">
+                <span>概念板块</span>
+                <span v-if="conceptList.length > 0" class="signal-count">{{ conceptList.length }}个</span>
+              </div>
+            </template>
+            <div v-if="conceptList.length > 0" class="concept-tags">
+              <router-link
+                v-for="c in conceptList"
+                :key="c.ts_code"
+                :to="{ path: '/concept/detail', query: { code: c.ts_code, sectorType: 'concept', sectorName: c.name } }"
+                custom
+                v-slot="{ navigate }"
+              >
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  class="concept-tag"
+                  :type="c.change_pct > 0 ? 'danger' : c.change_pct < 0 ? 'success' : 'info'"
+                  @click="navigate"
+                >
+                  {{ c.name }}
+                </el-tag>
+              </router-link>
+            </div>
+            <el-empty v-else description="暂无概念板块数据" :image-size="60" />
+          </el-card>
+
+          <!-- 标签管理 -->
+          <el-card class="mt-20">
+            <template #header>
+              <div class="card-header">
+                <span>标签</span>
+                <el-button size="small" type="primary" link @click="openTagPopover">
+                  <el-icon><EditPen /></el-icon>编辑
+                </el-button>
+              </div>
+            </template>
+
+            <div class="tags-display">
+              <template v-if="stockTags.length > 0">
+                <el-tag
+                  v-for="tag in stockTags"
+                  :key="tag"
+                  size="small"
+                  effect="plain"
+                  class="stock-tag"
+                >
+                  {{ tag }}
+                </el-tag>
+              </template>
+              <el-tag
+                v-else
+                size="small"
+                type="info"
+                effect="plain"
+                class="stock-tag empty-tag"
+              >
+                暂无标签
+              </el-tag>
+            </div>
+          </el-card>
+
           <!-- 审计意见 -->
           <el-card v-if="auditList.length > 0" class="audit-card mt-20">
             <template #header>
@@ -393,70 +458,6 @@
             <div ref="moneyflowChart" style="height: 300px;"></div>
           </el-card>
 
-          <!-- 概念板块 -->
-          <el-card class="mt-20" v-loading="conceptLoading">
-            <template #header>
-              <div class="card-header">
-                <span>概念板块</span>
-                <span v-if="conceptList.length > 0" class="signal-count">{{ conceptList.length }}个</span>
-              </div>
-            </template>
-            <div v-if="conceptList.length > 0" class="concept-tags">
-              <router-link
-                v-for="c in conceptList"
-                :key="c.ts_code"
-                :to="{ path: '/concept/detail', query: { code: c.ts_code, sectorType: 'concept', sectorName: c.name } }"
-                custom
-                v-slot="{ navigate }"
-              >
-                <el-tag
-                  size="small"
-                  effect="plain"
-                  class="concept-tag"
-                  :type="c.change_pct > 0 ? 'danger' : c.change_pct < 0 ? 'success' : 'info'"
-                  @click="navigate"
-                >
-                  {{ c.name }}
-                </el-tag>
-              </router-link>
-            </div>
-            <el-empty v-else description="暂无概念板块数据" :image-size="60" />
-          </el-card>
-
-          <!-- 标签管理 -->
-          <el-card class="mt-20">
-            <template #header>
-              <div class="card-header">
-                <span>标签</span>
-                <el-button size="small" type="primary" link @click="openTagPopover">
-                  <el-icon><EditPen /></el-icon>编辑
-                </el-button>
-              </div>
-            </template>
-
-            <div class="tags-display">
-              <template v-if="stockTags.length > 0">
-                <el-tag
-                  v-for="tag in stockTags"
-                  :key="tag"
-                  size="small"
-                  effect="plain"
-                  class="stock-tag"
-                >
-                  {{ tag }}
-                </el-tag>
-              </template>
-              <el-tag
-                v-else
-                size="small"
-                type="info"
-                effect="plain"
-                class="stock-tag empty-tag"
-              >
-                暂无标签
-              </el-tag>
-            </div>
-          </el-card>
 
           <!-- 筹码分布 -->
           <el-card class="mt-20" v-loading="chipLoading">
@@ -908,7 +909,7 @@
     </el-dialog>
 
     <!-- 股票评估弹窗 -->
-    <el-dialog v-model="showEvalDialog" title="股票评估（RSI强势评分）" width="420px">
+    <el-dialog v-model="showEvalDialog" title="股票评估（RSI强势评分）" width="680px">
       <el-form label-width="80px">
         <el-form-item label="股票">
           <el-text>{{ stock?.name }} ({{ stock?.ts_code }})</el-text>
@@ -924,12 +925,62 @@
         </el-form-item>
         <el-form-item label="说明">
           <el-text type="info" size="small">
-            将使用 RSI强势策略引擎，计算评估日期往前 5 个交易日的评分。
+            将使用 RSI强势策略引擎，计算评估日期往前 10 个交易日的评分。
           </el-text>
         </el-form-item>
       </el-form>
+
+      <!-- 评分结果表格 -->
+      <template v-if="evalScores.length > 0">
+        <el-divider />
+        <div class="eval-scores-section">
+          <div class="eval-scores-header">评分结果（{{ evalScores.length }} 个交易日）</div>
+          <el-table :data="sortedEvalScores" size="small" border stripe max-height="320px">
+            <el-table-column prop="date" label="日期" width="100" />
+            <el-table-column prop="score" label="评分" width="70">
+              <template #default="{ row }">
+                <el-tag v-if="row.score > 85" type="success" size="small" effect="dark">
+                  {{ row.score.toFixed(0) }}
+                </el-tag>
+                <span v-else :class="row.score > 0 ? '' : 'score-low'">
+                  {{ row.score != null ? row.score.toFixed(0) : '-' }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="passed_screen" label="通过" width="60" align="center">
+              <template #default="{ row }">
+                <el-icon v-if="row.passed_screen" color="#67c23a"><Check /></el-icon>
+                <el-icon v-else color="#909399"><Close /></el-icon>
+              </template>
+            </el-table-column>
+            <el-table-column prop="rsi12" label="RSI12" width="72">
+              <template #default="{ row }">
+                {{ row.rsi12 != null ? row.rsi12.toFixed(1) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="volume_ratio" label="量比" width="72">
+              <template #default="{ row }">
+                {{ row.volume_ratio != null ? row.volume_ratio.toFixed(2) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="adx" label="ADX" width="72">
+              <template #default="{ row }">
+                {{ row.adx != null ? row.adx.toFixed(1) : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="macd_hist" label="MACD柱" width="80">
+              <template #default="{ row }">
+                <span :style="{ color: row.macd_hist >= 0 ? '#f56c6c' : '#67c23a' }">
+                  {{ row.macd_hist != null ? row.macd_hist.toFixed(3) : '-' }}
+                </span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </template>
+
       <template #footer>
-        <el-button @click="showEvalDialog = false" :disabled="evalLoading">取消</el-button>
+        <el-button @click="showEvalDialog = false" :disabled="evalLoading">关闭</el-button>
         <el-button
           type="success"
           :loading="evalLoading"
@@ -955,7 +1006,7 @@ import { useRouter } from 'vue-router'
 import * as echarts from '@/utils/echarts'
 import { stockApi, signalApi, basicDataApi, watchlistApi, stockInfoApi, sectorApi, aiChatApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import { EditPen, Edit, Delete, Setting } from '@element-plus/icons-vue'
+import { EditPen, Edit, Delete, Setting, Check, Close } from '@element-plus/icons-vue'
 import { openXueqiu } from '@/utils/stock'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 import StockAdxChart from '@/components/StockAdxChart.vue'
@@ -1054,6 +1105,16 @@ const showEvalDialog = ref(false)
 const evalDate = ref(loadSavedEvalDate())
 const evalLoading = ref(false)
 const evalScores = ref([])
+
+// K线图上仅显示评分 > 85 的高分日期
+const highEvalScores = computed(() =>
+  evalScores.value.filter(s => s.score != null && s.score > 85)
+)
+
+// 弹窗内评分按日期降序（最新在前）
+const sortedEvalScores = computed(() =>
+  [...evalScores.value].reverse()
+)
 
 // 从 localStorage 读取上次选中的评估日期
 function loadSavedEvalDate() {
@@ -2106,10 +2167,13 @@ const handleEvaluate = async () => {
   try {
     const response = await stockApi.evaluateStock(stock.value.ts_code, evalDate.value)
     if (response.success) {
-      showEvalDialog.value = false
       ElMessage.success('评估完成')
-      // 从缓存刷新评估分数
-      await loadEvalScores()
+      // 直接从响应获取评分数据，弹窗保持打开显示结果
+      if (response.scores) {
+        evalScores.value = response.scores
+      } else {
+        await loadEvalScores()
+      }
     } else {
       ElMessage.error(response.error || '评估失败')
     }
@@ -3045,5 +3109,21 @@ const deleteStockInfo = async (infoId) => {
 .indicator-group :deep(.el-checkbox__label),
 .indicator-item :deep(.el-checkbox__label) {
   font-size: 12px;
+}
+
+/* 评估评分结果表格 */
+.eval-scores-section {
+  padding: 0 4px;
+}
+
+.eval-scores-header {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 10px;
+}
+
+.score-low {
+  color: #909399;
 }
 </style>

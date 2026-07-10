@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+
+from app.auth.dependencies import require_admin
 from typing import Optional
 
 from app.services.basic_data import BasicDataService
 
-
-router = APIRouter(prefix="/basic-data", tags=["basic-data"])
+router = APIRouter(
+    prefix="/basic-data",
+    tags=["basic-data"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.get("/trade-cal", response_model=dict)
@@ -112,7 +117,9 @@ async def get_moneyflow(
 
 @router.get("/moneyflow-ind-ths/history", response_model=dict)
 async def get_moneyflow_ind_ths_history(
-    ts_codes: str = Query(..., description="行业代码，逗号分隔，如 801010.SI,801020.SI"),
+    ts_codes: str = Query(
+        ..., description="行业代码，逗号分隔，如 801010.SI,801020.SI"
+    ),
     days: int = Query(60, ge=1, le=500, description="最近N个交易日"),
 ):
     service = BasicDataService()
@@ -139,10 +146,14 @@ async def get_moneyflow_ind_ths(
     trade_date: Optional[str] = Query(None, description="交易日期搜索，格式YYYY-MM-DD"),
     ts_code: Optional[str] = Query(None, description="行业代码搜索"),
     sort_field: Optional[str] = Query(None, description="排序字段"),
-    sort_order: Optional[str] = Query(None, description="排序方向: ascending/descending"),
+    sort_order: Optional[str] = Query(
+        None, description="排序方向: ascending/descending"
+    ),
 ):
     service = BasicDataService()
-    result = service.get_moneyflow_ind_ths(page, page_size, industry, trade_date, ts_code, sort_field, sort_order)
+    result = service.get_moneyflow_ind_ths(
+        page, page_size, industry, trade_date, ts_code, sort_field, sort_order
+    )
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result
@@ -154,7 +165,9 @@ async def get_capital_flow(
     industry: Optional[str] = Query(None, description="行业名称搜索"),
     ts_code: Optional[str] = Query(None, description="行业代码搜索"),
     sort_field: Optional[str] = Query(None, description="排序字段"),
-    sort_order: Optional[str] = Query(None, description="排序方向: ascending/descending"),
+    sort_order: Optional[str] = Query(
+        None, description="排序方向: ascending/descending"
+    ),
 ):
     service = BasicDataService()
     result = service.get_capital_flow(days, industry, ts_code, sort_field, sort_order)
@@ -169,10 +182,14 @@ async def get_industry_daily_flow(
     days: int = Query(30, ge=1, le=90, description="查询天数"),
     industry: Optional[str] = Query(None, description="行业名称搜索"),
     sort_field: Optional[str] = Query(None, description="排序字段"),
-    sort_order: Optional[str] = Query(None, description="排序方向: ascending/descending"),
+    sort_order: Optional[str] = Query(
+        None, description="排序方向: ascending/descending"
+    ),
 ):
     service = BasicDataService()
-    result = service.get_industry_daily_flow(trade_date, days, industry, sort_field, sort_order)
+    result = service.get_industry_daily_flow(
+        trade_date, days, industry, sort_field, sort_order
+    )
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result
@@ -182,7 +199,9 @@ async def get_industry_daily_flow(
 async def get_incremental_industry(
     days: int = Query(20, ge=5, le=60, description="查询天数，默认20"),
     min_growth_days: int = Query(3, ge=1, le=20, description="最少连续增长天数"),
-    end_date: Optional[str] = Query(None, description="截止日期，格式YYYY-MM-DD，默认为今天"),
+    end_date: Optional[str] = Query(
+        None, description="截止日期，格式YYYY-MM-DD，默认为今天"
+    ),
 ):
     service = BasicDataService()
     result = service.get_incremental_industry(days, min_growth_days, end_date)
@@ -193,10 +212,19 @@ async def get_incremental_industry(
 
 @router.get("/hot-industries", response_model=dict)
 async def get_hot_industries(
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"),
-    min_amount: float = Query(1e8, ge=0, description="最小成交额阈值，默认1亿（1e8元）"),
-    sort_field: Optional[str] = Query(None, description="排序字段: industry, stock_count, total_amount, avg_amount, avg_pct_chg, amount_rank"),
-    sort_order: Optional[str] = Query(None, description="排序方向: ascending/descending"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"
+    ),
+    min_amount: float = Query(
+        1e8, ge=0, description="最小成交额阈值，默认1亿（1e8元）"
+    ),
+    sort_field: Optional[str] = Query(
+        None,
+        description="排序字段: industry, stock_count, total_amount, avg_amount, avg_pct_chg, amount_rank",
+    ),
+    sort_order: Optional[str] = Query(
+        None, description="排序方向: ascending/descending"
+    ),
 ):
     service = BasicDataService()
     result = service.get_hot_industries(trade_date, min_amount, sort_field, sort_order)
@@ -207,8 +235,12 @@ async def get_hot_industries(
 
 @router.get("/sector-heat", response_model=dict)
 async def get_sector_heat(
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"),
-    tab: str = Query("up_pct", description="Tab类型: up_pct=上涨占比排名, amount=成交额排名"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"
+    ),
+    tab: str = Query(
+        "up_pct", description="Tab类型: up_pct=上涨占比排名, amount=成交额排名"
+    ),
     idx_type: Optional[str] = Query(None, description="板块类型过滤，如 概念板块"),
     min_stocks: Optional[int] = Query(None, description="最小板块股票数量"),
 ):
@@ -222,7 +254,9 @@ async def get_sector_heat(
 @router.get("/industry-stock-moneyflow", response_model=dict)
 async def get_industry_stock_moneyflow(
     industry: str = Query(..., description="行业名称"),
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"
+    ),
     limit: int = Query(100, ge=1, le=500, description="返回条数限制"),
 ):
     service = BasicDataService()
@@ -260,12 +294,18 @@ async def get_fina_indicator(
 @router.get("/cyq-chips/{ts_code}", response_model=dict)
 async def get_cyq_chips(
     ts_code: str,
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认最新有数据日期"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认最新有数据日期"
+    ),
 ):
     service = BasicDataService()
     result = service.get_cyq_chips(ts_code, trade_date)
     if not result.get("success"):
-        return {"success": False, "error": result.get("error"), "data": {"trade_date": None, "chips": [], "current_price": None}}
+        return {
+            "success": False,
+            "error": result.get("error"),
+            "data": {"trade_date": None, "chips": [], "current_price": None},
+        }
     return result
 
 
@@ -277,8 +317,14 @@ async def get_stock_capital_flow(
     ts_codes: Optional[str] = Query(None, description="指定股票代码，逗号分隔"),
 ):
     service = BasicDataService()
-    code_list = [c.strip() for c in ts_codes.split(",") if c.strip()] if ts_codes else None
+    code_list = (
+        [c.strip() for c in ts_codes.split(",") if c.strip()] if ts_codes else None
+    )
     result = service.get_stock_capital_flow(days, limit, end_date, code_list)
     if not result.get("success"):
-        return {"success": False, "error": result.get("error"), "data": {"dates": [], "stocks": []}}
+        return {
+            "success": False,
+            "error": result.get("error"),
+            "data": {"dates": [], "stocks": []},
+        }
     return result

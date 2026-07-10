@@ -1,14 +1,19 @@
 from typing import Optional
 from datetime import date
 from fastapi import APIRouter, Depends, Query
+
+from app.auth.dependencies import require_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.database import get_db
 from app.services.daily_score_service import DailyScoreService
 
-
-router = APIRouter(prefix="/daily-scores", tags=["daily-scores"])
+router = APIRouter(
+    prefix="/daily-scores",
+    tags=["daily-scores"],
+    dependencies=[Depends(require_admin)],
+)
 service = DailyScoreService()
 
 
@@ -46,7 +51,9 @@ async def get_latest_date(db: AsyncSession = Depends(get_db)):
 
 @router.get("/summary", response_model=ScoreSummaryResponse)
 async def get_score_summary(
-    trade_date: Optional[str] = Query(None, description="交易日期 YYYY-MM-DD，默认最新"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期 YYYY-MM-DD，默认最新"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     if trade_date:
@@ -63,8 +70,12 @@ async def get_score_summary(
 
 @router.get("/scores", response_model=ScoreListResponse)
 async def get_scores(
-    trade_date: Optional[str] = Query(None, description="交易日期 YYYY-MM-DD，默认最新"),
-    direction: Optional[str] = Query(None, description="方向过滤: bullish/bearish/neutral"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期 YYYY-MM-DD，默认最新"
+    ),
+    direction: Optional[str] = Query(
+        None, description="方向过滤: bullish/bearish/neutral"
+    ),
     limit: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
@@ -75,7 +86,9 @@ async def get_scores(
         if not target_date:
             return {"success": False, "data": []}
 
-    scores = await service.get_scores_by_date(db, target_date, direction=direction, limit=limit)
+    scores = await service.get_scores_by_date(
+        db, target_date, direction=direction, limit=limit
+    )
     data = [
         {
             "ts_code": s.ts_code,
@@ -84,7 +97,9 @@ async def get_scores(
             "trade_date": str(s.trade_date),
             "trend_score": float(s.trend_score) if s.trend_score else None,
             "momentum_score": float(s.momentum_score) if s.momentum_score else None,
-            "volume_price_score": float(s.volume_price_score) if s.volume_price_score else None,
+            "volume_price_score": (
+                float(s.volume_price_score) if s.volume_price_score else None
+            ),
             "composite_1d": float(s.composite_1d) if s.composite_1d else None,
             "composite_3d": float(s.composite_3d) if s.composite_3d else None,
             "composite_5d": float(s.composite_5d) if s.composite_5d else None,

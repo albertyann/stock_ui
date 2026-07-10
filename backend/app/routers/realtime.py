@@ -1,12 +1,17 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth.dependencies import get_current_user
 from typing import List, Optional
 from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.services.realtime_service import RealtimePriceService
 
-
-router = APIRouter(prefix="/realtime", tags=["realtime"])
+router = APIRouter(
+    prefix="/realtime",
+    tags=["realtime"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 class StockCodesRequest(BaseModel):
@@ -306,7 +311,9 @@ async def query_stock_prices_by_date(request: StockQueryRequest):
     if not normalized_codes:
         raise HTTPException(status_code=400, detail="No valid stock codes provided")
 
-    result = service.query_stock_prices_by_date(normalized_codes, request.query_date, request.days)
+    result = service.query_stock_prices_by_date(
+        normalized_codes, request.query_date, request.days
+    )
 
     if not result.get("success"):
         raise HTTPException(

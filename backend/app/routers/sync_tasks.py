@@ -1,13 +1,18 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+
+from app.auth.dependencies import require_admin
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.services.sync_task_service import SyncTaskService
 
-
-router = APIRouter(prefix="/sync-tasks", tags=["sync-tasks"])
+router = APIRouter(
+    prefix="/sync-tasks",
+    tags=["sync-tasks"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class SyncTaskCreate(BaseModel):

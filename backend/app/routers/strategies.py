@@ -1,11 +1,16 @@
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from app.auth.dependencies import require_admin
 from pydantic import BaseModel, Field
 
 from app.services.strategy_task_service import strategy_task_manager
 
-
-router = APIRouter(prefix="/strategies", tags=["strategies"])
+router = APIRouter(
+    prefix="/strategies",
+    tags=["strategies"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 SUPPORTED_STRATEGIES = {
@@ -110,12 +115,8 @@ async def get_task_status(task_id: str):
 
 
 @router.get("/tasks", response_model=dict)
-async def list_strategy_tasks(
-    status: Optional[str] = None, limit: int = 50
-):
+async def list_strategy_tasks(status: Optional[str] = None, limit: int = 50):
     return {
         "success": True,
-        "data": strategy_task_manager.list_tasks(
-            status_filter=status, limit=limit
-        ),
+        "data": strategy_task_manager.list_tasks(status_filter=status, limit=limit),
     }

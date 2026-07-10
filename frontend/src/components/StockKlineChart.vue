@@ -125,47 +125,75 @@ const renderEChartsChart = () => {
   // 构建图例数据
   const legendData = [...props.maPeriods.map(p => `MA${p}`)]
 
-  // 构建tooltip formatter
+  // 安全的数值格式化：null/undefined 显示 '--'
+  const fmt = (v, d = 2) => v != null ? v.toFixed(d) : '--'
+
+  // 构建tooltip formatter (trigger: 'item' — 单项触发, params 是单个对象而非数组)
   const tooltipFormatter = (params) => {
-    const dataIndex = params[0].dataIndex
-    const item = data[dataIndex]
-    const signal = props.buySignals.find(s => s.date === item.date)
-    let html = `
-      <div style="font-weight:bold;margin-bottom:5px;">${item.date}</div>
-      <div>开: ${item.open.toFixed(2)}</div>
-      <div>收: ${item.close.toFixed(2)}</div>
-      <div>高: ${item.high.toFixed(2)}</div>
-      <div>低: ${item.low.toFixed(2)}</div>
-      <div>涨跌: ${item.change_pct > 0 ? '+' : ''}${item.change_pct.toFixed(2)}%</div>
-    `
+    try {
+      const dataIndex = params.dataIndex
+      const item = data[dataIndex]
+      if (!item) return ''
+      const signal = props.buySignals.find(s => s.date === item.date)
+      const pct = item.change_pct
+      const up = pct > 0
+      const down = pct < 0
+      const pctColor = up ? '#f56c6c' : down ? '#67c23a' : '#888888'
+      const pctText = pct != null ? `${up ? '+' : ''}${pct.toFixed(2)}%` : '--'
 
-    if (hasVolume && item.volume != null) {
-      const volStr = item.volume >= 100000000
-        ? (item.volume / 100000000).toFixed(2) + '亿'
-        : item.volume >= 10000
-          ? (item.volume / 10000).toFixed(2) + '万'
-          : item.volume.toString()
-      html += `<div>成交量: ${volStr}</div>`
+      // 计算成交量环比变化（相比前一根 K 线）
+      let volChangeHtml = ''
+      if (hasVolume && item.volume != null && dataIndex > 0) {
+        const prevVolume = data[dataIndex - 1]?.volume
+        if (prevVolume && prevVolume > 0) {
+          const volChangePct = ((item.volume - prevVolume) / prevVolume) * 100
+          const volUp = volChangePct > 0
+          volChangeHtml = `<div>量环比: <span style="color:${volUp ? '#f56c6c' : '#67c23a'};font-weight:bold">${volUp ? '+' : ''}${volChangePct.toFixed(2)}%</span></div>`
+        }
+      }
+
+      let html = `
+        <div style="font-weight:bold;margin-bottom:5px;">${item.date || '--'}</div>
+        <div>开: ${fmt(item.open)}</div>
+        <div>收: ${fmt(item.close)}</div>
+        <div>高: ${fmt(item.high)}</div>
+        <div>低: ${fmt(item.low)}</div>
+        <div>涨跌: <span style="color:${pctColor};font-weight:bold">${pctText}</span></div>
+      `
+
+      if (hasVolume && item.volume != null) {
+        const volStr = item.volume >= 100000000
+          ? (item.volume / 100000000).toFixed(2) + '亿'
+          : item.volume >= 10000
+            ? (item.volume / 10000).toFixed(2) + '万'
+            : item.volume.toString()
+        html += `<div>成交量: ${volStr}</div>`
+        html += volChangeHtml
+      }
+
+      // MA 值从预计算的 maMap 中读取 (trigger:item 不提供其他 series 的 params)
+      props.maPeriods.forEach(period => {
+        const maVal = maMap[period]?.[dataIndex]
+        if (maVal != null) {
+          html += `<div>MA${period}: ${maVal.toFixed(2)}</div>`
+        }
+      })
+
+      if (signal) {
+        html += '<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px;">'
+        if (signal.ma2560) {
+          html += `<div style="color:#e6a23c">● MA25回踩 (评分${signal.ma2560.score.toFixed(0)}, 距MA25 ${signal.ma2560.proximity_pct.toFixed(2)}%)</div>`
+        }
+        if (signal.rsi12) {
+          html += `<div style="color:#409eff">▲ RSI12强势 (评分${signal.rsi12.score.toFixed(0)}, RSI${signal.rsi12.rsi12.toFixed(1)})</div>`
+        }
+        html += '</div>'
+      }
+
+      return html
+    } catch (e) {
+      return ''
     }
-
-    params.forEach(param => {
-      if (param.seriesName && param.seriesName.startsWith('MA') && param.value) {
-        html += `<div>${param.marker} ${param.seriesName}: ${param.value.toFixed(2)}</div>`
-      }
-    })
-
-    if (signal) {
-      html += '<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px;">'
-      if (signal.ma2560) {
-        html += `<div style="color:#e6a23c">● MA25回踩 (评分${signal.ma2560.score.toFixed(0)}, 距MA25 ${signal.ma2560.proximity_pct.toFixed(2)}%)</div>`
-      }
-      if (signal.rsi12) {
-        html += `<div style="color:#409eff">▲ RSI12强势 (评分${signal.rsi12.score.toFixed(0)}, RSI${signal.rsi12.rsi12.toFixed(1)})</div>`
-      }
-      html += '</div>'
-    }
-
-    return html
   }
 
   // 构建grid配置
@@ -380,8 +408,7 @@ const renderEChartsChart = () => {
       textStyle: { fontSize: 10 }
     },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
+      trigger: 'item',
       confine: false,
       appendToBody: true,
       className: 'kline-tooltip',
@@ -523,7 +550,7 @@ const buildBars = () => {
   }))
 }
 
-// 用 simpleAnnotation overlay 标注评估分数 (主图顶部)
+// 用 simpleAnnotation overlay 标注评估分数 (主图底部)
 const applyEvalScoreMarkers = () => {
   if (!chart || !props.evalScores || props.evalScores.length === 0) return
   const dataList = chart.getDataList()
@@ -533,11 +560,11 @@ const applyEvalScoreMarkers = () => {
     const ts = toTimestamp(entry.date)
     const bar = dataList.find((d) => d.timestamp === ts)
     if (!bar) return
-    // Place score label at the candle high (chart margin.top 提供留白)
+    // Place score label below the candle low (chart margin.bottom 提供留白)
     const scoreText = `${entry.score.toFixed(0)}`
     chart.createOverlay({
       name: 'simpleAnnotation',
-      points: [{ timestamp: bar.timestamp, value: bar.high }],
+      points: [{ timestamp: bar.timestamp, value: bar.low * 0.985 }],
       extendData: scoreText,
       styles: {
         point: { color: scoreColor, borderColor: '#ffffff', borderSize: 1, radius: 3 },
@@ -717,8 +744,8 @@ const initKLCChart = () => {
     styles: {
       candle: {
         type: 'candle_solid',
-        // 顶部留 25% 空间供评分标注文本显示
-        margin: { top: 0.25, bottom: 0.05 },
+        // 底部留 25% 空间供评分标注文本显示
+        margin: { top: 0.05, bottom: 0.25 },
         // A 股红涨绿跌 (KLineChart 默认是国际绿涨红跌, 这里翻转)
         bar: {
           upColor: '#f56c6c',

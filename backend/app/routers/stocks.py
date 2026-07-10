@@ -3,11 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from pydantic import BaseModel
 
+from app.auth.dependencies import require_admin
 from app.database import get_db
 from app.services.stock_service import StockService
 
-
-router = APIRouter(prefix="/stocks", tags=["stocks"])
+router = APIRouter(
+    prefix="/stocks",
+    tags=["stocks"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class KlineParams(BaseModel):

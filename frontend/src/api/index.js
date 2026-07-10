@@ -1,10 +1,49 @@
 import axios from 'axios'
 import { useMarketStore } from '@/stores/market'
 
+let refreshPromise = null
+
+function refreshOnce() {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = axios
+    .post('/api/v1/auth/refresh', {}, { withCredentials: true })
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
+}
+
+async function handle401AndRetry(error, instance, errorLabel) {
+  const originalRequest = error.config
+  const isAuthEndpoint = (originalRequest.url || '').includes('/auth/')
+  if (
+    error.response &&
+    error.response.status === 401 &&
+    !originalRequest._retry &&
+    !isAuthEndpoint
+  ) {
+    originalRequest._retry = true
+    try {
+      await refreshOnce()
+      return instance(originalRequest)
+    } catch (refreshError) {
+      const { useAuthStore } = await import('@/stores/auth')
+      useAuthStore().clearUser()
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+      return Promise.reject(error)
+    }
+  }
+  console.error(`${errorLabel}:`, error)
+  return Promise.reject(error)
+}
+
 function createApi({ timeout, errorLabel }) {
   const instance = axios.create({
     baseURL: '/api/v1',
     timeout,
+    withCredentials: true,
     headers: {
       'Content-Type': 'application/json'
     }
@@ -21,10 +60,7 @@ function createApi({ timeout, errorLabel }) {
 
   instance.interceptors.response.use(
     (response) => response.data,
-    (error) => {
-      console.error(`${errorLabel}:`, error)
-      return Promise.reject(error)
-    }
+    (error) => handle401AndRetry(error, instance, errorLabel)
   )
 
   return instance
@@ -537,6 +573,16 @@ export const aiChatApi = {
   chat: (data) => api.post('/ai/chat', data),
   saveSurvey: (data) => api.post('/ai/survey', data),
   getSurveys: (tsCode) => api.get(`/ai/surveys/${tsCode}`),
+}
+
+export const screeningApi = {
+  getHeat: (days = 120, endDate = null) => {
+    let url = `/screening/heat?days=${days}`
+    if (endDate) {
+      url += `&end_date=${endDate}`
+    }
+    return api.get(url)
+  },
 }
 
 export default api

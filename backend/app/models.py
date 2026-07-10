@@ -46,7 +46,9 @@ class WatchlistStock(Base):
     symbol = Column(String(10), nullable=False)
     name = Column(String(100))
     added_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     watch_date = Column(
         String(10), index=True
     )  # 关注日期，格式 yyyy-MM-dd，用于日期搜索
@@ -183,7 +185,9 @@ class DailyData(Base):
     vol = Column(Numeric(15, 2))
     amount = Column(Numeric(15, 2))
     market = Column(String(10), default="A")
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class WeeklyData(Base):
@@ -303,7 +307,9 @@ class Tag(Base):
     name = Column(String(50), nullable=False, unique=True, index=True)
     description = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class StockInfo(Base):
@@ -313,7 +319,9 @@ class StockInfo(Base):
     ts_code = Column(String(20), nullable=False, index=True)
     memo = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class DailyStockScore(Base):
@@ -357,4 +365,52 @@ class StockSurvey(Base):
     content = Column(Text, nullable=False)
     source = Column(String(50), default="ai_chat")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class User(Base):
+    """用户表：手机号 + TOTP 无密码登录。
+
+    生命周期：
+      1. admin 创建用户 → role=user, totp_secret=NULL, invitation_code=随机6位
+      2. 用户首次登录（手机号 + 邀请码）→ 生成 totp_secret, 展示 QR 码
+      3. 用户扫码确认 → enrolled_at 写入, invitation_code 置 NULL
+      4. 之后每次登录 → 手机号 + 当前 TOTP 6 位码
+    """
+
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone = Column(String(20), nullable=False, unique=True, index=True)
+    role = Column(String(10), nullable=False, default="user")  # "admin" | "user"
+    totp_secret = Column(String(64), nullable=True)  # NULL = 未绑定 TOTP
+    invitation_code = Column(String(16), nullable=True, index=True)
+    invitation_expires_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    enrolled_at = Column(DateTime(timezone=True), nullable=True)
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class RefreshToken(Base):
+    """Refresh token 服务端记录（哈希存储，防 DB 泄露后复用）。
+
+    每个 token 的 SHA256 哈希唯一存一行；撤销时写 revoked_at，不删行（保留审计）。
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

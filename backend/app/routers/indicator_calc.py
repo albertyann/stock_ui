@@ -10,16 +10,25 @@ Endpoints:
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+
+from app.auth.dependencies import require_admin
 
 from app.services.indicator_calc_service import IndicatorCalcService
 
-
-router = APIRouter(prefix="/indicator-calc", tags=["indicator-calc"])
+router = APIRouter(
+    prefix="/indicator-calc",
+    tags=["indicator-calc"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("/compute", response_model=dict)
-async def compute_all(date: Optional[date] = Query(None, description="计算日期 (YYYY-MM-DD)，默认最近交易日")):
+async def compute_all(
+    date: Optional[date] = Query(
+        None, description="计算日期 (YYYY-MM-DD)，默认最近交易日"
+    )
+):
     """Trigger batch computation. Long-running (up to ~3 min).
 
     Frontend should call via the longRunningApi client (300s timeout).

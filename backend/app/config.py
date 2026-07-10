@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     ai_base_url: str = "https://api.deepseek.com"
     ai_timeout: int = 120
 
+    # 生产环境必须在 .env 中显式设置 JWT_SECRET_KEY 为强随机值（≥32 字节），
+    # 否则任何人都能伪造登录态。debug=False 时应在入口处拒绝启动（P1 实现）。
+    jwt_secret_key: str = ""
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 10080  # 7 天
+    refresh_token_expire_days: int = 7
+    # dev (HTTP) 用 False；prod (HTTPS) 必须 True，否则 cookie 可被中间人嗅探
+    cookie_secure: bool = False
+    cookie_domain: str = ""
+    invitation_expire_hours: int = 24 * 7
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -798,7 +798,7 @@ class WatchlistService:
         page: int = 1,
         page_size: int = 30,
         search: Optional[str] = None,
-        industry: Optional[str] = None,
+        industry: Optional[List[str]] = None,
         watchlist_id: Optional[int] = None,
         tags: Optional[List[str]] = None,
         sort_by_change_pct: Optional[str] = None,
@@ -825,7 +825,7 @@ class WatchlistService:
                     params["search"] = f"%{search}%"
 
                 if industry:
-                    where_clauses.append("sb.industry = :industry")
+                    where_clauses.append("sb.industry = ANY(:industry)")
                     params["industry"] = industry
 
                 if watchlist_id:

@@ -6,11 +6,15 @@ from pydantic import BaseModel
 import json
 import os
 
+from app.auth.dependencies import require_admin
 from app.database import get_db
 from app.services.watchlist_service import WatchlistService
 
-
-router = APIRouter(prefix="/watchlists", tags=["watchlists"])
+router = APIRouter(
+    prefix="/watchlists",
+    tags=["watchlists"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class WatchlistCreate(BaseModel):
@@ -103,7 +107,7 @@ async def get_all_watchlist_stocks(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(30, ge=1, le=1000, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（ts_code或股票名称）"),
-    industry: Optional[str] = Query(None, description="板块筛选"),
+    industry: Optional[str] = Query(None, description="板块筛选（逗号分隔支持多选）"),
     watchlist_id: Optional[int] = Query(None, description="分组筛选"),
     tags: Optional[str] = Query(None, description="标签筛选（逗号分隔）"),
     sort_by_change_pct: Optional[str] = Query(
@@ -112,21 +116,18 @@ async def get_all_watchlist_stocks(
     market_type: Optional[str] = Query(
         None, description="市场类型: main=主板, chye=创业板, kcb=科创板"
     ),
-    change_pct_min: Optional[float] = Query(
-        None, description="最小涨幅(%), 例如 -20"
-    ),
-    change_pct_max: Optional[float] = Query(
-        None, description="最大涨幅(%), 例如 20"
-    ),
+    change_pct_min: Optional[float] = Query(None, description="最小涨幅(%), 例如 -20"),
+    change_pct_max: Optional[float] = Query(None, description="最大涨幅(%), 例如 20"),
     db: AsyncSession = Depends(get_db),
 ):
     service = WatchlistService(db)
     tags_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    industry_list = [i.strip() for i in industry.split(",") if i.strip()] if industry else None
     result = service.get_all_watchlist_stocks(
         page=page,
         page_size=page_size,
         search=search,
-        industry=industry,
+        industry=industry_list,
         watchlist_id=watchlist_id,
         tags=tags_list,
         sort_by_change_pct=sort_by_change_pct,
@@ -251,9 +252,9 @@ async def create_watchlist(
             "description": watchlist.description,
             "is_default": watchlist.is_default,
             "sort_num": watchlist.sort_num if watchlist.sort_num is not None else 0,
-            "created_at": watchlist.created_at.isoformat()
-            if watchlist.created_at
-            else None,
+            "created_at": (
+                watchlist.created_at.isoformat() if watchlist.created_at else None
+            ),
         },
     }
 
@@ -346,9 +347,9 @@ async def get_watchlist(watchlist_id: int, db: AsyncSession = Depends(get_db)):
             "name": watchlist.name,
             "description": watchlist.description,
             "is_default": watchlist.is_default,
-            "created_at": watchlist.created_at.isoformat()
-            if watchlist.created_at
-            else None,
+            "created_at": (
+                watchlist.created_at.isoformat() if watchlist.created_at else None
+            ),
             "stocks": [
                 {
                     "id": s.id,
@@ -448,9 +449,11 @@ async def get_watchlist_stocks(
             stock_info["signal"] = {
                 "signal_type": signal.signal_type if signal else None,
                 "signal_strength": signal.signal_strength if signal else None,
-                "current_price": float(signal.current_price)
-                if signal and signal.current_price
-                else None,
+                "current_price": (
+                    float(signal.current_price)
+                    if signal and signal.current_price
+                    else None
+                ),
             }
 
         stock_data.append(stock_info)
@@ -732,9 +735,9 @@ async def create_watchlist_snapshot(
             "watchlist_id": snapshot.watchlist_id,
             "snapshot_date": snapshot.snapshot_date,
             "snapshot_time": snapshot.snapshot_time,
-            "created_at": snapshot.created_at.isoformat()
-            if snapshot.created_at
-            else None,
+            "created_at": (
+                snapshot.created_at.isoformat() if snapshot.created_at else None
+            ),
         },
     }
 
@@ -830,4 +833,3 @@ async def update_stock_tags(
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-

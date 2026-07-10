@@ -17,10 +17,14 @@
             </el-form-item>
             <el-form-item label="板块">
               <el-select
-                v-model="filter.industry"
+                v-model="filter.industries"
                 placeholder="选择板块"
+                multiple
+                filterable
                 clearable
-                style="width: 160px"
+                collapse-tags
+                collapse-tags-tooltip
+                style="width: 200px"
                 @change="handleFilterChange"
               >
                 <el-option
@@ -111,7 +115,74 @@
           </template>
         </el-table-column>
         <el-table-column prop="name" label="股票名称" width="120" fixed="left" />
-        <el-table-column prop="industry" label="板块" width="140" />
+        <el-table-column prop="industry" label="板块" width="140">
+          <template #header>
+            <div class="industry-col-header">
+              <span>板块</span>
+              <el-popover
+                v-model:visible="industryFilterVisible"
+                placement="bottom-start"
+                :width="280"
+                trigger="click"
+                :show-arrow="false"
+                popper-class="industry-filter-popper"
+              >
+                <template #reference>
+                  <el-badge :is-dot="filter.industries.length > 0" class="industry-filter-badge">
+                    <el-icon
+                      class="industry-filter-icon"
+                      :class="{ active: filter.industries.length > 0 }"
+                    >
+                      <Filter />
+                    </el-icon>
+                  </el-badge>
+                </template>
+
+                <div class="industry-filter-panel">
+                  <div class="filter-panel-header">
+                    <span class="filter-panel-title">板块筛选</span>
+                    <span class="filter-panel-count">
+                      已选 {{ tempIndustries.length }} / {{ industryOptions.length }}
+                    </span>
+                  </div>
+                  <el-input
+                    v-model="industrySearch"
+                    placeholder="搜索板块名称"
+                    clearable
+                    size="small"
+                    class="filter-panel-search"
+                  >
+                    <template #prefix>
+                      <el-icon><Search /></el-icon>
+                    </template>
+                  </el-input>
+                  <div class="filter-panel-options">
+                    <el-checkbox-group v-model="tempIndustries">
+                      <el-checkbox
+                        v-for="item in filteredIndustryOptions"
+                        :key="item.name"
+                        :value="item.name"
+                        class="filter-panel-option"
+                      >
+                        <span class="option-name">{{ item.name }}</span>
+                        <span class="option-count">{{ item.count }}</span>
+                      </el-checkbox>
+                    </el-checkbox-group>
+                    <el-empty
+                      v-if="filteredIndustryOptions.length === 0"
+                      :image-size="40"
+                      description="无匹配板块"
+                    />
+                  </div>
+                  <div class="filter-panel-actions">
+                    <el-button size="small" @click="clearIndustryFilter">清空</el-button>
+                    <el-button size="small" type="primary" @click="applyIndustryFilter">确定</el-button>
+                  </div>
+                </div>
+              </el-popover>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="close_price" label="最新收盘价" width="120" align="right">
           <template #default="{ row }">
             <span v-if="row.close_price !== null">
@@ -274,9 +345,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Filter, Search } from '@element-plus/icons-vue'
 import { watchlistApi } from '@/api'
 import { useWebSocket } from '@/composables/useWebSocket'
 import { getChangeClass, openXueqiu } from '@/utils/stock'
@@ -290,11 +361,31 @@ const allTags = ref([])
 
 const filter = reactive({
   search: '',
-  industry: '',
+  industries: [],
   watchlist_id: null,
   tags: [],
   market_type: 'chye',
   change_pct_range: [-20, 20]
+})
+
+// 板块列头筛选浮窗
+const industryFilterVisible = ref(false)
+const industrySearch = ref('')
+// 临时选择缓冲：打开浮窗时从 filter.industries 同步，确定时才写回并请求
+const tempIndustries = ref([])
+
+watch(industryFilterVisible, (visible) => {
+  if (visible) {
+    tempIndustries.value = [...filter.industries]
+    industrySearch.value = ''
+  }
+})
+
+// 板块筛选可选项（按搜索词过滤）
+const filteredIndustryOptions = computed(() => {
+  if (!industrySearch.value) return industryOptions.value
+  const q = industrySearch.value.toLowerCase()
+  return industryOptions.value.filter(opt => opt.name.toLowerCase().includes(q))
 })
 
 
@@ -334,7 +425,7 @@ const fetchData = async () => {
       page: pagination.page,
       page_size: pagination.page_size,
       search: filter.search || null,
-      industry: filter.industry || null,
+      industry: filter.industries.length > 0 ? filter.industries.join(',') : null,
       watchlist_id: filter.watchlist_id || null,
       tags: filter.tags,
       sort_by_change_pct: sortState.sort_by_change_pct,
@@ -385,13 +476,25 @@ const handleFilterChange = () => {
   fetchData()
 }
 
+// 板块列头浮窗：确定 / 清空（操作 tempIndustries，确定时写回 filter）
+const applyIndustryFilter = () => {
+  filter.industries = [...tempIndustries.value]
+  industryFilterVisible.value = false
+  handleFilterChange()
+}
+
+const clearIndustryFilter = () => {
+  tempIndustries.value = []
+}
+
 const resetFilter = () => {
   filter.search = ''
-  filter.industry = ''
+  filter.industries = []
   filter.watchlist_id = null
   filter.tags = []
   filter.market_type = 'chye'
   filter.change_pct_range = [-20, 20]
+  industrySearch.value = ''
   sortState.sort_by_change_pct = null
   pagination.page = 1
   fetchData()
@@ -663,5 +766,86 @@ onUnmounted(() => {
 
 :deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
   background-color: #d9ecff !important;
+}
+
+/* 板块列头筛选 */
+.industry-col-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.industry-filter-badge {
+  display: inline-flex;
+  align-items: center;
+}
+.industry-filter-icon {
+  cursor: pointer;
+  color: #909399;
+  font-size: 14px;
+  transition: color 0.2s;
+}
+.industry-filter-icon:hover,
+.industry-filter-icon.active {
+  color: var(--el-color-primary);
+}
+
+/* 浮窗面板（通过 popper-class 跨出 scoped 作用域） */
+.industry-filter-popper.el-popover.el-popper {
+  padding: 12px !important;
+}
+.industry-filter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.filter-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.filter-panel-title {
+  font-weight: 600;
+  color: #303133;
+}
+.filter-panel-count {
+  font-size: 12px;
+  color: #909399;
+}
+.filter-panel-search {
+  width: 100%;
+}
+.filter-panel-options {
+  max-height: 280px;
+  overflow-y: auto;
+  border-top: 1px solid var(--el-border-color-lighter);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  padding: 6px 4px;
+}
+.filter-panel-options .el-checkbox {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  margin-right: 0;
+  width: 100%;
+}
+.filter-panel-options .el-checkbox .el-checkbox__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding-right: 4px;
+}
+.filter-panel-option .option-name {
+  color: #303133;
+}
+.filter-panel-option .option-count {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 8px;
+}
+.filter-panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth.dependencies import require_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from datetime import date
@@ -9,8 +11,11 @@ from app.services.signal_service import SignalService
 from app.models import StockBasic, StockPriceCache
 from sqlalchemy import select, func
 
-
-router = APIRouter(prefix="/signals", tags=["signals"])
+router = APIRouter(
+    prefix="/signals",
+    tags=["signals"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 async def _get_stock_info(db, ts_codes):
@@ -18,8 +23,9 @@ async def _get_stock_info(db, ts_codes):
         return {}
 
     basic_result = await db.execute(
-        select(StockBasic.ts_code, StockBasic.name, StockBasic.industry)
-        .where(StockBasic.ts_code.in_(ts_codes))
+        select(StockBasic.ts_code, StockBasic.name, StockBasic.industry).where(
+            StockBasic.ts_code.in_(ts_codes)
+        )
     )
     info = {}
     for row in basic_result.all():
@@ -28,7 +34,7 @@ async def _get_stock_info(db, ts_codes):
     subq = (
         select(
             StockPriceCache.ts_code,
-            func.max(StockPriceCache.trade_date).label("max_date")
+            func.max(StockPriceCache.trade_date).label("max_date"),
         )
         .where(StockPriceCache.ts_code.in_(ts_codes))
         .group_by(StockPriceCache.ts_code)
@@ -36,11 +42,10 @@ async def _get_stock_info(db, ts_codes):
     )
 
     latest_prices = await db.execute(
-        select(StockPriceCache.ts_code, StockPriceCache.change_pct)
-        .join(
+        select(StockPriceCache.ts_code, StockPriceCache.change_pct).join(
             subq,
             (StockPriceCache.ts_code == subq.c.ts_code)
-            & (StockPriceCache.trade_date == subq.c.max_date)
+            & (StockPriceCache.trade_date == subq.c.max_date),
         )
     )
     for row in latest_prices.all():
@@ -98,9 +103,9 @@ async def get_signals(
                 "signal_date": s.signal_date.isoformat() if s.signal_date else None,
                 "current_price": float(s.current_price) if s.current_price else None,
                 "target_price": float(s.target_price) if s.target_price else None,
-                "stop_loss_price": float(s.stop_loss_price)
-                if s.stop_loss_price
-                else None,
+                "stop_loss_price": (
+                    float(s.stop_loss_price) if s.stop_loss_price else None
+                ),
                 "indicators": s.indicators,
                 "strategy_name": s.strategy_name,
                 "conditions_met": s.conditions_met,
@@ -208,9 +213,9 @@ async def get_latest_signal(ts_code: str, db: AsyncSession = Depends(get_db)):
             "ts_code": signal.ts_code,
             "signal_type": signal.signal_type,
             "signal_strength": signal.signal_strength,
-            "signal_date": signal.signal_date.isoformat()
-            if signal.signal_date
-            else None,
+            "signal_date": (
+                signal.signal_date.isoformat() if signal.signal_date else None
+            ),
             "indicators": signal.indicators,
             "note_content": signal.note_content,
         },
@@ -335,6 +340,7 @@ async def add_signal_note(data: SignalNoteRequest, db: AsyncSession = Depends(ge
 
     try:
         from app.websockets.manager import broadcast_notes_updated
+
         await broadcast_notes_updated(data.ts_code, data.note_content)
     except Exception:
         pass

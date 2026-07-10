@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth.dependencies import require_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
 from typing import List, Optional
@@ -7,8 +9,11 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models import StockInfo
 
-
-router = APIRouter(prefix="/stock-info", tags=["stock-info"])
+router = APIRouter(
+    prefix="/stock-info",
+    tags=["stock-info"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class StockInfoCreate(BaseModel):
@@ -35,7 +40,11 @@ async def get_stock_infos(
     ts_code: str,
     db: AsyncSession = Depends(get_db),
 ):
-    stmt = select(StockInfo).where(StockInfo.ts_code == ts_code).order_by(StockInfo.created_at.desc())
+    stmt = (
+        select(StockInfo)
+        .where(StockInfo.ts_code == ts_code)
+        .order_by(StockInfo.created_at.desc())
+    )
     result = await db.execute(stmt)
     infos = result.scalars().all()
     return {"success": True, "data": [serialize_stock_info(info) for info in infos]}
@@ -72,9 +81,7 @@ async def update_stock_info(
 
     if update_data:
         update_stmt = (
-            update(StockInfo)
-            .where(StockInfo.id == info_id)
-            .values(**update_data)
+            update(StockInfo).where(StockInfo.id == info_id).values(**update_data)
         )
         await db.execute(update_stmt)
         await db.commit()

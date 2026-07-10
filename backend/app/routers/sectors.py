@@ -1,10 +1,15 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.auth.dependencies import require_admin
 from typing import List, Optional
 
 from app.services.sector_service import SectorService
 
-
-router = APIRouter(prefix="/sectors", tags=["sectors"])
+router = APIRouter(
+    prefix="/sectors",
+    tags=["sectors"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.get("", response_model=dict)
@@ -38,8 +43,13 @@ async def get_stock_concepts(ts_code: str):
 
 @router.get("/concepts", response_model=dict)
 async def get_concept_sectors(
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"),
-    sector_type: Optional[str] = Query(None, description="板块类型: concept(概念板块), industry(行业板块), region(地域板块)，默认返回所有类型"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"
+    ),
+    sector_type: Optional[str] = Query(
+        None,
+        description="板块类型: concept(概念板块), industry(行业板块), region(地域板块)，默认返回所有类型",
+    ),
 ):
     """
     获取板块列表（从 dc_index 表）
@@ -52,7 +62,9 @@ async def get_concept_sectors(
         板块列表
     """
     service = SectorService()
-    sectors = service.get_concept_sectors(trade_date=trade_date, sector_type=sector_type)
+    sectors = service.get_concept_sectors(
+        trade_date=trade_date, sector_type=sector_type
+    )
 
     return {
         "success": True,
@@ -90,9 +102,14 @@ async def get_concept_sector_stocks(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（股票名称或代码）"),
-    sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)"),
+    sort: Optional[str] = Query(
+        "default",
+        description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)",
+    ),
     trend: Optional[str] = Query(None, description="趋势过滤: up(上升), down(下降)"),
-    trade_date: Optional[str] = Query(None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"),
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认为最新日期"
+    ),
 ):
     """
     获取概念板块内的股票列表
@@ -115,7 +132,9 @@ async def get_concept_sector_stocks(
     if not sector:
         raise HTTPException(status_code=404, detail="Concept sector not found")
 
-    all_stocks = service.get_concept_sector_stocks(ts_code, sort=sort, trend=trend, trade_date=trade_date)
+    all_stocks = service.get_concept_sector_stocks(
+        ts_code, sort=sort, trend=trend, trade_date=trade_date
+    )
 
     if search:
         search_lower = search.lower()
@@ -206,7 +225,10 @@ async def get_sector_stocks(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
     search: Optional[str] = Query(None, description="搜索关键词（股票名称或代码）"),
-    sort: Optional[str] = Query("default", description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)"),
+    sort: Optional[str] = Query(
+        "default",
+        description="排序方式: default, asc(涨幅升序), desc(涨幅降序), volume_asc(成交量升序), volume_desc(成交量降序)",
+    ),
     trend: Optional[str] = Query(None, description="趋势过滤: up(上升), down(下降)"),
 ):
     """
@@ -234,9 +256,13 @@ async def get_sector_stocks(
         raise HTTPException(status_code=404, detail="Sector not found")
 
     if sector_type == "concept":
-        all_stocks = service.get_concept_sector_stocks(sector_code, sort=sort, trend=trend)
+        all_stocks = service.get_concept_sector_stocks(
+            sector_code, sort=sort, trend=trend
+        )
     else:
-        all_stocks = service.get_sector_stocks(sector_code, sector_type, sort=sort, trend=trend)
+        all_stocks = service.get_sector_stocks(
+            sector_code, sector_type, sort=sort, trend=trend
+        )
 
     # 搜索过滤
     if search:

@@ -1,6 +1,7 @@
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 
 const WS_URL = `ws://${window.location.host}/ws/stocks`
+const WS_AUTH_CLOSE_CODE = 4401
 
 export function useWebSocket() {
   const ws = ref(null)
@@ -10,6 +11,7 @@ export function useWebSocket() {
   const connectionError = ref(null)
   let reconnectTimer = null
   let pingTimer = null
+  let authRejected = false
   const typeHandlers = {}
 
   const onMessageType = (type, handler) => {
@@ -23,29 +25,45 @@ export function useWebSocket() {
     typeHandlers[type].delete(handler)
     if (typeHandlers[type].size === 0) delete typeHandlers[type]
   }
-  
-  const connect = () => {
+
+  const _buildWsUrl = () => {
+    const clientId = `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    let token = ''
     try {
-      const clientId = `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      ws.value = new WebSocket(`${WS_URL}?client_id=${clientId}`)
-      
+      const authCookie = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('access_token='))
+      if (authCookie) {
+        token = `&token=${encodeURIComponent(authCookie.split('=')[1])}`
+      }
+    } catch (e) {
+      // cookie 读取失败时退化为不带 token，靠同源 cookie 自动携带
+    }
+    return `${WS_URL}?client_id=${clientId}${token}`
+  }
+
+  const connect = () => {
+    if (authRejected) return
+    try {
+      ws.value = new WebSocket(_buildWsUrl())
+
       ws.value.onopen = () => {
         console.log('WebSocket connected')
         isConnected.value = true
         connectionError.value = null
-        
+
         if (subscribedStocks.size > 0) {
           subscribe(Array.from(subscribedStocks))
         }
-        
+
         startPing()
       }
-      
+
       ws.value.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
           lastMessage.value = data
-          
+
           if (data.type === 'pong') {
             console.log('Ping-pong latency:', Date.now() - data.timestamp, 'ms')
           }
@@ -59,17 +77,24 @@ export function useWebSocket() {
           console.error('Failed to parse message:', e)
         }
       }
-      
+
       ws.value.onerror = (error) => {
         console.error('WebSocket error:', error)
         connectionError.value = 'Connection error'
       }
-      
-      ws.value.onclose = () => {
-        console.log('WebSocket disconnected')
+
+      ws.value.onclose = (event) => {
+        console.log('WebSocket disconnected, code:', event.code)
         isConnected.value = false
         stopPing()
-        
+
+        if (event.code === WS_AUTH_CLOSE_CODE) {
+          console.warn('WebSocket 鉴权失败（4401），停止重连。请重新登录。')
+          authRejected = true
+          connectionError.value = '未授权，请重新登录'
+          return
+        }
+
         reconnectTimer = setTimeout(() => {
           console.log('Attempting to reconnect...')
           connect()

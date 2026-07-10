@@ -19,7 +19,9 @@ from app.routers import (
     ai_chat,
     indicator_calc,
     stock_eval,
+    screening,
 )
+from app.auth.router import router as auth_router
 from app.market.middleware import MarketMiddleware
 from app.tasks.scheduler import task_manager
 from app.websockets.routes import router as ws_router
@@ -29,6 +31,12 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not settings.debug and not settings.jwt_secret_key:
+        raise RuntimeError(
+            "JWT_SECRET_KEY 未配置：生产环境必须在 .env 中设置强随机值，"
+            "或临时设置 DEBUG=True 跳过本检查。"
+        )
+
     await init_db()
 
     from app.events import event_bus, NOTE_CREATED
@@ -59,6 +67,7 @@ app.add_middleware(
 app.add_middleware(MarketMiddleware)
 
 api_prefix = settings.api_v1_prefix
+app.include_router(auth_router, prefix=api_prefix)
 app.include_router(watchlists.router, prefix=api_prefix)
 app.include_router(stocks.router, prefix=api_prefix)
 app.include_router(signals.router, prefix=api_prefix)
@@ -73,6 +82,7 @@ app.include_router(daily_scores.router, prefix=api_prefix)
 app.include_router(ai_chat.router, prefix=api_prefix)
 app.include_router(indicator_calc.router, prefix=api_prefix)
 app.include_router(stock_eval.router, prefix=api_prefix)
+app.include_router(screening.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 

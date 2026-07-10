@@ -8,18 +8,25 @@ Endpoints:
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+
+from app.auth.dependencies import require_admin
 
 from app.services.stock_eval_service import StockEvalService
 
-
-router = APIRouter(prefix="/stocks", tags=["stock-eval"])
+router = APIRouter(
+    prefix="/stocks",
+    tags=["stock-eval"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("/{ts_code}/evaluate", response_model=dict)
 async def evaluate_stock(
     ts_code: str,
-    date: Optional[date] = Query(None, description="Evaluation date (YYYY-MM-DD), default today"),
+    date: Optional[date] = Query(
+        None, description="Evaluation date (YYYY-MM-DD), default today"
+    ),
 ):
     """Trigger RSI strong evaluation for a single stock.
 

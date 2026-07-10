@@ -3,6 +3,8 @@ from typing import Optional
 import json
 import logging
 
+from app.auth.security import ACCESS_COOKIE, decode_token
+from app.models import User
 from app.websockets.manager import manager
 from app.services.stock_service import StockService
 from app.services.signal_service import SignalService
@@ -12,12 +14,37 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
 
+async def _authenticate_ws(websocket: WebSocket, token: Optional[str]) -> User | None:
+    raw = websocket.cookies.get(ACCESS_COOKIE) or token
+    if not raw:
+        return None
+    try:
+        payload = decode_token(raw)
+    except Exception:
+        return None
+    if payload.get("type") != "access":
+        return None
+    try:
+        async with async_session() as db:
+            user = await db.get(User, int(payload["sub"]))
+    except Exception:
+        return None
+    return user if (user and user.is_active) else None
+
+
 @router.websocket("/stocks")
 async def websocket_endpoint(
     websocket: WebSocket,
     client_id: str = Query("anonymous"),
     token: Optional[str] = Query(None),
 ):
+    user = await _authenticate_ws(websocket, token)
+    if not user:
+        # 拒绝握手：浏览器会收到 4401 关闭码
+        await websocket.close(code=4401)
+        return
+    client_id = f"{client_id}:{user.id}"
+
     await manager.connect(websocket, client_id)
     stock_service = StockService()
 
@@ -106,9 +133,11 @@ async def websocket_endpoint(
                                     "data": {
                                         "signal_type": signal.signal_type,
                                         "signal_strength": signal.signal_strength,
-                                        "current_price": float(signal.current_price)
-                                        if signal.current_price
-                                        else None,
+                                        "current_price": (
+                                            float(signal.current_price)
+                                            if signal.current_price
+                                            else None
+                                        ),
                                         "indicators": signal.indicators,
                                     },
                                 },

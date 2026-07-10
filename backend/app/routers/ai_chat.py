@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends
+
+from app.auth.dependencies import require_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from pydantic import BaseModel
@@ -10,8 +12,11 @@ from app.database import get_db
 from app.models import StockSurvey
 from app.config import get_settings
 
-
-router = APIRouter(prefix="/ai", tags=["ai"])
+router = APIRouter(
+    prefix="/ai",
+    tags=["ai"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class ChatRequest(BaseModel):
