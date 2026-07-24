@@ -35,6 +35,13 @@ const routes = [
     meta: { requiresAdmin: true }
   },
   {
+    path: '/etf/:tsCode',
+    name: 'EtfDetail',
+    component: () => import('@/views/EtfDetail.vue'),
+    props: true,
+    meta: { title: 'ETF详情', requiresAdmin: true }
+  },
+  {
     path: '/watchlist-stocks',
     name: 'WatchlistStockList',
     component: () => import('@/views/WatchlistStockList.vue'),
@@ -83,6 +90,38 @@ const routes = [
     meta: { requiresAdmin: true }
   },
   {
+    path: '/basic-data/etfs',
+    name: 'EtfBasic',
+    component: () => import('@/views/EtfBasic.vue'),
+    meta: { title: 'ETF管理', requiresAdmin: true }
+  },
+  {
+    path: '/basic-data/funds',
+    name: 'FundBasic',
+    component: () => import('@/views/FundBasic.vue'),
+    meta: { title: '基金管理', requiresAdmin: true }
+  },
+  {
+    path: '/fund/:tsCode',
+    name: 'FundDetail',
+    component: () => import('@/views/FundDetail.vue'),
+    props: true,
+    meta: { title: '基金详情', requiresAdmin: true }
+  },
+  {
+    path: '/basic-data/index-basic',
+    name: 'IndexBasic',
+    component: () => import('@/views/IndexBasic.vue'),
+    meta: { title: '指数管理', requiresAdmin: true }
+  },
+  {
+    path: '/index/:tsCode',
+    name: 'IndexDetail',
+    component: () => import('@/views/IndexDetail.vue'),
+    props: true,
+    meta: { title: '指数详情', requiresAdmin: true }
+  },
+  {
     path: '/basic-data/daily',
     name: 'DailyData',
     component: () => import('@/views/DailyData.vue'),
@@ -99,6 +138,18 @@ const routes = [
     name: 'SyncTasks',
     component: () => import('@/views/SyncTasks.vue'),
     meta: { title: '数据同步', requiresAdmin: true }
+  },
+  {
+    path: '/etf-sync',
+    name: 'EtfSync',
+    component: () => import('@/views/EtfSync.vue'),
+    meta: { title: 'ETF同步', requiresAdmin: true }
+  },
+  {
+    path: '/index-sync',
+    name: 'IndexSync',
+    component: () => import('@/views/IndexSync.vue'),
+    meta: { title: '指数同步', requiresAdmin: true }
   },
   {
     path: '/snapshot-manage',

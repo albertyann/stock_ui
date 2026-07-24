@@ -131,6 +131,18 @@
               <el-icon><Document /></el-icon>
               <span>股票数据</span>
             </el-menu-item>
+            <el-menu-item index="/basic-data/etfs">
+              <el-icon><Coin /></el-icon>
+              <span>ETF管理</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/funds">
+              <el-icon><Money /></el-icon>
+              <span>基金管理</span>
+            </el-menu-item>
+            <el-menu-item index="/basic-data/index-basic">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>指数管理</span>
+            </el-menu-item>
             <el-menu-item index="/basic-data/daily">
               <el-icon><Histogram /></el-icon>
               <span>日线数据</span>
@@ -155,7 +167,15 @@
             </template>
             <el-menu-item index="/sync-tasks">
               <el-icon><Timer /></el-icon>
-              <span>同步任务管理</span>
+              <span>股票同步</span>
+            </el-menu-item>
+            <el-menu-item index="/etf-sync">
+              <el-icon><Coin /></el-icon>
+              <span>ETF同步</span>
+            </el-menu-item>
+            <el-menu-item index="/index-sync">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>指数同步</span>
             </el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="group-admin">

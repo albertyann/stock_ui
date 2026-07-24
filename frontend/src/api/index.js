@@ -521,6 +521,75 @@ export const basicDataApi = {
       url += `&min_stocks=${min_stocks}`
     }
     return api.get(url)
+  },
+  getFundPortfolio: (tsCode) => api.get(`/basic-data/fund-portfolio/${tsCode}`),
+  getFundBasic: (params = {}) => {
+    const { page = 1, page_size = 20, name = null, ts_code = null, fund_type = null, market = null } = params
+    let url = `/basic-data/fund-basic?page=${page}&page_size=${page_size}`
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (fund_type) {
+      url += `&fund_type=${encodeURIComponent(fund_type)}`
+    }
+    if (market) {
+      url += `&market=${encodeURIComponent(market)}`
+    }
+    return api.get(url)
+  },
+  getEtfBasic: (params = {}) => {
+    const { page = 1, page_size = 20, name = null, ts_code = null } = params
+    let url = `/basic-data/etf-basic?page=${page}&page_size=${page_size}`
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    return api.get(url)
+  },
+  getIndexBasic: (params = {}) => {
+    const { page = 1, page_size = 20, name = null, ts_code = null, market = null } = params
+    let url = `/basic-data/index-basic?page=${page}&page_size=${page_size}`
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (market) {
+      url += `&market=${encodeURIComponent(market)}`
+    }
+    return api.get(url)
+  },
+  getIndexDailyOverview: () => {
+    return api.get('/basic-data/index-daily/overview')
+  },
+  getIndexDailyKline: (tsCode, limit = 180) => {
+    return api.get(`/basic-data/index-daily/${tsCode}?limit=${limit}`)
+  },
+  getEtfDaily: (params = {}) => {
+    const { page = 1, page_size = 20, name = null, ts_code = null, trade_date = null } = params
+    let url = `/basic-data/etf-daily?page=${page}&page_size=${page_size}`
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (trade_date) {
+      url += `&trade_date=${trade_date}`
+    }
+    return api.get(url)
+  },
+  getEtfDailyKline: (tsCode, limit = 180) => {
+    return api.get(`/basic-data/etf-daily/${tsCode}?limit=${limit}`)
+  },
+  getEtfConstituents: (tsCode) => {
+    return api.get(`/basic-data/etf-constituents/${tsCode}`)
   }
 }
 
@@ -583,6 +652,14 @@ export const screeningApi = {
     }
     return api.get(url)
   },
+}
+
+export const indexSyncConfigApi = {
+  getAll: (params = {}) => api.get('/index-sync-configs', { params }),
+  create: (data) => api.post('/index-sync-configs', data),
+  update: (tsCode, data) => api.put(`/index-sync-configs/${tsCode}`, data),
+  delete: (tsCode) => api.delete(`/index-sync-configs/${tsCode}`),
+  search: (q, limit = 20) => api.get(`/index-sync-configs/search?q=${encodeURIComponent(q)}&limit=${limit}`),
 }
 
 export default api

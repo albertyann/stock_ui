@@ -64,33 +64,34 @@
       </el-col>
 
       <el-col :span="12">
-        <el-card>
+        <el-card class="index-card-section">
           <template #header>
             <div class="card-header">
-              <span>最新信号</span>
+              <span>市场指数</span>
             </div>
           </template>
-          <el-empty v-if="!recentSignals.length" description="暂无信号" />
-          <el-timeline v-else>
-            <el-timeline-item
-              v-for="signal in recentSignals"
-              :key="signal.id"
-              :type="signalType(signal.signal_type)"
+          <el-empty v-if="!indexData.length" description="暂无指数数据" />
+          <div v-else class="index-grid">
+            <div
+              v-for="idx in indexData"
+              :key="idx.ts_code"
+              class="index-card"
+              @click="$router.push('/index/' + idx.ts_code)"
             >
-              <div class="signal-item">
-                <div class="signal-header">
-                  <span class="stock-name">{{ signal.ts_code }}</span>
-                  <el-tag :type="signalType(signal.signal_type)" size="small">
-                    {{ signalText(signal.signal_type) }}
-                  </el-tag>
-                </div>
-                <div class="signal-info">
-                  强度: {{ signal.signal_strength }}/5 | 
-                  日期: {{ formatDate(signal.signal_date) }}
-                </div>
+              <div class="index-name">{{ idx.name || idx.ts_code }}</div>
+              <div class="index-price" :class="idx.change_pct >= 0 ? 'up' : 'down'">
+                {{ formatPrice(idx.close) }}
               </div>
-            </el-timeline-item>
-          </el-timeline>
+              <div class="index-change" :class="idx.change_pct >= 0 ? 'up' : 'down'">
+                {{ idx.change_pct >= 0 ? '+' : '' }}{{ idx.change_pct?.toFixed(2) }}%
+              </div>
+              <div class="index-meta">
+                <span>高 {{ formatPrice(idx.high) }}</span>
+                <span>低 {{ formatPrice(idx.low) }}</span>
+              </div>
+              <div class="index-date">{{ idx.date }}</div>
+            </div>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -100,7 +101,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useWatchlistStore } from '@/stores/watchlist'
-import { signalApi, watchlistApi } from '@/api'
+import { signalApi, watchlistApi, basicDataApi } from '@/api'
 import { storeToRefs } from 'pinia'
 
 const store = useWatchlistStore()
@@ -109,7 +110,7 @@ const { watchlists } = storeToRefs(store)
 const totalStocks = ref(0)
 const buySignals = ref(0)
 const sellSignals = ref(0)
-const recentSignals = ref([])
+const indexData = ref([])
 
 // 计算开票盯股票（watchlist id=2）的股票数量
 const kpdStocksCount = computed(() => {
@@ -124,12 +125,15 @@ onMounted(async () => {
 
 const fetchDashboardData = async () => {
   try {
-    // 获取信号数据
-    const response = await signalApi.getAll({ limit: 10 })
-    recentSignals.value = response.data || []
+    // 获取指数概览
+    const indexRes = await basicDataApi.getIndexDailyOverview()
+    indexData.value = indexRes.data || []
 
-    buySignals.value = recentSignals.value.filter(s => s.signal_type === 'BUY').length
-    sellSignals.value = recentSignals.value.filter(s => s.signal_type === 'SELL').length
+    // 获取信号统计数据
+    const signalRes = await signalApi.getAll({ limit: 10 })
+    const signals = signalRes.data || []
+    buySignals.value = signals.filter(s => s.signal_type === 'BUY').length
+    sellSignals.value = signals.filter(s => s.signal_type === 'SELL').length
 
     // 获取统计信息 (status=1 的热点股票数)
     const statsResponse = await watchlistApi.getStats()
@@ -141,19 +145,9 @@ const fetchDashboardData = async () => {
   }
 }
 
-const signalType = (type) => {
-  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning' }
-  return map[type] || 'info'
-}
-
-const signalText = (type) => {
-  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注' }
-  return map[type] || type
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return ''
-  return new Date(dateStr).toLocaleDateString('zh-CN')
+const formatPrice = (val) => {
+  if (val === null || val === undefined) return '--'
+  return val.toFixed(2)
 }
 </script>
 
@@ -197,25 +191,73 @@ const formatDate = (dateStr) => {
   align-items: center;
 }
 
-.signal-item {
-  padding: 10px 0;
+.index-card-section :deep(.el-card__body) {
+  padding: 12px;
 }
 
-.signal-header {
+.index-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.index-card {
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.index-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-color: var(--border-active);
+}
+
+.index-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.index-price {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.index-price.up,
+.index-change.up {
+  color: var(--stock-up);
+}
+
+.index-price.down,
+.index-change.down {
+  color: var(--stock-down);
+}
+
+.index-change {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.index-meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.stock-name {
-  font-weight: bold;
-  color: var(--text-primary);
-}
-
-.signal-info {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.index-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  opacity: 0.6;
 }
 
 .quick-access-card {

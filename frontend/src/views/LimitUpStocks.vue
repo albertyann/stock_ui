@@ -707,14 +707,17 @@ onUnmounted(() => {
 
 .change-badge.up {
   background: linear-gradient(135deg, var(--stock-up) 0%, var(--stock-up) 100%);
+  color: #fff !important;
 }
 
 .change-badge.down {
   background: linear-gradient(135deg, var(--stock-down) 0%, var(--stock-down) 100%);
+  color: #fff !important;
 }
 
 .change-badge.flat {
   background: linear-gradient(135deg, var(--text-muted) 0%, var(--stock-flat) 100%);
+  color: #fff !important;
 }
 
 .stock-body {

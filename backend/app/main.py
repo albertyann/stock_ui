@@ -20,6 +20,7 @@ from app.routers import (
     indicator_calc,
     stock_eval,
     screening,
+    index_sync_config,
 )
 from app.auth.router import router as auth_router
 from app.market.middleware import MarketMiddleware
@@ -83,6 +84,7 @@ app.include_router(ai_chat.router, prefix=api_prefix)
 app.include_router(indicator_calc.router, prefix=api_prefix)
 app.include_router(stock_eval.router, prefix=api_prefix)
 app.include_router(screening.router, prefix=api_prefix)
+app.include_router(index_sync_config.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 

@@ -748,6 +748,11 @@ onUnmounted(() => {
   background-color: var(--bg-hover) !important;
 }
 
+/* 确保右侧固定列显示在最上层（覆盖 el-table 默认 z-index 不足的问题） */
+:deep(.el-table__fixed-right) {
+  z-index: 10 !important;
+}
+
 :deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
   background-color: var(--bg-hover) !important;
 }
@@ -847,5 +852,16 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+</style>
+
+<style>
+/* 覆盖 Element Plus 默认 .el-table--enable-row-transition .el-table__body td 透明背景 */
+.el-table--enable-row-transition .el-table__body td.el-table__cell {
+  background-color: #fff;
+}
+/* 斑马纹在固定列中也保持一致 */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--el-fill-color-lighter);
 }
 </style>

@@ -9,6 +9,9 @@ from app.services.basic_data.cyq_chips_service import CyqChipsServiceMixin
 from app.services.basic_data.sector_heat_service import SectorHeatServiceMixin
 from app.services.basic_data.fina_audit_service import FinaAuditServiceMixin
 from app.services.basic_data.fina_indicator_service import FinaIndicatorServiceMixin
+from app.services.basic_data.etf_basic_service import EtfBasicServiceMixin
+from app.services.basic_data.fund_basic_service import FundBasicServiceMixin
+from app.services.basic_data.index_basic_service import IndexBasicServiceMixin
 
 
 class BasicDataService(
@@ -23,6 +26,9 @@ class BasicDataService(
     SectorHeatServiceMixin,
     FinaAuditServiceMixin,
     FinaIndicatorServiceMixin,
+    EtfBasicServiceMixin,
+    FundBasicServiceMixin,
+    IndexBasicServiceMixin,
 ):
     pass
 

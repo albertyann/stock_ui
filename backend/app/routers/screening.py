@@ -25,18 +25,32 @@ async def get_screening_heat(
     try:
         if end_date:
             date_condition = "AND trade_date <= :end_date"
+            cal_date_condition = "AND cal_date <= :end_date"
         else:
             date_condition = ""
+            cal_date_condition = ""
 
         sql = text(f"""
             SELECT
-                trade_date::TEXT,
-                COUNT(DISTINCT ts_code) AS stock_count
-            FROM screening_results
-            WHERE trade_date >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'
-                {date_condition}
-            GROUP BY trade_date
-            ORDER BY trade_date ASC
+                tc.cal_date::TEXT AS trade_date,
+                COALESCE(sr.stock_count, 0) AS stock_count
+            FROM (
+                SELECT DISTINCT cal_date
+                FROM trade_cal
+                WHERE is_open = 1
+                    AND cal_date >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'
+                    {cal_date_condition}
+            ) tc
+            LEFT JOIN (
+                SELECT
+                    trade_date,
+                    COUNT(DISTINCT ts_code) AS stock_count
+                FROM screening_results
+                WHERE trade_date >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'
+                    {date_condition}
+                GROUP BY trade_date
+            ) sr ON tc.cal_date = sr.trade_date
+            ORDER BY tc.cal_date ASC
         """)
 
         params = {"days": days}

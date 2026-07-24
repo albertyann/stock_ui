@@ -65,9 +65,6 @@
       />
 
       <div class="input-actions">
-        <div class="parsed-info" v-if="parsedCodes.length > 0">
-          <el-tag type="success">已解析 {{ parsedCodes.length }} 个</el-tag>
-        </div>
         <el-button
           type="primary"
           @click="fetchPrices"
@@ -76,6 +73,9 @@
         >
           查询实时价格
         </el-button>
+        <div class="parsed-info" v-if="parsedCodes.length > 0">
+          <el-tag type="success">已解析 {{ parsedCodes.length }} 个</el-tag>
+        </div>
       </div>
     </el-card>
 
@@ -631,9 +631,14 @@ onUnmounted(() => {
 
 .input-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-top: 15px;
+  gap: 15px;
+}
+
+.input-actions .parsed-info {
+  margin-left: auto;
 }
 
 .parsed-info {
@@ -790,14 +795,17 @@ onUnmounted(() => {
 
 .change-badge.up {
   background: linear-gradient(135deg, var(--stock-up) 0%, var(--stock-up) 100%);
+  color: #fff !important;
 }
 
 .change-badge.down {
   background: linear-gradient(135deg, var(--stock-down) 0%, var(--stock-down) 100%);
+  color: #fff !important;
 }
 
 .change-badge.flat {
   background: linear-gradient(135deg, var(--text-muted) 0%, var(--stock-flat) 100%);
+  color: #fff !important;
 }
 
 .stock-body {

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Column,
     Integer,
@@ -8,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Numeric,
     Date,
+    Float,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -167,6 +170,57 @@ class StockBasic(Base):
     industry = Column(String(50))
     market = Column(String(20))
     list_date = Column(Date)
+    update_time = Column(DateTime(timezone=False), nullable=False)
+
+
+class EtfBasic(Base):
+    __tablename__ = "etf_basic"
+
+    ts_code = Column(String(20), primary_key=True)
+    csname = Column(String(100))
+    extname = Column(String(200))
+    cname = Column(String(200))
+    index_code = Column(String(20))
+    index_name = Column(String(200))
+    setup_date = Column(Date)
+    list_date = Column(Date)
+    list_status = Column(String(10))
+    exchange = Column(String(10))
+    mgr_name = Column(String(100))
+    custod_name = Column(String(100))
+    mgt_fee = Column(Float)
+    etf_type = Column(String(20))
+    update_time = Column(DateTime(timezone=False), nullable=False)
+
+
+class FundBasic(Base):
+    __tablename__ = "fund_basic"
+
+    ts_code = Column(String(20), primary_key=True)
+    name = Column(String(200))
+    management = Column(String(200))
+    custodian = Column(String(200))
+    fund_type = Column(String(50))
+    found_date = Column(Date)
+    due_date = Column(Date)
+    list_date = Column(Date)
+    issue_date = Column(Date)
+    delist_date = Column(Date)
+    issue_amount = Column(Float)
+    m_fee = Column(Float)
+    c_fee = Column(Float)
+    duration_year = Column(Float)
+    p_value = Column(Float)
+    min_amount = Column(Float)
+    exp_return = Column(Float)
+    benchmark = Column(String(500))
+    status = Column(String(10))
+    invest_type = Column(String(50))
+    type = Column("type", String(50))
+    trustee = Column(String(200))
+    purc_startdate = Column(Date)
+    redm_startdate = Column(Date)
+    market = Column(String(10))
     update_time = Column(DateTime(timezone=False), nullable=False)
 
 
@@ -368,6 +422,18 @@ class StockSurvey(Base):
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class IndexSyncConfig(Base):
+    """配置需要同步数据的指数代码。"""
+    __tablename__ = "index_sync_config"
+
+    ts_code = Column(String(20), primary_key=True, comment="指数TS代码")
+    name = Column(String(100), comment="指数名称")
+    market = Column(String(20), comment="市场")
+    enabled = Column(Boolean, nullable=False, default=True, comment="是否启用")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class User(Base):

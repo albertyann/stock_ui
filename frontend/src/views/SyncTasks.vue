@@ -29,41 +29,103 @@
       </div>
     </transition>
 
-    <el-card v-loading="loading">
-      <el-table :data="tasks" stripe border>
-        <el-table-column prop="name" label="任务名称" min-width="150" />
-        <el-table-column prop="task_type" label="任务类型" width="120" />
-        <el-table-column prop="command" label="命令" width="120" />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="is_active" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'info'">
-              {{ row.is_active ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="last_run_at" label="最后执行时间" width="180">
-          <template #default="{ row }">
-            <span v-if="row.last_run_at">{{ formatTime(row.last_run_at) }}</span>
-            <span v-else style="color: #909399">未执行</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              :disabled="runningTasks.has(row.id)"
-              @click="executeTaskDirect(row)"
-            >
-              {{ runningTasks.has(row.id) ? '执行中...' : '执行' }}
-            </el-button>
-            <el-button size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+    <div v-loading="loading">
+      <!-- Primary Tasks -->
+      <div v-if="groupedTasks.primary.length" class="task-group">
+        <h3 class="task-group-title">核心任务</h3>
+        <div class="task-cards">
+          <div
+            v-for="row in groupedTasks.primary"
+            :key="row.id"
+            class="task-card"
+            :class="{ running: runningTasks.has(row.id) }"
+          >
+            <div class="card-body">
+              <div class="card-icon">
+                <el-icon :size="28"><Coin /></el-icon>
+              </div>
+              <div class="card-info">
+                <div class="card-title">{{ row.name }}</div>
+                <div class="card-desc">
+                  <span v-if="row.description">{{ row.description }}</span>
+                  <el-tag size="small" type="default" class="type-tag">{{ row.task_type }}</el-tag>
+                </div>
+                <div class="card-meta">
+                  <el-tag size="small" :type="row.is_active ? 'success' : 'info'">
+                    {{ row.is_active ? '启用' : '禁用' }}
+                  </el-tag>
+                  <span v-if="row.last_run_at" class="last-run">
+                    上次: {{ formatTime(row.last_run_at) }}
+                  </span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <el-button
+                  type="primary"
+                  :loading="runningTasks.has(row.id)"
+                  :disabled="runningTasks.has(row.id)"
+                  @click="executeTaskDirect(row)"
+                >
+                  {{ runningTasks.has(row.id) ? '执行中...' : '执行' }}
+                </el-button>
+                <el-button @click="openEditDialog(row)">编辑</el-button>
+                <el-button type="danger" @click="handleDelete(row)">删除</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Tasks -->
+      <div v-if="groupedTasks.secondary.length" class="task-group">
+        <h3 class="task-group-title">其他任务</h3>
+        <div class="task-cards">
+          <div
+            v-for="row in groupedTasks.secondary"
+            :key="row.id"
+            class="task-card"
+            :class="{ running: runningTasks.has(row.id) }"
+          >
+            <div class="card-body">
+              <div class="card-icon">
+                <el-icon :size="28"><Coin /></el-icon>
+              </div>
+              <div class="card-info">
+                <div class="card-title">{{ row.name }}</div>
+                <div class="card-desc">
+                  <span v-if="row.description">{{ row.description }}</span>
+                  <el-tag size="small" type="default" class="type-tag">{{ row.task_type }}</el-tag>
+                </div>
+                <div class="card-meta">
+                  <el-tag size="small" :type="row.is_active ? 'success' : 'info'">
+                    {{ row.is_active ? '启用' : '禁用' }}
+                  </el-tag>
+                  <span v-if="row.last_run_at" class="last-run">
+                    上次: {{ formatTime(row.last_run_at) }}
+                  </span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <el-button
+                  type="primary"
+                  :loading="runningTasks.has(row.id)"
+                  :disabled="runningTasks.has(row.id)"
+                  @click="executeTaskDirect(row)"
+                >
+                  {{ runningTasks.has(row.id) ? '执行中...' : '执行' }}
+                </el-button>
+                <el-button @click="openEditDialog(row)">编辑</el-button>
+                <el-button type="danger" @click="handleDelete(row)">删除</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="tasks.length === 0 && !loading" class="no-tasks">
+        <el-empty description="暂无同步任务" />
+      </div>
+    </div>
 
     <!-- Execution Logs -->
     <el-card class="log-card" v-loading="logsLoading">
@@ -282,11 +344,26 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading, Refresh, Search, Clock } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Refresh, Search, Clock, Coin } from '@element-plus/icons-vue'
 import { syncTaskApi } from '@/api'
 
 const loading = ref(false)
 const tasks = ref([])
+
+const PRIMARY_TASK_TYPES = ['trade_cal', 'daily_data', 'adj_factor', 'daily_basic']
+
+const groupedTasks = computed(() => {
+  const primary = []
+  const secondary = []
+  for (const t of tasks.value) {
+    if (PRIMARY_TASK_TYPES.includes(t.task_type)) {
+      primary.push(t)
+    } else {
+      secondary.push(t)
+    }
+  }
+  return { primary, secondary }
+})
 
 // Available sync task types from 'stock-sync ls'
 const availableTypes = ref([])
@@ -531,7 +608,12 @@ const handleDelete = async (row) => {
     await ElMessageBox.confirm(
       `确定删除任务 "${row.name}" 吗？`,
       '确认删除',
-      { type: 'warning' }
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        width: 200
+      }
     )
     const res = await syncTaskApi.delete(row.id)
     if (res.success) {
@@ -699,6 +781,96 @@ onUnmounted(() => {
   margin-bottom: 0;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+/* Task Groups */
+.task-group {
+  margin-bottom: 24px;
+}
+.task-group-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Task Cards */
+.task-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+  min-height: 100px;
+}
+.task-card {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-card-solid);
+  transition: all 0.2s ease;
+}
+.task-card:hover {
+  border-color: var(--border-active);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+.task-card.running {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.task-card .card-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+.task-card .card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 182, 212, 0.08));
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.task-card .card-info {
+  flex: 1;
+  min-width: 0;
+}
+.task-card .card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.task-card .card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.task-card .card-desc .type-tag {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  margin-left: 8px;
+}
+
+.task-card .card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.task-card .last-run {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.task-card .card-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+}
+.no-tasks {
+  grid-column: 1 / -1;
 }
 
 .log-card {

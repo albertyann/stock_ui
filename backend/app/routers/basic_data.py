@@ -60,6 +60,107 @@ async def get_stock_basic(
     return result
 
 
+@router.get("/fund-basic", response_model=dict)
+async def get_fund_basic(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
+    name: Optional[str] = Query(None, description="基金名称搜索"),
+    ts_code: Optional[str] = Query(None, description="ts_code搜索"),
+    fund_type: Optional[str] = Query(None, description="基金类型筛选"),
+    market: Optional[str] = Query(None, description="市场筛选"),
+):
+    service = BasicDataService()
+    result = service.get_fund_basic(page, page_size, name, ts_code, fund_type, market)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/fund-portfolio/{ts_code}", response_model=dict)
+async def get_fund_portfolio(
+    ts_code: str,
+):
+    service = BasicDataService()
+    result = service.get_fund_portfolio(ts_code)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/etf-basic", response_model=dict)
+async def get_etf_basic(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
+    name: Optional[str] = Query(None, description="ETF名称搜索"),
+    ts_code: Optional[str] = Query(None, description="ts_code搜索"),
+):
+    service = BasicDataService()
+    result = service.get_etf_basic(page, page_size, name, ts_code)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/index-basic", response_model=dict)
+async def get_index_basic(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=1000, description="每页数量"),
+    name: Optional[str] = Query(None, description="指数名称搜索"),
+    ts_code: Optional[str] = Query(None, description="ts_code搜索"),
+    market: Optional[str] = Query(None, description="市场筛选"),
+):
+    service = BasicDataService()
+    result = service.get_index_basic(page, page_size, name, ts_code, market)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/index-daily/overview", response_model=dict)
+async def get_index_daily_overview():
+    """Get latest daily data for all enabled indices (from index_sync_config)."""
+    service = BasicDataService()
+    result = service.get_index_daily_overview()
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/index-daily/{ts_code}", response_model=dict)
+async def get_index_daily_kline(
+    ts_code: str,
+    limit: int = Query(180, ge=1, le=500, description="返回K线条数"),
+):
+    service = BasicDataService()
+    result = service.get_index_daily_kline(ts_code, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/etf-daily/{ts_code}", response_model=dict)
+async def get_etf_daily_kline(
+    ts_code: str,
+    limit: int = Query(180, ge=1, le=500, description="返回K线条数"),
+):
+    service = BasicDataService()
+    result = service.get_etf_daily_kline(ts_code, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
+@router.get("/etf-constituents/{ts_code}", response_model=dict)
+async def get_etf_constituents(
+    ts_code: str,
+):
+    service = BasicDataService()
+    result = service.get_etf_constituents(ts_code)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": []}
+    return result
+
+
 @router.get("/daily", response_model=dict)
 async def get_daily_data(
     page: int = Query(1, ge=1, description="页码"),

@@ -1,13 +1,17 @@
 import asyncio
 import json
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 from sqlalchemy import select, desc, func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.models import SyncTask, SyncTaskLog
+
+
+_available_types_cache: dict = {}
+_available_types_cache_ttl = timedelta(seconds=300)
 
 
 class SyncTaskService:
@@ -202,7 +206,18 @@ class SyncTaskService:
 
     @staticmethod
     async def get_available_task_types() -> Dict:
-        """Get all available sync task types by running 'stock-sync ls --json'."""
+        """Get all available sync task types by running 'stock-sync ls --json'.
+
+        Results are cached in memory for CACHE_TTL seconds since the task list
+        is essentially static (changes only when sync_config.yaml is modified).
+        """
+        now = datetime.now(timezone.utc)
+        cached = _available_types_cache.get("result")
+        cached_at = _available_types_cache.get("cached_at")
+        if cached is not None and cached_at is not None:
+            if now - cached_at < _available_types_cache_ttl:
+                return cached
+
         settings = get_settings()
 
         executable = shutil.which("stock-sync")
@@ -234,13 +249,17 @@ class SyncTaskService:
                 }
 
             tasks = json.loads(stdout.decode("utf-8", errors="replace"))
-            return {"success": True, "data": tasks}
+            result = {"success": True, "data": tasks}
         except asyncio.TimeoutError:
-            return {"success": False, "error": "Timeout retrieving available tasks"}
+            result = {"success": False, "error": "Timeout retrieving available tasks"}
         except json.JSONDecodeError as e:
-            return {"success": False, "error": f"Failed to parse task list: {e}"}
+            result = {"success": False, "error": f"Failed to parse task list: {e}"}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            result = {"success": False, "error": str(e)}
+
+        _available_types_cache["result"] = result
+        _available_types_cache["cached_at"] = datetime.now(timezone.utc)
+        return result
 
     @staticmethod
     def _ensure_tz(dt: Optional[datetime]) -> Optional[datetime]:

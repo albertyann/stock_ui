@@ -188,12 +188,12 @@
             
             <!-- 右侧：K线图 -->
             <div class="stock-chart-section">
-              <StockKlineChart
+              <StockSimpleKlineChart
                 :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
                 :ts-code="stock.ts_code"
                 :kline-data="klineDataCache.get(stock.ts_code) || []"
-                :show-m-a-c-d="true"
-                min-height="260px"
+                :show-volume="true"
+                height="360px"
               />
             </div>
           </div>
@@ -228,7 +228,7 @@ import { ArrowLeft, Search } from '@element-plus/icons-vue'
 import { realtimeApi, watchlistApi, sectorApi } from '@/api'
 import { getChangeClass, formatChange, formatVolume, formatAmount, openXueqiu } from '@/utils/stock'
 import { useStockKeyboardNav } from '@/composables/useStockKeyboardNav'
-import StockKlineChart from '@/components/StockKlineChart.vue'
+import StockSimpleKlineChart from '@/components/StockSimpleKlineChart.vue'
 import FollowStockDialog from '@/components/FollowStockDialog.vue'
 
 const router = useRouter()
@@ -704,15 +704,18 @@ onUnmounted(() => {
 }
 
 .change-badge.up {
-  background: var(--stock-up);
+  background: linear-gradient(135deg, var(--stock-up) 0%, var(--stock-up) 100%);
+  color: #fff !important;
 }
 
 .change-badge.down {
-  background: var(--stock-down);
+  background: linear-gradient(135deg, var(--stock-down) 0%, var(--stock-down) 100%);
+  color: #fff !important;
 }
 
 .change-badge.flat {
-  background: var(--text-muted);
+  background: linear-gradient(135deg, var(--text-muted) 0%, var(--stock-flat) 100%);
+  color: #fff !important;
 }
 
 .stock-body {
@@ -858,6 +861,7 @@ onUnmounted(() => {
   justify-content: center;
   background: var(--bg-card-solid);
   min-height: 280px;
+  overflow: hidden;
 }
 
 /* 响应式布局 */

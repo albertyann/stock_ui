@@ -290,4 +290,50 @@ h2 {
 .watchlist-name .el-icon {
   color: var(--accent);
 }
+
+/* White button overrides for settings page */
+:deep(.el-button--primary) {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+:deep(.el-button--primary:hover) {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+:deep(.el-button--primary:active) {
+  transform: translateY(0);
+}
+
+:deep(.el-button--primary.is-text) {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+}
+
+:deep(.el-button--primary.is-text:hover) {
+  background: var(--bg-hover);
+  color: var(--accent-hover);
+  box-shadow: none;
+  transform: none;
+}
+
+:deep(.el-button--danger.is-text) {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+}
+
+:deep(.el-button--danger.is-text:hover) {
+  background: rgba(239, 68, 68, 0.06);
+  color: #dc2626;
+  box-shadow: none;
+  transform: none;
+}
 </style>
