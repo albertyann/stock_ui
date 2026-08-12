@@ -1,5 +1,13 @@
 <template>
-  <div class="dashboard">
+  <div class="dashboard" v-loading="loading">
+    <div v-if="loadError" class="mt-20">
+      <el-result status="error" title="加载失败" :sub-title="loadError">
+        <template #extra>
+          <el-button type="primary" @click="loadDashboard">重新加载</el-button>
+        </template>
+      </el-result>
+    </div>
+    <template v-else>
     <el-row :gutter="20">
       <el-col :span="6">
         <el-card class="stat-card" @click="$router.push('/watchlist/2')" style="cursor: pointer;">
@@ -95,6 +103,7 @@
         </el-card>
       </el-col>
     </el-row>
+    </template>
   </div>
 </template>
 
@@ -111,6 +120,8 @@ const totalStocks = ref(0)
 const buySignals = ref(0)
 const sellSignals = ref(0)
 const indexData = ref([])
+const loading = ref(false)
+const loadError = ref('')
 
 // 计算开票盯股票（watchlist id=2）的股票数量
 const kpdStocksCount = computed(() => {
@@ -118,10 +129,23 @@ const kpdStocksCount = computed(() => {
   return kpdWatchlist?.stock_count || kpdWatchlist?.stocks?.length || 0
 })
 
-onMounted(async () => {
-  await store.fetchWatchlists()
-  await fetchDashboardData()
+onMounted(() => {
+  loadDashboard()
 })
+
+const loadDashboard = async () => {
+  loading.value = true
+  loadError.value = ''
+  try {
+    await store.fetchWatchlists()
+    await fetchDashboardData()
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error)
+    loadError.value = '加载数据失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
 
 const fetchDashboardData = async () => {
   try {
@@ -142,6 +166,7 @@ const fetchDashboardData = async () => {
     }
   } catch (error) {
     console.error('Failed to fetch dashboard data:', error)
+    loadError.value = '加载数据失败，请稍后重试'
   }
 }
 
