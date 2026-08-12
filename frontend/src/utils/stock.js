@@ -19,6 +19,7 @@ export function getChangeClass(changePct) {
  * @returns {string}
  */
 export function formatChange(changePct) {
+  if (changePct === null || changePct === undefined) return '-'
   if (changePct > 0) return `+${changePct.toFixed(2)}%`
   if (changePct < 0) return `${changePct.toFixed(2)}%`
   return '0.00%'
@@ -95,6 +96,71 @@ export function getMarketType(tsCode) {
     return '北交所'
   }
   return ''
+}
+
+/**
+ * 格式化日期为 zh-CN 本地日期字符串
+ * @param {string | Date} dateStr
+ * @param {string} fallback 空值时的回退文本
+ * @returns {string}
+ */
+export function formatDate(dateStr, fallback = '-') {
+  if (!dateStr) return fallback
+  return new Date(dateStr).toLocaleDateString('zh-CN')
+}
+
+/**
+ * 格式化日期时间为 YYYY-MM-DD HH:mm
+ * @param {string | Date} dateStr
+ * @param {string} fallback 空值时的回退文本
+ * @returns {string}
+ */
+export function formatDateTime(dateStr, fallback = '-') {
+  if (!dateStr) return fallback
+  const d = new Date(dateStr)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/**
+ * 格式化市值（tushare daily_basic total_mv 单位为万元，10000万 = 1亿）
+ * @param {number} cap 市值（万元）
+ * @param {string} fallback 空值时的回退文本
+ * @returns {string}
+ */
+export function formatMarketCap(cap, fallback = '-') {
+  if (!cap) return fallback
+  return (cap / 10000).toFixed(2) + '亿'
+}
+
+/**
+ * 根据信号类型返回 Element Plus tag 类型
+ * @param {string} type
+ * @returns {string}
+ */
+export function getSignalType(type) {
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'info', NOTE: 'warning', ADD_TAG: '' }
+  return map[type] || 'info'
+}
+
+/**
+ * 根据信号类型返回时间线节点类型
+ * @param {string} type
+ * @returns {string}
+ */
+export function getSignalTimelineType(type) {
+  const map = { BUY: 'success', SELL: 'danger', WATCH: 'primary', NOTE: 'warning', ADD_TAG: 'primary' }
+  return map[type] || 'primary'
+}
+
+/**
+ * 格式化信号类型为可读文案
+ * @param {string} type
+ * @returns {string}
+ */
+export function formatSignal(type) {
+  const map = { BUY: '买入', SELL: '卖出', WATCH: '观望', NOTE: '备注', ADD_TAG: '添加标签' }
+  return map[type] || type
 }
 
 /**
