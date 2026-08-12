@@ -122,6 +122,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { basicDataApi } from '@/api'
 import StockKlineChart from '@/components/StockKlineChart.vue'
 
@@ -160,6 +161,7 @@ const loadData = async () => {
     }
   } catch (err) {
     console.error('Failed to load ETF kline:', err)
+    ElMessage.error('加载ETF K线失败')
   } finally {
     klineLoading.value = false
   }
@@ -173,6 +175,7 @@ const loadData = async () => {
     }
   } catch (err) {
     console.error('Failed to load ETF constituents:', err)
+    ElMessage.error('加载ETF成分股失败')
   } finally {
     constituentsLoading.value = false
   }

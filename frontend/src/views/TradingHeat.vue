@@ -38,13 +38,13 @@
     </el-row>
 
     <!-- 折线图 -->
-    <el-card class="chart-card">
+    <el-card class="chart-card" v-loading="loading">
       <div ref="chartRef" class="heat-chart"></div>
       <el-empty v-if="!loading && rawData.length === 0" description="暂无交易热度数据" />
     </el-card>
 
     <!-- 行业堆叠柱状图 -->
-    <el-card class="chart-card">
+    <el-card class="chart-card" v-loading="loading">
       <div class="chart-card-header">行业分布（每日筛选股票按行业汇总，仅展示 ≥ 2 只的行业）</div>
       <div ref="stackChartRef" class="stack-chart"></div>
       <el-empty v-if="!loading && !industryData" description="暂无行业分布数据" />

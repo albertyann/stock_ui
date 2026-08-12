@@ -63,7 +63,7 @@
             />
           </el-card>
 
-          <el-card class="mt-20">
+          <el-card class="mt-20" v-loading="heatLoading">
             <template #header>
               <div class="card-header">
                 <span>交易热度</span>
@@ -92,6 +92,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElMessage } from 'element-plus'
 import { basicDataApi, screeningApi } from '@/api'
 import * as echarts from '@/utils/echarts'
 import StockKlineChart from '@/components/StockKlineChart.vue'
@@ -226,6 +227,7 @@ async function fetchHeatData() {
     }
   } catch (err) {
     console.error('Failed to fetch heat data:', err)
+    ElMessage.error('加载交易热度数据失败')
   } finally {
     heatLoading.value = false
   }
@@ -258,6 +260,7 @@ const loadData = async () => {
     }
   } catch (err) {
     console.error('Failed to load index kline:', err)
+    ElMessage.error('加载指数K线失败')
   } finally {
     klineLoading.value = false
   }
