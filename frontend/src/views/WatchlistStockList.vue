@@ -350,7 +350,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Filter, Search } from '@element-plus/icons-vue'
 import { watchlistApi } from '@/api'
 import { useWebSocket } from '@/composables/useWebSocket'
-import { getChangeClass, openXueqiu } from '@/utils/stock'
+import { getChangeClass, openXueqiu, formatAmount as formatMarketCap, formatDateTime } from '@/utils/stock'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -557,28 +557,6 @@ const copyAllTsCodes = async () => {
     console.error('Failed to copy ts_codes:', err)
     ElMessage.error('复制失败，请手动复制')
   }
-}
-
-const formatMarketCap = (value) => {
-  if (!value) return '-'
-  if (value >= 100000000) {
-    return (value / 100000000).toFixed(2) + '亿'
-  }
-  if (value >= 10000) {
-    return (value / 10000).toFixed(2) + '万'
-  }
-  return value.toFixed(0)
-}
-
-const formatDateTime = (value) => {
-  if (!value) return '-'
-  const date = new Date(value)
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `${y}-${m}-${d} ${h}:${min}`
 }
 
 // 打开股票备注弹窗

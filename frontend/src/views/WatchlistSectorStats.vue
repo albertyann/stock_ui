@@ -122,6 +122,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { watchlistApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import { formatChange } from '@/utils/stock'
 
 const stats = ref([])
 const loading = ref(false)
@@ -185,12 +186,6 @@ const getFlatPct = (row) => {
 const getChangeClass = (change) => {
   if (!change) return 'flat-text'
   return change > 0 ? 'up-text' : change < 0 ? 'down-text' : 'flat-text'
-}
-
-const formatChange = (change) => {
-  if (change === null || change === undefined) return '-'
-  const sign = change > 0 ? '+' : ''
-  return `${sign}${change.toFixed(2)}%`
 }
 
 const formatAmount = (amount) => {

@@ -147,6 +147,7 @@ import { useWatchlistStore } from '@/stores/watchlist'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Folder } from '@element-plus/icons-vue'
+import { formatDate } from '@/utils/stock'
 
 const store = useWatchlistStore()
 const { watchlists, loading } = storeToRefs(store)
@@ -253,11 +254,6 @@ const handleSortChange = async (row) => {
     // 重新获取数据以恢复原始值
     store.fetchWatchlists()
   }
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('zh-CN')
 }
 </script>
 

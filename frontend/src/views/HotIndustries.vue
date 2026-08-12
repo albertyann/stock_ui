@@ -162,6 +162,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Document, CopyDocument } from '@element-plus/icons-vue'
 import { basicDataApi } from '@/api'
+import { formatChange } from '@/utils/stock'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -243,12 +244,6 @@ const handleSortChange = ({ prop, order }) => {
 const formatAmount = (amount) => {
   if (amount === null || amount === undefined) return '-'
   return (amount / 1e8).toFixed(2)
-}
-
-const formatChange = (value) => {
-  if (value === null || value === undefined) return '-'
-  const prefix = value > 0 ? '+' : ''
-  return prefix + value.toFixed(2) + '%'
 }
 
 const getChangeClass = (value) => {

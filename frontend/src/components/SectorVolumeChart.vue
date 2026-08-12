@@ -23,20 +23,10 @@ import { useECharts } from '@/composables/useECharts'
 import { watchlistApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import { formatVolume } from '@/utils/stock'
 
 const { chartRef, chartInstance, render, clear, resize } = useECharts()
 const loading = ref(false)
-
-// 格式化成交量
-const formatVolume = (value) => {
-  if (value >= 100000000) {
-    return (value / 100000000).toFixed(2) + '亿'
-  }
-  if (value >= 10000) {
-    return (value / 10000).toFixed(2) + '万'
-  }
-  return value.toString()
-}
 
 const fetchData = async () => {
   loading.value = true

@@ -118,6 +118,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { basicDataApi } from '@/api'
+import { formatDateTime } from '@/utils/stock'
 
 const loading = ref(false)
 const tableData = ref([])
@@ -224,13 +225,6 @@ const formatAmount = (val) => {
     return '¥' + (num / 10000).toFixed(2) + '万'
   }
   return '¥' + num.toFixed(2)
-}
-
-const formatDateTime = (val) => {
-  if (!val) return '-'
-  const d = new Date(val)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 onMounted(() => {
