@@ -69,9 +69,10 @@
       </el-button>
     </div>
 
-    <el-empty v-if="currentWatchlist && !filteredStocks.length" :description="selectedDate ? '所选日期暂无信号数据' : '暂无股票，点击上方按钮添加'" />
+    <div v-loading="loading" class="stock-list-container">
+      <el-empty v-if="currentWatchlist && !filteredStocks.length" :description="selectedDate ? '所选日期暂无信号数据' : '暂无股票，点击上方按钮添加'" />
 
-    <div v-if="currentWatchlist && filteredStocks.length" class="stock-list">
+      <div v-if="currentWatchlist && filteredStocks.length" class="stock-list">
       <div
         v-for="(stock, index) in filteredStocks"
         :key="stock.id"
@@ -199,6 +200,7 @@
           />
         </div>
       </div>
+    </div>
     </div>
 
     <el-dialog v-model="showAddDialog" title="批量添加股票" width="500px">
@@ -457,6 +459,9 @@ onUnmounted(() => {
   offMessageType('notes_updated', handleNotesUpdated)
 })
 
+// K线批量加载失败时只提示一次（loadWatchlist 时重置）
+let klineFailNotified = false
+
 const loadLastTradingDay = async () => {
   try {
     const response = await watchlistApi.getLastTradingDay(props.id)
@@ -465,12 +470,14 @@ const loadLastTradingDay = async () => {
     }
   } catch (error) {
     console.error('Failed to load last trading day:', error)
+    ElMessage.error('加载最近交易日失败')
   }
 }
 
 const loadWatchlist = async (watchDate = null) => {
   loading.value = true
   selectedStockIndex.value = 0
+  klineFailNotified = false
   try {
     const response = await watchlistApi.getStocksByWatchDate(
       props.id, 
@@ -502,6 +509,7 @@ const loadWatchlist = async (watchDate = null) => {
 }
 
 const loadPrices = async () => {
+  let failed = 0
   for (const stock of currentWatchlist.value.stocks) {
     try {
       const response = await stockApi.getDetail(stock.ts_code)
@@ -514,8 +522,12 @@ const loadPrices = async () => {
         }
       }
     } catch (error) {
+      failed++
       console.error(`Failed to load price for ${stock.ts_code}:`, error)
     }
+  }
+  if (failed > 0) {
+    ElMessage.error(`加载股票价格失败（${failed} 只）`)
   }
 }
 
@@ -529,10 +541,15 @@ const fetchKlineData = async (tsCode) => {
     }
   } catch (error) {
     console.error('Failed to load kline for', tsCode, error)
+    if (!klineFailNotified) {
+      klineFailNotified = true
+      ElMessage.error('部分股票K线数据加载失败')
+    }
   }
 }
 
 const loadSignals = async () => {
+  let failed = 0
   for (const stock of currentWatchlist.value.stocks) {
     try {
       const response = await signalApi.getLatest(stock.ts_code)
@@ -540,8 +557,12 @@ const loadSignals = async () => {
         stockSignals.value[stock.ts_code] = response.data
       }
     } catch (error) {
+      failed++
       console.error(`Failed to load signal for ${stock.ts_code}:`, error)
     }
+  }
+  if (failed > 0) {
+    ElMessage.error(`加载信号失败（${failed} 只）`)
   }
 }
 
@@ -554,6 +575,7 @@ const loadAvailableDates = async () => {
     }
   } catch (error) {
     console.error('Failed to load available dates:', error)
+    ElMessage.error('加载日期列表失败')
   }
 }
 
@@ -574,6 +596,7 @@ const loadAvailableWatchReasons = async () => {
     }
   } catch (error) {
     console.error('Failed to load available watch reasons:', error)
+    ElMessage.error('加载关注原因列表失败')
   }
 }
 
@@ -585,6 +608,7 @@ const loadAllTags = async () => {
     }
   } catch (error) {
     console.error('Failed to load all tags:', error)
+    ElMessage.error('加载标签列表失败')
   }
 }
 
@@ -817,6 +841,11 @@ const loadSnapshots = async () => {
 .header-right {
   display: flex;
   align-items: center;
+}
+
+/* 股票列表加载容器 */
+.stock-list-container {
+  min-height: 200px;
 }
 
 /* 股票列表 - 纵向排列 */
