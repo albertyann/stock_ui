@@ -45,6 +45,10 @@
               <el-icon><Search /></el-icon>
               <span>买点查询</span>
             </el-menu-item>
+            <el-menu-item v-if="authStore.isAdmin" index="/trend-analysis">
+              <el-icon><TrendCharts /></el-icon>
+              <span>趋势分析</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="group-tools">
             <template #title>

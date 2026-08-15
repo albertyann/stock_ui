@@ -248,6 +248,12 @@ const routes = [
     meta: { title: '买点查询', requiresAdmin: true }
   },
   {
+    path: '/trend-analysis',
+    name: 'TrendAnalysis',
+    component: () => import('@/views/TrendAnalysis.vue'),
+    meta: { title: '趋势分析', requiresAdmin: true }
+  },
+  {
     path: '/daily-scores',
     name: 'DailyScoreView',
     component: () => import('@/views/DailyScoreView.vue'),
