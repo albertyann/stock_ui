@@ -654,6 +654,54 @@ export const screeningApi = {
   },
 }
 
+export const trendApi = {
+  getTrends: (params = {}) => {
+    const {
+      page = 1,
+      page_size = 30,
+      strategy_name = null,
+      industry = null,
+      ts_code = null,
+      name = null,
+      date_start = null,
+      date_end = null,
+      min_score = null,
+      market_type = null,
+      days = null
+    } = params
+    let url = `/screening/trend?page=${page}&page_size=${page_size}`
+    if (strategy_name) {
+      url += `&strategy_name=${encodeURIComponent(strategy_name)}`
+    }
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (date_start) {
+      url += `&date_start=${encodeURIComponent(date_start)}`
+    }
+    if (date_end) {
+      url += `&date_end=${encodeURIComponent(date_end)}`
+    }
+    if (min_score !== null && min_score !== undefined) {
+      url += `&min_score=${encodeURIComponent(min_score)}`
+    }
+    if (market_type) {
+      url += `&market_type=${encodeURIComponent(market_type)}`
+    }
+    if (days && days.length > 0) {
+      url += `&days=${days.join(',')}`
+    }
+    return api.get(url)
+  },
+  getMeta: () => api.get('/screening/results/meta'),
+}
+
 export const indexSyncConfigApi = {
   getAll: (params = {}) => api.get('/index-sync-configs', { params }),
   create: (data) => api.post('/index-sync-configs', data),
