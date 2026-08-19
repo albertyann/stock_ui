@@ -254,6 +254,12 @@ const routes = [
     meta: { title: '趋势分析', requiresAdmin: true }
   },
   {
+    path: '/signal-query',
+    name: 'SignalQuery',
+    component: () => import('@/views/SignalQuery.vue'),
+    meta: { title: '信号查询', requiresAdmin: true }
+  },
+  {
     path: '/daily-scores',
     name: 'DailyScoreView',
     component: () => import('@/views/DailyScoreView.vue'),

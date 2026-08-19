@@ -652,6 +652,7 @@ export const screeningApi = {
     }
     return api.get(url)
   },
+  getResultsMeta: () => api.get('/screening/results/meta'),
 }
 
 export const trendApi = {
