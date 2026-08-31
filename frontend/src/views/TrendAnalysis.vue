@@ -191,7 +191,7 @@ const selectedRowId = ref(null)
 // 涨幅口径: change = 当天涨幅, cumulative = 累计涨幅
 const metricMode = ref('cumulative')
 
-const dayOptions = [1, 3, 5, 10, 20]
+const dayOptions = [1, 2, 3, 4, 5]
 
 const filter = reactive({
   strategy_name: null,
@@ -200,7 +200,7 @@ const filter = reactive({
   dateRange: null,
   isAll: false,
   market_type: 'chye',
-  days: [1, 3, 5, 10, 20]
+  days: [1, 2, 3, 4, 5]
 })
 
 const pagination = reactive({
@@ -305,7 +305,7 @@ const resetFilter = () => {
   filter.dateRange = null
   filter.isAll = false
   filter.market_type = 'chye'
-  filter.days = [1, 3, 5, 10, 20]
+  filter.days = [1, 2, 3, 4, 5]
   pagination.page = 1
   fetchData()
 }
