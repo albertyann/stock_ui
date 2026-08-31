@@ -23,6 +23,16 @@
 
     <!-- 搜索和筛选区域 -->
     <el-card class="filter-card" v-if="isSectorMode">
+      <!-- 周期选择：默认日线，可切换到周线 -->
+      <div class="chart-options-bar">
+        <div class="chart-options">
+          <span class="options-label">K线周期</span>
+          <el-radio-group v-model="klinePeriod" size="small" @change="handleKlinePeriodChange">
+            <el-radio-button label="daily">日线</el-radio-button>
+            <el-radio-button label="weekly">周线</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
       <div class="filter-row">
         <el-input
           v-model="searchQuery"
@@ -51,10 +61,40 @@
     <el-card v-if="!isSectorMode" class="input-card">
       <template #header>
         <div class="input-header">
-          <span>股票输入</span>
-          <el-tag type="info" size="small">支持股票代码或名称，一行一个</el-tag>
+          <div class="input-header-left">
+            <span>股票输入</span>
+            <el-tag type="info" size="small">支持股票代码或名称，一行一个</el-tag>
+          </div>
+          <!-- 周期选择：默认日线，可切换到周线 -->
+          <div class="chart-options">
+            <span class="options-label">K线周期</span>
+            <el-radio-group v-model="klinePeriod" size="small" @change="handleKlinePeriodChange">
+              <el-radio-button label="daily">日线</el-radio-button>
+              <el-radio-button label="weekly">周线</el-radio-button>
+            </el-radio-group>
+          </div>
         </div>
       </template>
+
+      <!-- 最近查询历史（最多 5 条，点击回填输入框） -->
+      <div v-if="queryHistory.length > 0" class="history-row">
+        <span class="history-label">最近查询：</span>
+        <el-tag
+          v-for="item in queryHistory"
+          :key="item.timestamp + '-' + item.text"
+          class="history-tag"
+          size="small"
+          :title="item.text"
+          closable
+          @close="removeHistoryQuery(item)"
+          @click="applyHistoryQuery(item)"
+        >
+          {{ shortQueryText(item.text) }}
+        </el-tag>
+        <el-button link type="primary" size="small" class="history-clear" @click="clearQueryHistory">
+          清空
+        </el-button>
+      </div>
 
       <el-input
         v-model="stockInput"
@@ -218,7 +258,7 @@
             <StockSimpleKlineChart
               :ref="(el) => { if (el) chartRefs.set(stock.ts_code, el) }"
               :ts-code="stock.ts_code"
-              :kline-data="klineDataCache.get(stock.ts_code) || []"
+              :kline-data="getKlineData(stock.ts_code)"
               :show-volume="true"
               height="360px"
             />
@@ -271,6 +311,86 @@ const loading = ref(false)
 const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
 
+// 查询历史缓存（localStorage）：每次查询后记录，页面刷新时恢复“当天最后一次查询”，最多记住 5 条
+const QUERY_HISTORY_KEY = 'realtime_price_query_history'
+const MAX_QUERY_HISTORY = 5
+
+const queryHistory = ref([])
+
+// 获取本地日期 YYYY-MM-DD（避免 toISOString 的 UTC 时区偏移导致“当天”错位）
+const getTodayKey = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const loadQueryHistory = () => {
+  try {
+    const stored = localStorage.getItem(QUERY_HISTORY_KEY)
+    queryHistory.value = stored ? JSON.parse(stored) : []
+  } catch (e) {
+    console.warn('Failed to load query history:', e)
+    queryHistory.value = []
+  }
+}
+
+const saveQueryHistory = () => {
+  try {
+    localStorage.setItem(QUERY_HISTORY_KEY, JSON.stringify(queryHistory.value))
+  } catch (e) {
+    console.warn('Failed to save query history:', e)
+  }
+}
+
+// 记录一次查询：去重（相同文本保留最新），并截断到最多 MAX_QUERY_HISTORY 条
+const recordQuery = (text) => {
+  const trimmed = text.trim()
+  if (!trimmed) return
+  const filtered = queryHistory.value.filter(item => item.text !== trimmed)
+  const record = {
+    text: trimmed,
+    date: getTodayKey(),
+    timestamp: Date.now()
+  }
+  queryHistory.value = [record, ...filtered].slice(0, MAX_QUERY_HISTORY)
+  saveQueryHistory()
+}
+
+// 恢复“当天最后一次查询”：取 date 为今天、timestamp 最新的那条回填输入框
+const restoreTodayLastQuery = () => {
+  const today = getTodayKey()
+  const todayQueries = queryHistory.value.filter(item => item.date === today)
+  if (todayQueries.length > 0) {
+    const last = todayQueries.reduce((a, b) => (b.timestamp > a.timestamp ? b : a))
+    stockInput.value = last.text
+  }
+}
+
+// 点击历史条目，回填输入框（不自动查询，便于用户确认后再点查询）
+const applyHistoryQuery = (item) => {
+  stockInput.value = item.text
+}
+
+// 移除单条历史
+const removeHistoryQuery = (item) => {
+  queryHistory.value = queryHistory.value.filter(i => i !== item)
+  saveQueryHistory()
+}
+
+// 清空全部历史
+const clearQueryHistory = () => {
+  queryHistory.value = []
+  saveQueryHistory()
+}
+
+// 压缩多行/超长查询文本用于标签展示（完整内容保留在 title 提示里）
+const shortQueryText = (text) => {
+  const compact = (text || '').split(/[,，\n\t]/).map(s => s.trim()).filter(Boolean).join(' ')
+  return compact.length > 30 ? compact.slice(0, 30) + '…' : compact
+}
+
 // 分页处理
 const handlePageChange = (page) => {
   currentPage.value = page
@@ -317,6 +437,20 @@ const flatCount = computed(() => stocks.value.filter(s => s.change_pct === 0).le
 // 数据缓存
 const klineDataCache = ref(new Map())
 const chartRefs = ref(new Map())
+
+// K线周期：默认日线，可切换周线
+const klinePeriod = ref('daily')
+
+// 返回指定股票的K线数据（缓存值形如 { period, data }，此处仅暴露数据数组）
+const getKlineData = (tsCode) => klineDataCache.value.get(tsCode)?.data || []
+
+// 周期切换：重新拉取当前所有股票的K线
+const handleKlinePeriodChange = () => {
+  if (stocks.value.length === 0) return
+  stocks.value.forEach(stock => {
+    fetchKlineData(stock.ts_code)
+  })
+}
 
 // 关注弹窗相关
 const followDialogVisible = ref(false)
@@ -387,16 +521,20 @@ const fetchSectorStocks = async () => {
   }
 }
 
-// 批量获取K线数据
+// 批量获取K线数据（按当前选择的周期，缓存值带 period 以区分不同周期）
 const fetchKlineData = async (tsCode) => {
-  if (klineDataCache.value.has(tsCode)) return
+  const cached = klineDataCache.value.get(tsCode)
+  if (cached && cached.period === klinePeriod.value) return
 
+  const period = klinePeriod.value
   try {
-    const response = await realtimeApi.getKline(tsCode, 'daily', 180)
+    const response = await realtimeApi.getKline(tsCode, period, 180)
     if (response.success && response.data && response.data.data) {
+      // 若请求期间周期已被切换，则丢弃旧周期的响应，避免覆盖新数据
+      if (klinePeriod.value !== period) return
       // 使用前复权处理K线价格，消除送股、配股、分红等事件的影响
       const adjustedData = forwardAdjustKlineData(response.data.data)
-      klineDataCache.value.set(tsCode, adjustedData)
+      klineDataCache.value.set(tsCode, { period, data: adjustedData })
     }
   } catch (error) {
     console.error('Failed to load kline for', tsCode, error)
@@ -444,6 +582,9 @@ const fetchPrices = async () => {
   try {
     const response = await realtimeApi.getPrices(stockInput.value)
     if (response.success) {
+      // 记录本次查询到历史缓存（页面刷新时恢复当天最后一次查询）
+      recordQuery(stockInput.value)
+
       // 按照输入顺序排序股票列表
       const stockData = response.data || []
       const codeOrder = new Map(parsedCodes.value.map((code, index) => [code, index]))
@@ -491,8 +632,12 @@ watch(() => route.query.sector, (newSector) => {
 
 // 页面加载时检查路由参数
 onMounted(() => {
+  loadQueryHistory()
   if (route.query.sector) {
     fetchSectorStocks()
+  } else {
+    // 非板块模式：恢复当天最后一次查询的输入
+    restoreTodayLastQuery()
   }
 })
 
@@ -629,6 +774,16 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.input-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-header .options-label {
+  margin-right: 4px;
+}
+
 .input-actions {
   display: flex;
   justify-content: flex-start;
@@ -644,6 +799,40 @@ onUnmounted(() => {
 .parsed-info {
   font-size: 14px;
   color: var(--stock-down);
+}
+
+/* 最近查询历史 */
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.history-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.history-tag {
+  cursor: pointer;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-tag .el-tag__content {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-clear {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .stats-row {
@@ -682,6 +871,24 @@ onUnmounted(() => {
 
 .stocks-container {
   min-height: 200px;
+}
+
+/* K线周期选择栏 */
+.chart-options-bar {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.chart-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.options-label {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 /* 股票列表 - 纵向排列 */
