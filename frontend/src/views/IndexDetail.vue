@@ -217,7 +217,7 @@ function onHeatResize() {
 async function fetchHeatData() {
   heatLoading.value = true
   try {
-    const res = await screeningApi.getHeat(90)
+    const res = await screeningApi.getHeat(90, null, 'HighScoreRsiStrong')
     if (res.success && res.data) {
       heatData.value = res.data
       if (res.data.length > 0) {

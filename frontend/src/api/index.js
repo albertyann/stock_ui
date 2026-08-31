@@ -645,10 +645,49 @@ export const aiChatApi = {
 }
 
 export const screeningApi = {
-  getHeat: (days = 120, endDate = null) => {
+  getHeat: (days = 120, endDate = null, strategyName = null) => {
     let url = `/screening/heat?days=${days}`
     if (endDate) {
       url += `&end_date=${endDate}`
+    }
+    if (strategyName) {
+      url += `&strategy_name=${encodeURIComponent(strategyName)}`
+    }
+    return api.get(url)
+  },
+  getResults: (params = {}) => {
+    const {
+      page = 1,
+      page_size = 20,
+      strategy_name = null,
+      industry = null,
+      ts_code = null,
+      name = null,
+      date_start = null,
+      date_end = null,
+      min_score = null
+    } = params
+    let url = `/screening/results?page=${page}&page_size=${page_size}`
+    if (strategy_name) {
+      url += `&strategy_name=${encodeURIComponent(strategy_name)}`
+    }
+    if (industry) {
+      url += `&industry=${encodeURIComponent(industry)}`
+    }
+    if (ts_code) {
+      url += `&ts_code=${encodeURIComponent(ts_code)}`
+    }
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`
+    }
+    if (date_start) {
+      url += `&date_start=${encodeURIComponent(date_start)}`
+    }
+    if (date_end) {
+      url += `&date_end=${encodeURIComponent(date_end)}`
+    }
+    if (min_score !== null && min_score !== undefined) {
+      url += `&min_score=${encodeURIComponent(min_score)}`
     }
     return api.get(url)
   },
