@@ -22,6 +22,7 @@ router = APIRouter(
 async def get_screening_heat(
     days: int = Query(120, description="回溯天数"),
     end_date: Optional[str] = Query(None, description="截止日期 (YYYY-MM-DD)"),
+    strategy_name: Optional[str] = Query(None, description="按策略筛选，如 HighScoreRsiStrong / RsiStrong"),
     db: AsyncSession = Depends(get_db),
 ):
     """获取选股结果热度：按天统计筛选出的股票数量，反映市场交易活跃度。"""
@@ -32,6 +33,11 @@ async def get_screening_heat(
         else:
             date_condition = ""
             cal_date_condition = ""
+
+        if strategy_name:
+            strategy_condition = "AND strategy_name = :strategy_name"
+        else:
+            strategy_condition = ""
 
         sql = text(f"""
             SELECT
@@ -51,6 +57,7 @@ async def get_screening_heat(
                 FROM screening_results
                 WHERE trade_date >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'
                     {date_condition}
+                    {strategy_condition}
                 GROUP BY trade_date
             ) sr ON tc.cal_date = sr.trade_date
             ORDER BY tc.cal_date ASC
@@ -58,7 +65,10 @@ async def get_screening_heat(
 
         params = {"days": days}
         if end_date:
-            params["end_date"] = end_date
+            # asyncpg 的 DATE 参数不接受字符串，需转为 date 对象
+            params["end_date"] = date.fromisoformat(end_date)
+        if strategy_name:
+            params["strategy_name"] = strategy_name
 
         result = await db.execute(sql, params)
         rows = result.fetchall()
@@ -80,6 +90,7 @@ async def get_screening_heat(
             FROM screening_results
             WHERE trade_date >= CURRENT_DATE - CAST(:days AS INTEGER) * INTERVAL '1 day'
                 {date_condition}
+                {strategy_condition}
                 AND industry IS NOT NULL
             GROUP BY trade_date, industry
             ORDER BY trade_date ASC, industry ASC
@@ -89,12 +100,12 @@ async def get_screening_heat(
 
         daily_industries = OrderedDict()
         for row in industry_rows:
-            date = row[0]
+            trade_date = row[0]
             industry = row[1]
             count = row[2]
-            if date not in daily_industries:
-                daily_industries[date] = {}
-            daily_industries[date][industry] = count
+            if trade_date not in daily_industries:
+                daily_industries[trade_date] = {}
+            daily_industries[trade_date][industry] = count
 
         dates = list(daily_industries.keys())
         all_industries = sorted(set(
@@ -104,7 +115,7 @@ async def get_screening_heat(
         series = {}
         for ind in all_industries:
             vals = [daily_industries[d].get(ind, 0) for d in dates]
-            vals = [v if v >= 2 else 0 for v in vals]
+            vals = [v if v >= 5 else 0 for v in vals]
             if any(v > 0 for v in vals):
                 series[ind] = vals
 
