@@ -21,6 +21,12 @@ const routes = [
     component: () => import('@/views/RealtimePrice.vue')
   },
   {
+    path: '/stock-assessment',
+    name: 'StockAssessment',
+    component: () => import('@/views/StockAssessment.vue'),
+    meta: { title: '股票评估', requiresAdmin: true }
+  },
+  {
     path: '/watchlist/:id',
     name: 'Watchlist',
     component: () => import('@/views/WatchlistView.vue'),

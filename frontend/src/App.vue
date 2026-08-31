@@ -25,6 +25,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>实时股价</span>
             </el-menu-item>
+            <el-menu-item v-if="authStore.isAdmin" index="/stock-assessment">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>股票评估</span>
+            </el-menu-item>
             <el-menu-item v-if="authStore.isAdmin" index="/watchlist-stocks">
               <el-icon><Star /></el-icon>
               <span>关注清单</span>
