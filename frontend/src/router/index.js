@@ -224,6 +224,12 @@ const routes = [
     meta: { title: '板块热度', requiresAdmin: true }
   },
   {
+    path: '/rising-sector-analysis',
+    name: 'RisingSectorAnalysis',
+    component: () => import('@/views/RisingSectorAnalysis.vue'),
+    meta: { title: '上涨板块分析', requiresAdmin: true }
+  },
+  {
     path: '/industry-stock-moneyflow',
     name: 'IndustryStockMoneyflow',
     component: () => import('@/views/IndustryStockMoneyflow.vue'),

@@ -97,6 +97,10 @@
               <el-icon><TrendCharts /></el-icon>
               <span>板块热度</span>
             </el-menu-item>
+            <el-menu-item index="/rising-sector-analysis">
+              <el-icon><TrendCharts /></el-icon>
+              <span>上涨板块分析</span>
+            </el-menu-item>
             <el-menu-item index="/snapshot-manage">
               <el-icon><Camera /></el-icon>
               <span>快照管理</span>

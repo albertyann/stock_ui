@@ -522,6 +522,17 @@ export const basicDataApi = {
     }
     return api.get(url)
   },
+  getStrongUpStats: (params = {}) => {
+    const { trade_date = null, threshold = 6, idx_type = null, limit = 20 } = params
+    let url = `/basic-data/strong-up-stats?threshold=${threshold}&limit=${limit}`
+    if (trade_date) {
+      url += `&trade_date=${encodeURIComponent(trade_date)}`
+    }
+    if (idx_type) {
+      url += `&idx_type=${encodeURIComponent(idx_type)}`
+    }
+    return api.get(url)
+  },
   getFundPortfolio: (tsCode) => api.get(`/basic-data/fund-portfolio/${tsCode}`),
   getFundBasic: (params = {}) => {
     const { page = 1, page_size = 20, name = null, ts_code = null, fund_type = null, market = null } = params

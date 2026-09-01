@@ -352,6 +352,24 @@ async def get_sector_heat(
     return result
 
 
+@router.get("/strong-up-stats", response_model=dict)
+async def get_strong_up_stats(
+    trade_date: Optional[str] = Query(
+        None, description="交易日期，格式YYYY-MM-DD，默认最新交易日"
+    ),
+    threshold: float = Query(
+        6.0, description="涨幅阈值（百分比），默认6"
+    ),
+    idx_type: Optional[str] = Query(None, description="板块类型过滤，如 概念板块"),
+    limit: int = Query(20, ge=1, le=100, description="返回板块数量上限"),
+):
+    service = BasicDataService()
+    result = service.get_strong_up_stats(trade_date, threshold, idx_type, limit)
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error"), "data": [], "meta": {}}
+    return result
+
+
 @router.get("/industry-stock-moneyflow", response_model=dict)
 async def get_industry_stock_moneyflow(
     industry: str = Query(..., description="行业名称"),
