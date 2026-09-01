@@ -57,6 +57,10 @@
               <el-icon><Search /></el-icon>
               <span>信号查询</span>
             </el-menu-item>
+            <el-menu-item v-if="authStore.isAdmin" index="/strong-continuous">
+              <el-icon><TrendCharts /></el-icon>
+              <span>连续强势信号</span>
+            </el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="group-tools">
             <template #title>

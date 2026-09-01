@@ -703,6 +703,11 @@ export const screeningApi = {
     return api.get(url)
   },
   getResultsMeta: () => api.get('/screening/results/meta'),
+  getStrongContinuous: (params = {}) => {
+    const { strategy_name = 'RsiStrong', days = 2, min_score = 95 } = params
+    let url = `/screening/strong-continuous?strategy_name=${encodeURIComponent(strategy_name)}&days=${days}&min_score=${min_score}`
+    return api.get(url)
+  },
 }
 
 export const trendApi = {

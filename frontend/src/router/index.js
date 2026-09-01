@@ -272,6 +272,12 @@ const routes = [
     meta: { title: '信号查询', requiresAdmin: true }
   },
   {
+    path: '/strong-continuous',
+    name: 'ContinuousStrong',
+    component: () => import('@/views/ContinuousStrong.vue'),
+    meta: { title: '连续强势信号', requiresAdmin: true }
+  },
+  {
     path: '/daily-scores',
     name: 'DailyScoreView',
     component: () => import('@/views/DailyScoreView.vue'),

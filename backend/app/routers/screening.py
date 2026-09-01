@@ -271,6 +271,100 @@ async def get_screening_results_meta(
         return {"success": False, "error": str(e), "data": {}}
 
 
+@router.get("/strong-continuous", response_model=dict)
+async def get_screening_strong_continuous(
+    strategy_name: Optional[str] = Query("RsiStrong", description="策略名称"),
+    days: int = Query(2, ge=2, le=5, description="连续天数（默认最近 2 天）"),
+    min_score: float = Query(95, description="最低评分阈值"),
+    db: AsyncSession = Depends(get_db),
+):
+    """连续强势信号：查最近 N 天评分均大于阈值的股票。
+
+    策略固定为 RsiStrong（默认），取最近 `days` 个交易日，要求股票在每一天
+    都有记录且评分 >= min_score（默认 95），即“连续强势”。
+    """
+    try:
+        date_sql = text("""
+            SELECT DISTINCT trade_date
+            FROM screening_results
+            WHERE strategy_name = :strategy_name
+            ORDER BY trade_date DESC
+            LIMIT :days
+        """)
+        date_result = await db.execute(
+            date_sql, {"strategy_name": strategy_name, "days": days}
+        )
+        dates = [r[0] for r in date_result.fetchall()]
+
+        if len(dates) < days:
+            return {
+                "success": True,
+                "data": [],
+                "dates": [d.strftime("%Y-%m-%d") for d in dates],
+                "days": len(dates),
+            }
+
+        sql = text("""
+            SELECT sr.ts_code, sr.name, sr.industry, sr.trade_date, sr.score
+            FROM screening_results sr
+            WHERE sr.strategy_name = :strategy_name
+              AND sr.trade_date = ANY(:dates)
+              AND sr.score >= :min_score
+            ORDER BY sr.ts_code ASC, sr.trade_date ASC
+        """)
+        result = await db.execute(
+            sql, {"strategy_name": strategy_name, "dates": dates, "min_score": min_score}
+        )
+        rows = result.fetchall()
+
+        from collections import defaultdict
+
+        stock_map = defaultdict(dict)
+        for row in rows:
+            stock_map[row.ts_code][row.trade_date] = (row.name, row.industry, float(row.score))
+
+        date_strs = [d.strftime("%Y-%m-%d") for d in dates]
+
+        data = []
+        for ts_code, day_map in stock_map.items():
+            if len(day_map) != len(dates):
+                continue
+            scores = OrderedDict()
+            for d in dates:
+                day_str = d.strftime("%Y-%m-%d")
+                scores[day_str] = day_map[d][2]
+
+            latest_date = max(dates)
+            first_item = next(iter(day_map.values()))
+            avg_score = round(sum(scores.values()) / len(scores), 2)
+            data.append(
+                {
+                    "ts_code": ts_code,
+                    "name": first_item[0],
+                    "industry": first_item[1],
+                    "scores": dict(scores),
+                    "latest_score": day_map[latest_date][2],
+                    "avg_score": avg_score,
+                    "days_continuous": len(scores),
+                }
+            )
+
+        data.sort(key=lambda x: x["avg_score"], reverse=True)
+
+        return {
+            "success": True,
+            "data": data,
+            "dates": date_strs,
+            "days": len(dates),
+            "meta": {"strategy_name": strategy_name, "min_score": min_score},
+        }
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return {"success": False, "error": str(e), "data": [], "dates": []}
+
+
 @router.get("/trend", response_model=dict)
 async def get_screening_trend(
     page: int = Query(1, ge=1),
