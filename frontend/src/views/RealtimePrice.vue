@@ -147,6 +147,26 @@
       </el-col>
     </el-row>
 
+    <!-- 行业分布统计（当前查询股票中出现最多的前 3 个行业） -->
+    <el-card v-if="stocks.length > 0 && topIndustries.length > 0" class="industry-stats-card">
+      <div class="industry-stats-header">
+        <span class="industry-stats-title">热门行业</span>
+        <span class="industry-stats-subtitle">当前查询股票的行业分布 TOP{{ topIndustries.length }}</span>
+      </div>
+      <div class="industry-stats-list">
+        <div v-for="item in topIndustries" :key="item.name" class="industry-stats-item">
+          <span class="industry-stats-name">{{ item.name }}</span>
+          <div class="industry-stats-bar-track">
+            <div
+              class="industry-stats-bar"
+              :style="{ width: (item.count / topIndustries[0].count * 100) + '%' }"
+            ></div>
+          </div>
+          <el-tag size="small" type="info" class="industry-stats-count">{{ item.count }} 只</el-tag>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 股票列表 -->
     <div v-loading="loading" class="stocks-container">
       <el-empty v-if="!loading && stocks.length === 0 && hasSearched" description="暂无数据" />
@@ -433,6 +453,20 @@ const parsedCodes = computed(() => {
 const upCount = computed(() => stocks.value.filter(s => s.change_pct > 0).length)
 const downCount = computed(() => stocks.value.filter(s => s.change_pct < 0).length)
 const flatCount = computed(() => stocks.value.filter(s => s.change_pct === 0).length)
+
+// 行业分布统计：按 industry 分组计数，取前 3 名（忽略缺失/空行业字段的股票）
+const topIndustries = computed(() => {
+  const counts = {}
+  for (const s of stocks.value) {
+    const ind = s.industry
+    if (!ind) continue
+    counts[ind] = (counts[ind] || 0) + 1
+  }
+  return Object.entries(counts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 3)
+})
 
 // 数据缓存
 const klineDataCache = ref(new Map())
@@ -867,6 +901,72 @@ onUnmounted(() => {
 .stat-label {
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* 行业分布统计卡片 */
+.industry-stats-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.industry-stats-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.industry-stats-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.industry-stats-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.industry-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.industry-stats-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.industry-stats-name {
+  flex: 0 0 96px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.industry-stats-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-input);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.industry-stats-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.industry-stats-count {
+  flex-shrink: 0;
+  font-weight: 600;
 }
 
 .stocks-container {
