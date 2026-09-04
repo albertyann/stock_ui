@@ -250,7 +250,7 @@ const loading = ref(false)
 const hasSearched = ref(false)
 const totalStocks = ref(0) // 后端分页总数
 const sortOrder = ref('default') // 'default' | 'asc' | 'desc' | 'volume_asc' | 'volume_desc'
-const trendFilter = ref('up') // 'all' | 'up' | 'down'
+const trendFilter = ref('all') // 'all' | 'up' | 'down'
 
 // 返回板块列表
 const goBack = () => {

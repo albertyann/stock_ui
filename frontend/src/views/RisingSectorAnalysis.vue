@@ -29,14 +29,6 @@
             <el-option v-for="t in thresholdOptions" :key="t" :label="`${t}%`" :value="t" />
           </el-select>
         </el-form-item>
-        <el-form-item label="板块类型">
-          <el-select v-model="idxType" style="width: 140px" @change="fetchData">
-            <el-option label="全部" value="" />
-            <el-option label="概念板块" value="概念板块" />
-            <el-option label="行业板块" value="行业板块" />
-            <el-option label="地域板块" value="地域板块" />
-          </el-select>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData" :loading="loading">查询</el-button>
         </el-form-item>
@@ -108,16 +100,16 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import { basicDataApi } from '@/api'
+import { basicDataApi, sectorApi } from '@/api'
 import * as echarts from '@/utils/echarts'
 
 const loading = ref(false)
 const tradeDate = ref(null)
 const threshold = ref(6)
-const idxType = ref('')
 const thresholdOptions = [3, 5, 6, 7, 9, 10]
 const chartData = ref([])
 const chartRef = ref(null)
+const sectorCodeMap = ref({})
 let chartInstance = null
 
 const totalStrongUp = computed(() => {
@@ -136,7 +128,7 @@ const fetchData = async () => {
     const res = await basicDataApi.getStrongUpStats({
       trade_date: tradeDate.value,
       threshold: threshold.value,
-      idx_type: idxType.value || null,
+      idx_type: '行业板块',
       limit: 20
     })
     if (res.success) {
@@ -275,18 +267,32 @@ const handleResize = () => {
   }
 }
 
-const getDetailLink = (row) => {
-  if (row.idx_type === '概念板块') {
-    return { path: '/concept/detail', query: { code: row.sector_code } }
+// 与 SectorList.vue 保持一致：板块详情使用 getAllSectors 返回的 ind_<idx> 代码
+const loadSectorCodeMap = async () => {
+  try {
+    const res = await sectorApi.getAllSectors()
+    if (res.success && Array.isArray(res.data)) {
+      const map = {}
+      res.data.forEach((s) => { map[s.name] = s.code })
+      sectorCodeMap.value = map
+    }
+  } catch (err) {
+    console.error('Failed to load sector codes:', err)
   }
+}
+
+const getDetailLink = (row) => {
   return {
     path: '/sector/detail',
-    query: { code: row.sector_code, sectorType: 'industry', sectorName: row.sector_name }
+    query: {
+      code: sectorCodeMap.value[row.sector_name] || row.sector_code,
+      sectorType: 'industry',
+      sectorName: row.sector_name
+    }
   }
 }
 
 const idxTypeTag = (type) => {
-  if (type === '概念板块') return 'success'
   if (type === '行业板块') return 'primary'
   return 'warning'
 }
@@ -299,6 +305,7 @@ watch(chartData, () => {
 
 onMounted(() => {
   fetchData()
+  loadSectorCodeMap()
   window.addEventListener('resize', handleResize)
 })
 
