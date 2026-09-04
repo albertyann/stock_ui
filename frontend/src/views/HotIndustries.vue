@@ -88,10 +88,10 @@
         stripe
       >
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column prop="amount_rank" label="排名" width="110" sortable align="center">
+        <el-table-column prop="rank" label="排名" width="110" sortable align="center">
           <template #default="{ row }">
-            <el-tag :type="row.amount_rank <= 3 ? 'danger' : row.amount_rank <= 10 ? 'warning' : 'info'" effect="dark">
-              {{ row.amount_rank }}
+            <el-tag :type="row.rank <= 3 ? 'danger' : row.rank <= 10 ? 'warning' : 'info'" effect="dark">
+              {{ row.rank }}
             </el-tag>
           </template>
         </el-table-column>
@@ -128,7 +128,7 @@
     <el-dialog
       v-model="commandDialogVisible"
       title="可用命令"
-      width="700px"
+      width="900px"
       destroy-on-close
     >
       <el-table :data="commandList" style="width: 100%" border stripe>
@@ -140,7 +140,7 @@
             <el-checkbox v-model="row.useIndustry" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" align="center" fixed="right">
+        <el-table-column label="操作" width="100" align="center">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -178,8 +178,8 @@ const filter = reactive({
 })
 
 const sortState = reactive({
-  sort_field: null,
-  sort_order: null
+  sort_field: 'total_amount',
+  sort_order: 'descending'
 })
 
 const disabledDate = (time) => {
@@ -230,8 +230,8 @@ const handleFilterChange = () => {
 const resetFilter = () => {
   filter.trade_date = ''
   filter.min_amount_yi = 1
-  sortState.sort_field = null
-  sortState.sort_order = null
+  sortState.sort_field = 'total_amount'
+  sortState.sort_order = 'descending'
   fetchData()
 }
 
@@ -260,50 +260,50 @@ const commandDialogVisible = ref(false)
   // 命令列表
 const commandList = ref([
   {
-    command: 'watchlist-large-order',
-    description: 'Watchlist大单流入筛选器',
-    type: 'screener',
-    needsParams: true,
-    useIndustry: false
-  },
-  {
-    command: 'watchlist-decline-shrink',
-    description: 'Watchlist缩量下跌筛选器',
-    type: 'screener',
-    needsParams: true,
-    useIndustry: false
-  },
-  {
-    command: 'watchlist-continuous-shrink',
-    description: 'Watchlist持续缩量筛选器',
-    type: 'screener',
-    needsParams: true,
-    useIndustry: false
-  },
-  {
-    command: 'weekly-ma5-cross10-vol2x',
-    description: '周线MA5上穿MA10+倍量+MA60趋势策略选股器',
+    command: 'ma-dual-crossover',
+    description: 'MA5双均线金叉策略选股器（MA5上穿MA20且MA5上穿MA30）',
     type: 'screener',
     needsParams: true,
     useIndustry: true
   },
   {
-    command: 'ma20-proximity',
-    description: 'MA20回踩策略选股器',
+    command: 'ma10-proximity',
+    description: 'MA10回踩策略选股器（股价回落MA10附近+之前股价在MA10上方+MA60趋势向上）',
     type: 'screener',
     needsParams: true,
     useIndustry: true
   },
   {
-    command: 'ma30-proximity',
-    description: 'MA30回踩策略选股器',
+    command: 'ma2560-proximity',
+    description: 'MA25回踩策略选股器（股价回落MA25附近+之前股价在MA25上方+MA60趋势向上）',
     type: 'screener',
     needsParams: true,
     useIndustry: true
   },
   {
-    command: 'rsi6-rising',
-    description: 'RSI6上升缩量策略选股器',
+    command: 'rsi12-continuous',
+    description: 'RSI12连续强势策略选股器（RSI12连续5天大于65）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi12-continuous-20d',
+    description: 'RSI12连续20个交易日大于50策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi-strong',
+    description: 'RSI强势策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ema-cross',
+    description: 'EMA9上穿EMA21策略选股器（近5日EMA9上穿EMA21金叉）',
     type: 'screener',
     needsParams: true,
     useIndustry: true
@@ -323,13 +323,13 @@ const generateCommand = () => {
 
 const copySingleCommand = async (item) => {
   let command = ''
-  // 从页面表格中获取行业列表，优先使用行业代码
-  const industries = tableData.value.map(row => row.industry).join(',')
+  // 从页面表格中获取行业列表，按当前排序取前 10 条
+  const industries = tableData.value.slice(0, 10).map(row => row.industry).join(',')
   // 优先使用统计日期(meta.trade_date)，如果没有则使用筛选日期
   const date = meta.trade_date || filter.trade_date || ''
   if (item.type === 'screener' && item.needsParams) {
     const industryParam = item.useIndustry && industries ? ` --industry ${industries}` : ''
-    command = `python screener_cli.py ${item.command}${industryParam} --date ${date}`
+    command = `python stock_cli.py ${item.command}${industryParam} --date ${date} --all`
   } else {
     command = item.command
   }

@@ -2,6 +2,14 @@
   <div class="industry-daily-flow-page">
     <div class="page-header">
       <h2>行业每日净流入</h2>
+      <div class="header-actions">
+        <el-button type="warning" @click="generateCommand">
+          <el-icon><Document /></el-icon>命令
+        </el-button>
+        <el-button type="primary" @click="fetchData" :loading="loading">
+          <el-icon><Refresh /></el-icon>刷新
+        </el-button>
+      </div>
     </div>
 
     <!-- 筛选区域 -->
@@ -17,17 +25,8 @@
             :disabled-date="disabledDate"
             style="width: 160px"
             clearable
+            @change="handleFilterChange"
           />
-        </el-form-item>
-        <el-form-item label="查询天数">
-          <el-select v-model="filter.days" placeholder="选择天数" style="width: 120px" @change="handleFilterChange">
-            <el-option label="5天" :value="5" />
-            <el-option label="10天" :value="10" />
-            <el-option label="20天" :value="20" />
-            <el-option label="30天" :value="30" />
-            <el-option label="60天" :value="60" />
-            <el-option label="90天" :value="90" />
-          </el-select>
         </el-form-item>
         <el-form-item label="行业名称">
           <el-input
@@ -87,13 +86,44 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 命令弹窗 -->
+    <el-dialog
+      v-model="commandDialogVisible"
+      title="可用命令"
+      width="900px"
+      destroy-on-close
+    >
+      <el-table :data="commandList" style="width: 100%" border stripe>
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="command" label="命令名称" min-width="180" />
+        <el-table-column prop="description" label="描述" min-width="250" />
+        <el-table-column label="行业参数" width="90" align="center">
+          <template #default="{ row }">
+            <el-checkbox v-model="row.useIndustry" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              @click="copySingleCommand(row)"
+            >
+              <el-icon><CopyDocument /></el-icon>
+              拷贝
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Document, CopyDocument } from '@element-plus/icons-vue'
 import { basicDataApi } from '@/api'
 
 const loading = ref(false)
@@ -101,7 +131,6 @@ const tableData = ref([])
 
 const filter = reactive({
   trade_date: '',
-  days: 5,
   industry: ''
 })
 
@@ -123,7 +152,6 @@ const fetchData = async () => {
   try {
     const res = await basicDataApi.getIndustryDailyFlow({
       trade_date: filter.trade_date || null,
-      days: filter.days,
       industry: filter.industry || null,
       sort_field: sortState.sort_field,
       sort_order: sortState.sort_order
@@ -154,7 +182,6 @@ const handleFilterChange = () => {
 
 const resetFilter = () => {
   filter.trade_date = ''
-  filter.days = 5
   filter.industry = ''
   sortState.sort_field = null
   sortState.sort_order = null
@@ -184,6 +211,90 @@ const getAmountClass = (amount) => {
   if (amount > 0) return 'amount-up'
   if (amount < 0) return 'amount-down'
   return 'amount-flat'
+}
+
+// 命令弹窗相关
+const commandDialogVisible = ref(false)
+
+const commandList = ref([
+  {
+    command: 'ma-dual-crossover',
+    description: 'MA5双均线金叉策略选股器（MA5上穿MA20且MA5上穿MA30）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma10-proximity',
+    description: 'MA10回踩策略选股器（股价回落MA10附近+之前股价在MA10上方+MA60趋势向上）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma2560-proximity',
+    description: 'MA25回踩策略选股器（股价回落MA25附近+之前股价在MA25上方+MA60趋势向上）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi12-continuous',
+    description: 'RSI12连续强势策略选股器（RSI12连续5天大于65）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi12-continuous-20d',
+    description: 'RSI12连续20个交易日大于50策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi-strong',
+    description: 'RSI强势策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ema-cross',
+    description: 'EMA9上穿EMA21策略选股器（近5日EMA9上穿EMA21金叉）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  }
+])
+
+const generateCommand = () => {
+  commandDialogVisible.value = true
+}
+
+const copySingleCommand = async (item) => {
+  let command = ''
+  // 从页面表格中获取净流入大于 1 亿的行业列表（数据库单位为万元，1 亿 = 10000 万元）
+  const industries = tableData.value
+    .filter(row => row.total_net_inflow > 10000)
+    .map(row => row.industry)
+    .join(',')
+  // 使用筛选日期
+  const date = filter.trade_date || ''
+  if (item.type === 'screener' && item.needsParams) {
+    const industryParam = item.useIndustry && industries ? ` --industry ${industries}` : ''
+    command = `python stock_cli.py ${item.command}${industryParam} --date ${date} --all`
+  } else {
+    command = `${item.command} --all`
+  }
+
+  try {
+    await navigator.clipboard.writeText(command)
+    ElMessage.success(`命令已拷贝: ${item.command}`)
+  } catch (err) {
+    console.error('Failed to copy command:', err)
+    ElMessage.error('命令拷贝失败')
+  }
 }
 
 const fetchLastTradeDate = async () => {

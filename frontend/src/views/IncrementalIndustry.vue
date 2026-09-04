@@ -3,6 +3,9 @@
     <div class="page-header">
       <h2>增量行业</h2>
       <div class="header-actions">
+        <el-button type="warning" @click="generateCommand">
+          <el-icon><Document /></el-icon>命令
+        </el-button>
         <el-button type="primary" @click="fetchData" :loading="loading">
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
@@ -102,13 +105,44 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 命令弹窗 -->
+    <el-dialog
+      v-model="commandDialogVisible"
+      title="可用命令"
+      width="900px"
+      destroy-on-close
+    >
+      <el-table :data="commandList" style="width: 100%" border stripe>
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="command" label="命令名称" min-width="180" />
+        <el-table-column prop="description" label="描述" min-width="250" />
+        <el-table-column label="行业参数" width="90" align="center">
+          <template #default="{ row }">
+            <el-checkbox v-model="row.useIndustry" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" align="center">
+          <template #default="{ row }">
+            <el-button
+              type="primary"
+              size="small"
+              @click="copySingleCommand(row)"
+            >
+              <el-icon><CopyDocument /></el-icon>
+              拷贝
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Document, CopyDocument } from '@element-plus/icons-vue'
 import { basicDataApi } from '@/api'
 import * as echarts from '@/utils/echarts'
 
@@ -120,6 +154,86 @@ const chartData = ref([])
 const dates = ref([])
 const chartRef = ref(null)
 let chartInstance = null
+
+// 命令弹窗相关
+const commandDialogVisible = ref(false)
+const commandList = ref([
+  {
+    command: 'ma-dual-crossover',
+    description: 'MA5双均线金叉策略选股器（MA5上穿MA20且MA5上穿MA30）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma10-proximity',
+    description: 'MA10回踩策略选股器（股价回落MA10附近+之前股价在MA10上方+MA60趋势向上）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ma2560-proximity',
+    description: 'MA25回踩策略选股器（股价回落MA25附近+之前股价在MA25上方+MA60趋势向上）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi12-continuous',
+    description: 'RSI12连续强势策略选股器（RSI12连续5天大于65）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi12-continuous-20d',
+    description: 'RSI12连续20个交易日大于50策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'rsi-strong',
+    description: 'RSI强势策略选股器',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  },
+  {
+    command: 'ema-cross',
+    description: 'EMA9上穿EMA21策略选股器（近5日EMA9上穿EMA21金叉）',
+    type: 'screener',
+    needsParams: true,
+    useIndustry: true
+  }
+])
+
+const generateCommand = () => {
+  commandDialogVisible.value = true
+}
+
+const copySingleCommand = async (item) => {
+  let command = ''
+  // 从页面数据中获取行业列表，取前 10 条
+  const industries = chartData.value.slice(0, 10).map(row => row.industry).join(',')
+  // 使用截止日期
+  const date = endDate.value || ''
+  if (item.type === 'screener' && item.needsParams) {
+    const industryParam = item.useIndustry && industries ? ` --industry ${industries}` : ''
+    command = `python stock_cli.py ${item.command}${industryParam} --date ${date} --all`
+  } else {
+    command = item.command
+  }
+
+  try {
+    await navigator.clipboard.writeText(command)
+    ElMessage.success(`命令已拷贝: ${item.command}`)
+  } catch (err) {
+    console.error('Failed to copy command:', err)
+    ElMessage.error('命令拷贝失败')
+  }
+}
 
 const displayData = computed(() => {
   return chartData.value.slice(0, 10)
