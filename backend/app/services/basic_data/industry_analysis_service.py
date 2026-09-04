@@ -143,23 +143,23 @@ class IndustryAnalysisServiceMixin:
 
                 allowed_sort_fields = {
                     'industry', 'stock_count', 'total_amount',
-                    'avg_amount', 'avg_pct_chg', 'amount_rank'
+                    'avg_amount', 'avg_pct_chg', 'rank'
                 }
                 if sort_field and sort_field in allowed_sort_fields:
                     order_direction = 'DESC' if sort_order == 'descending' else 'ASC'
                     order_by = f"ORDER BY {sort_field} {order_direction}, industry"
                 else:
-                    order_by = "ORDER BY total_amount DESC, industry"
+                    order_by = "ORDER BY avg_pct_chg DESC, industry"
 
                 query = f"""
                     WITH industry_amounts AS (
                         SELECT
                             s.industry,
                             COUNT(DISTINCT d.ts_code) AS stock_count,
-                            SUM(d.amount) AS total_amount,
-                            AVG(d.amount) AS avg_amount,
+                            SUM(d.amount) * 1000 AS total_amount,
+                            AVG(d.amount) * 1000 AS avg_amount,
                             AVG(d.pct_chg) AS avg_pct_chg,
-                            ROW_NUMBER() OVER (ORDER BY SUM(d.amount) DESC) AS amount_rank
+                            ROW_NUMBER() OVER (ORDER BY AVG(d.pct_chg) DESC) AS rank
                         FROM daily_data d
                         JOIN stock_basic s ON d.ts_code = s.ts_code
                         WHERE {date_where}
@@ -168,7 +168,7 @@ class IndustryAnalysisServiceMixin:
                             AND s.name NOT LIKE '%%ST%%'
                             AND s.name NOT LIKE '%%退%%'
                         GROUP BY s.industry
-                        HAVING SUM(d.amount) >= :min_amount
+                        HAVING SUM(d.amount) * 1000 >= :min_amount
                     )
                     SELECT * FROM industry_amounts
                     {order_by}
@@ -185,7 +185,7 @@ class IndustryAnalysisServiceMixin:
                             "total_amount": float(row.total_amount) if row.total_amount is not None else 0,
                             "avg_amount": float(row.avg_amount) if row.avg_amount is not None else 0,
                             "avg_pct_chg": float(row.avg_pct_chg) if row.avg_pct_chg is not None else 0,
-                            "amount_rank": int(row.amount_rank) if row.amount_rank else 0,
+                            "rank": int(row.rank) if row.rank else 0,
                         }
                     )
 

@@ -321,7 +321,7 @@ async def get_hot_industries(
     ),
     sort_field: Optional[str] = Query(
         None,
-        description="排序字段: industry, stock_count, total_amount, avg_amount, avg_pct_chg, amount_rank",
+        description="排序字段: industry, stock_count, total_amount, avg_amount, avg_pct_chg, rank",
     ),
     sort_order: Optional[str] = Query(
         None, description="排序方向: ascending/descending"

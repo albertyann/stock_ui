@@ -270,12 +270,11 @@ class IndustryMoneyflowServiceMixin:
                 params = {}
 
                 if trade_date:
-                    where_clauses.append("m.trade_date <= (:trade_date)::date")
-                    where_clauses.append("m.trade_date >= (:trade_date)::date - INTERVAL '%s days'" % days)
+                    where_clauses.append("m.trade_date = (:trade_date)::date")
                     params["trade_date"] = trade_date
                 else:
                     where_clauses.append(
-                        "m.trade_date >= CURRENT_DATE - INTERVAL '%s days'" % days
+                        "m.trade_date = (SELECT MAX(trade_date) FROM moneyflow WHERE trade_date <= CURRENT_DATE)"
                     )
 
                 if industry:
