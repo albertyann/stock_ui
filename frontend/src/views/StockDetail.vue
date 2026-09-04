@@ -123,7 +123,7 @@
       v-model="showEvalDialog"
       :stock="stock"
       :loading="evalLoading"
-      :scores="evalScores"
+      :scores="validEvalScores"
       @evaluate="handleEvaluate"
     />
 
@@ -198,16 +198,24 @@ const showEvalDialog = ref(false)
 const evalLoading = ref(false)
 const evalScores = ref([])
 
-// K线图上仅显示评分 > 85 的高分日期
-const highEvalScores = computed(() =>
-  evalScores.value.filter(s => s.score != null && s.score > 85)
-)
-
 // K线复权与指标设置（复权计算/常量见 composables/useKlineAdjust.js）
 const { adjType, adjustedKlineData, indicatorKlineData, adjustedWeeklyKlineData } =
   useKlineAdjust(klineData, weeklyKlineData)
 
 const { klineIndicatorSettings, saveKlineIndicatorSettings } = useKlineIndicatorSettings()
+
+// 交易日集合（依据日K线日期，非交易日不在其中），用于过滤非交易日评估项
+const tradingDates = computed(() => new Set(adjustedKlineData.value.map(d => d.date)))
+
+// 结果列表仅保留交易日当天的评估结果：非交易日不评估、从结果列表删除
+const validEvalScores = computed(() =>
+  evalScores.value.filter(s => s.date && tradingDates.value.has(s.date))
+)
+
+// K线图上仅显示评分 > 85 的高分日期
+const highEvalScores = computed(() =>
+  validEvalScores.value.filter(s => s.score != null && s.score > 85)
+)
 
 // 日K主图指标设置弹窗
 const showKlineIndicatorDialog = ref(false)

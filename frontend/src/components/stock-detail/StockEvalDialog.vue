@@ -24,9 +24,27 @@
     <template v-if="scores.length > 0">
       <el-divider />
       <div class="eval-scores-section">
-        <div class="eval-scores-header">评分结果（{{ scores.length }} 个交易日）</div>
+        <div class="eval-scores-header">
+          评分结果（{{ scores.length }} 个交易日）
+          <span class="golden-hint">日期标红 = MACD 金叉日</span>
+        </div>
         <el-table :data="sortedEvalScores" size="small" border stripe max-height="320px">
-          <el-table-column prop="date" label="日期" width="100" />
+          <el-table-column prop="date" label="日期" width="130">
+            <template #default="{ row }">
+              <span :class="{ 'macd-golden': goldenCrossDates.has(row.date) }">
+                {{ row.date }}
+                <el-tag
+                  v-if="goldenCrossDates.has(row.date)"
+                  type="danger"
+                  size="small"
+                  effect="dark"
+                  class="golden-tag"
+                >
+                  金叉
+                </el-tag>
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column prop="score" label="评分" width="70">
             <template #default="{ row }">
               <el-tag v-if="row.score > 85" type="success" size="small" effect="dark">
@@ -116,6 +134,26 @@ const sortedEvalScores = computed(() =>
   [...props.scores].reverse()
 )
 
+// MACD 金叉日期集合：DIF 自下而上穿 DEA 的交易日
+// scores 为时间升序；金叉 = 当日 dif > dea 且前一交易日 dif <= dea
+const goldenCrossDates = computed(() => {
+  const crosses = new Set()
+  const scores = props.scores
+  for (let i = 1; i < scores.length; i++) {
+    const prev = scores[i - 1]
+    const cur = scores[i]
+    if (
+      cur.macd_dif != null && cur.macd_dea != null &&
+      prev.macd_dif != null && prev.macd_dea != null &&
+      cur.macd_dif > cur.macd_dea &&
+      prev.macd_dif <= prev.macd_dea
+    ) {
+      crosses.add(cur.date)
+    }
+  }
+  return crosses
+})
+
 // 从 localStorage 读取上次选中的评估日期
 function loadSavedEvalDate() {
   try {
@@ -169,5 +207,23 @@ const handleEvaluate = () => {
 
 .score-low {
   color: var(--text-muted);
+}
+
+/* MACD 金叉日期标红 */
+.macd-golden {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.golden-tag {
+  margin-left: 4px;
+  transform: scale(0.85);
+}
+
+.golden-hint {
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: normal;
+  color: #f56c6c;
 }
 </style>
