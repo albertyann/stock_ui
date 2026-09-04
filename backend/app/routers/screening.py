@@ -1,4 +1,5 @@
 import json
+import math
 import bisect
 from datetime import date
 from typing import Optional
@@ -271,98 +272,345 @@ async def get_screening_results_meta(
         return {"success": False, "error": str(e), "data": {}}
 
 
+async def _resolve_strong_window(
+    db: AsyncSession,
+    strategy_name: Optional[str],
+    days: int,
+    min_score: float,
+) -> tuple[list, list, int, dict | None]:
+    """计算强势信号窗口（最近 5 个交易日）内的候选股票。
+
+    返回 (data, date_strs, n_dates, meta)。data 为窗口内达标股票列表，
+    meta 为 None 表示窗口交易日不足 days（此时 data 为空）。
+    """
+    strategy_name = strategy_name or "RsiStrong"
+    window = 5  # 固定回溯窗口：最近 5 个交易日
+    date_sql = text("""
+        SELECT DISTINCT trade_date
+        FROM screening_results
+        WHERE strategy_name = :strategy_name
+        ORDER BY trade_date DESC
+        LIMIT :window
+    """)
+    date_result = await db.execute(
+        date_sql, {"strategy_name": strategy_name, "window": window}
+    )
+    dates = [r[0] for r in date_result.fetchall()]
+
+    if len(dates) < days:
+        return [], [d.strftime("%Y-%m-%d") for d in dates], len(dates), None
+
+    sql = text("""
+        SELECT sr.ts_code, sr.name, sr.industry, sr.trade_date, sr.score
+        FROM screening_results sr
+        WHERE sr.strategy_name = :strategy_name
+          AND sr.trade_date = ANY(:dates)
+        ORDER BY sr.ts_code ASC, sr.trade_date ASC
+    """)
+    result = await db.execute(
+        sql, {"strategy_name": strategy_name, "dates": dates}
+    )
+    rows = result.fetchall()
+
+    from collections import defaultdict
+
+    stock_map = defaultdict(dict)
+    for row in rows:
+        stock_map[row.ts_code][row.trade_date] = (row.name, row.industry, float(row.score))
+
+    date_strs = [d.strftime("%Y-%m-%d") for d in dates]
+    latest_date = max(dates)
+
+    data = []
+    for ts_code, day_map in stock_map.items():
+        # 统计窗口内评分 >= min_score 的天数（不要求连续）
+        qualify_days = sum(
+            1 for d in dates if d in day_map and day_map[d][2] >= min_score
+        )
+        if qualify_days < days:
+            continue
+
+        scores = OrderedDict()
+        for d in dates:
+            day_str = d.strftime("%Y-%m-%d")
+            scores[day_str] = day_map[d][2] if d in day_map else None
+
+        present_scores = [s for s in scores.values() if s is not None]
+        avg_score = round(sum(present_scores) / len(present_scores), 2) if present_scores else None
+        first_item = next(iter(day_map.values()))
+
+        data.append(
+            {
+                "ts_code": ts_code,
+                "name": first_item[0],
+                "industry": first_item[1],
+                "scores": dict(scores),
+                "latest_score": day_map[latest_date][2] if latest_date in day_map else None,
+                "avg_score": avg_score,
+                "days_continuous": qualify_days,
+            }
+        )
+
+    data.sort(key=lambda x: x["avg_score"] if x["avg_score"] is not None else 0, reverse=True)
+    return data, date_strs, len(dates), {
+        "strategy_name": strategy_name,
+        "min_score": min_score,
+        "window": window,
+    }
+
+
 @router.get("/strong-continuous", response_model=dict)
 async def get_screening_strong_continuous(
     strategy_name: Optional[str] = Query("RsiStrong", description="策略名称"),
-    days: int = Query(2, ge=2, le=5, description="连续天数（默认最近 2 天）"),
+    days: int = Query(2, ge=1, le=5, description="5 天窗口内需满足评分阈值的天数"),
     min_score: float = Query(95, description="最低评分阈值"),
     db: AsyncSession = Depends(get_db),
 ):
-    """连续强势信号：查最近 N 天评分均大于阈值的股票。
+    """强势信号：过去 5 个交易日内评分 >= min_score 的天数 >= days 即入选（不要求连续）。
 
-    策略固定为 RsiStrong（默认），取最近 `days` 个交易日，要求股票在每一天
-    都有记录且评分 >= min_score（默认 95），即“连续强势”。
+    策略固定为 RsiStrong（默认）。取最近 5 个交易日作为固定窗口，统计个股在窗口内
+    评分 >= min_score（默认 95）的天数，该天数 >= days 即视为“强势”，不要求连续。
+    窗口内评分低于阈值的日期也会返回，便于前端展示（且不计入达标天数）。
     """
     try:
-        date_sql = text("""
-            SELECT DISTINCT trade_date
-            FROM screening_results
-            WHERE strategy_name = :strategy_name
-            ORDER BY trade_date DESC
-            LIMIT :days
-        """)
-        date_result = await db.execute(
-            date_sql, {"strategy_name": strategy_name, "days": days}
+        data, date_strs, n_dates, meta = await _resolve_strong_window(
+            db, strategy_name, days, min_score
         )
-        dates = [r[0] for r in date_result.fetchall()]
 
-        if len(dates) < days:
+        if meta is None:
             return {
                 "success": True,
                 "data": [],
-                "dates": [d.strftime("%Y-%m-%d") for d in dates],
-                "days": len(dates),
+                "dates": date_strs,
+                "days": n_dates,
             }
-
-        sql = text("""
-            SELECT sr.ts_code, sr.name, sr.industry, sr.trade_date, sr.score
-            FROM screening_results sr
-            WHERE sr.strategy_name = :strategy_name
-              AND sr.trade_date = ANY(:dates)
-              AND sr.score >= :min_score
-            ORDER BY sr.ts_code ASC, sr.trade_date ASC
-        """)
-        result = await db.execute(
-            sql, {"strategy_name": strategy_name, "dates": dates, "min_score": min_score}
-        )
-        rows = result.fetchall()
-
-        from collections import defaultdict
-
-        stock_map = defaultdict(dict)
-        for row in rows:
-            stock_map[row.ts_code][row.trade_date] = (row.name, row.industry, float(row.score))
-
-        date_strs = [d.strftime("%Y-%m-%d") for d in dates]
-
-        data = []
-        for ts_code, day_map in stock_map.items():
-            if len(day_map) != len(dates):
-                continue
-            scores = OrderedDict()
-            for d in dates:
-                day_str = d.strftime("%Y-%m-%d")
-                scores[day_str] = day_map[d][2]
-
-            latest_date = max(dates)
-            first_item = next(iter(day_map.values()))
-            avg_score = round(sum(scores.values()) / len(scores), 2)
-            data.append(
-                {
-                    "ts_code": ts_code,
-                    "name": first_item[0],
-                    "industry": first_item[1],
-                    "scores": dict(scores),
-                    "latest_score": day_map[latest_date][2],
-                    "avg_score": avg_score,
-                    "days_continuous": len(scores),
-                }
-            )
-
-        data.sort(key=lambda x: x["avg_score"], reverse=True)
 
         return {
             "success": True,
             "data": data,
             "dates": date_strs,
-            "days": len(dates),
-            "meta": {"strategy_name": strategy_name, "min_score": min_score},
+            "days": n_dates,
+            "meta": meta,
         }
     except Exception as e:
         import traceback
 
         traceback.print_exc()
         return {"success": False, "error": str(e), "data": [], "dates": []}
+
+
+def _wilson_ci(success: int, total: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score interval（二项比例置信区间，小样本更稳健）。"""
+    if total <= 0:
+        return (0.0, 0.0)
+    p = success / total
+    denom = 1 + z * z / total
+    centre = (p + z * z / (2 * total)) / denom
+    margin = (z * math.sqrt((p * (1 - p) / total) + (z * z / (4 * total * total)))) / denom
+    return (max(0.0, centre - margin), min(1.0, centre + margin))
+
+
+@router.get("/strong-continuous/eval", response_model=dict)
+async def get_screening_strong_continuous_eval(
+    strategy_name: Optional[str] = Query("RsiStrong", description="策略名称"),
+    days: int = Query(2, ge=1, le=5, description="5 天窗口内需满足评分阈值的天数"),
+    min_score: float = Query(95, description="最低评分阈值"),
+    db: AsyncSession = Depends(get_db),
+):
+    """强势信号质量评估：信号出现后次日上涨概率 + 基准对照 + 逐股历史命中率。
+
+    统计口径与 worker/scripts/analyze_rsi_strong_nextday.py 一致：
+    - 原子事件 = 符合条件的 (ts_code, trade_date) 且 score >= min_score；
+    - 「上涨」= 下一交易日 pct_chg > 0（次收 vs 昨收）；
+    - 下一交易日 = trade_cal 中严格大于信号日的最近开市日；
+    - 基准 = 同一批次日日期集合上全市场 pct_chg>0 的比例（剔除市场 beta）。
+    """
+    try:
+        strategy_name = strategy_name or "RsiStrong"
+        window_data, date_strs, n_dates, meta = await _resolve_strong_window(
+            db, strategy_name, days, min_score
+        )
+
+        # 1. 原子事件
+        events_sql = text("""
+            SELECT ts_code, trade_date
+            FROM screening_results
+            WHERE strategy_name = :s AND score >= :min_score
+            ORDER BY trade_date
+        """)
+        events = (
+            await db.execute(
+                events_sql, {"s": strategy_name, "min_score": min_score}
+            )
+        ).fetchall()
+
+        summary = {
+            "total_events": len(events),
+            "valid_events": 0,
+            "up_count": 0,
+            "up_rate": None,
+            "ci95": {"lo": None, "hi": None},
+            "avg_pct_chg": None,
+            "market_baseline_up_rate": None,
+            "excess": None,
+        }
+
+        per_stock: dict = {}
+
+        if events:
+            # 2. 交易日历（开市日升序）
+            cal_sql = text(
+                "SELECT cal_date FROM trade_cal WHERE exchange = 'SSE' AND is_open = 1 ORDER BY cal_date"
+            )
+            cal = [r[0] for r in (await db.execute(cal_sql)).fetchall()]
+
+            # 3. 批量解析次日 + 批量取行情
+            next_dates: set = set()
+            codes: set = set()
+            for ts_code, trade_date in events:
+                idx = bisect.bisect_right(cal, trade_date)
+                if idx < len(cal):
+                    next_dates.add(cal[idx])
+                    codes.add(ts_code)
+
+            price_map: dict = {}
+            if codes and next_dates:
+                price_sql = text("""
+                    SELECT ts_code, trade_date, open, close, pct_chg
+                    FROM daily_data
+                    WHERE ts_code = ANY(:codes) AND trade_date = ANY(:dates)
+                """)
+                for prow in (
+                    await db.execute(
+                        price_sql, {"codes": list(codes), "dates": list(next_dates)}
+                    )
+                ).fetchall():
+                    price_map[(prow[0], prow[1])] = (
+                        float(prow[2]),  # open
+                        float(prow[3]),  # close
+                        float(prow[4]),  # pct_chg
+                    )
+
+            # 4. 逐事件结果 + 逐股聚合
+            from collections import defaultdict
+
+            by_code: dict = defaultdict(list)
+            valid_pcts: list = []
+            total_valid = 0
+            up_count = 0
+            used_next_dates: set = set()
+
+            for ts_code, trade_date in events:
+                idx = bisect.bisect_right(cal, trade_date)
+                next_date = cal[idx] if idx < len(cal) else None
+                entry = {
+                    "td": trade_date,
+                    "nd": next_date,
+                    "pct": None,
+                    "otc": None,
+                }
+                if next_date is not None:
+                    pr = price_map.get((ts_code, next_date))
+                    if pr is not None:
+                        open_, close_, pct = pr
+                        entry["pct"] = pct
+                        if open_ and open_ != 0 and close_ is not None:
+                            entry["otc"] = (close_ - open_) / open_ * 100
+                        used_next_dates.add(next_date)
+                        total_valid += 1
+                        valid_pcts.append(pct)
+                        if pct > 0:
+                            up_count += 1
+                by_code[ts_code].append(entry)
+
+            # 5. 全市场基准（同一批次日日期集合横截面）
+            baseline_up_rate = None
+            if used_next_dates:
+                base_sql = text("""
+                    SELECT COUNT(*) AS total,
+                           COUNT(*) FILTER (WHERE pct_chg > 0) AS up
+                    FROM daily_data
+                    WHERE trade_date = ANY(:dates)
+                """)
+                b = (await db.execute(base_sql, {"dates": list(used_next_dates)})).fetchone()
+                if b and b[0]:
+                    baseline_up_rate = b[1] / b[0]
+
+            # 6. 逐股历史命中率 + 最近信号次日结果
+            for ts_code, lst in by_code.items():
+                valid = [x for x in lst if x["pct"] is not None]
+                n = len(valid)
+                up = sum(1 for x in valid if x["pct"] > 0)
+                latest = max(lst, key=lambda x: x["td"])
+                per_stock[ts_code] = {
+                    "hist": {
+                        "n": n,
+                        "up": up,
+                        "up_rate": round(up / n, 4) if n else None,
+                    },
+                    "latest_signal_date": latest["td"].strftime("%Y-%m-%d"),
+                    "latest_next_date": (
+                        latest["nd"].strftime("%Y-%m-%d") if latest["nd"] else None
+                    ),
+                    "latest_next_pct": (
+                        round(latest["pct"], 2) if latest["pct"] is not None else None
+                    ),
+                    "latest_is_up": (
+                        latest["pct"] is not None and latest["pct"] > 0
+                    ),
+                    "latest_otc": round(latest["otc"], 2) if latest["otc"] is not None else None,
+                }
+
+            if total_valid > 0:
+                ci_lo, ci_hi = _wilson_ci(up_count, total_valid)
+                summary = {
+                    "total_events": len(events),
+                    "valid_events": total_valid,
+                    "up_count": up_count,
+                    "up_rate": round(up_count / total_valid, 4),
+                    "ci95": {"lo": round(ci_lo, 4), "hi": round(ci_hi, 4)},
+                    "avg_pct_chg": round(sum(valid_pcts) / len(valid_pcts), 4),
+                    "market_baseline_up_rate": (
+                        round(baseline_up_rate, 4) if baseline_up_rate is not None else None
+                    ),
+                    "excess": (
+                        round(up_count / total_valid - baseline_up_rate, 4)
+                        if baseline_up_rate is not None
+                        else None
+                    ),
+                }
+
+        # 7. 逐股结果合并到窗口数据
+        for stock in window_data:
+            stock["hist"] = per_stock.get(stock["ts_code"], {}).get("hist", None)
+            extra = per_stock.get(stock["ts_code"], {})
+            stock["next_day"] = {
+                "signal_date": extra.get("latest_signal_date"),
+                "next_date": extra.get("latest_next_date"),
+                "next_pct_chg": extra.get("latest_next_pct"),
+                "is_up": extra.get("latest_is_up"),
+                "open_to_close": extra.get("latest_otc"),
+            }
+
+        return {
+            "success": True,
+            "data": window_data,
+            "dates": date_strs,
+            "days": n_dates,
+            "meta": meta,
+            "summary": summary,
+        }
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e),
+            "data": [],
+            "dates": [],
+            "summary": {},
+        }
 
 
 @router.get("/trend", response_model=dict)
@@ -373,6 +621,7 @@ async def get_screening_trend(
     industry: Optional[str] = None,
     ts_code: Optional[str] = None,
     name: Optional[str] = None,
+    signal_date: Optional[date] = None,
     date_start: Optional[date] = None,
     date_end: Optional[date] = None,
     min_score: Optional[float] = None,
@@ -414,6 +663,9 @@ async def get_screening_trend(
         if min_score is not None:
             conditions.append("score >= :min_score")
             params["min_score"] = min_score
+        if signal_date:
+            conditions.append("trade_date = :signal_date")
+            params["signal_date"] = signal_date
         if market_type:
             prefixes = {
                 "main": ("600", "601", "603", "605", "000", "001", "002", "003"),
