@@ -257,8 +257,9 @@ const fetchData = async () => {
     let dateStart = filter.dateRange ? filter.dateRange[0] : null
     let dateEnd = filter.dateRange ? filter.dateRange[1] : null
 
-    if (!filter.isAll) {
-      // Force recent 5 days
+    if (!filter.isAll && !filter.signalDate) {
+      // Force recent 5 days (only when no explicit signal date is chosen,
+      // otherwise the exact signal_date filter would be clobbered)
       dateStart = getRecent5DaysStart()
       dateEnd = null
     }
@@ -408,23 +409,35 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
-/* 修复 fixed(sticky) 列背景透明：横向滚动时下层内容会透出。
-   正常行用不透明卡片背景覆盖；不加 !important，
-   让全局斑马纹/悬停的 !important 规则继续作用于 fixed 单元格 */
-:deep(.el-table .el-table__body td.el-table-fixed-column--left),
-:deep(.el-table .el-table__body td.el-table-fixed-column--right) {
+/* 修复 fixed(sticky) 列背景透明：EP 2.4 的 fixed 列是 sticky 单元格，
+   EP 默认 background: inherit（继承自透明的 <tr>），
+   全局主题又有 background-color: transparent，横向滚动时下层内容会透出。
+   以下按 EP 实际选择器形状显式声明 fixed 单元格各状态背景（Option B）：
+   基础/斑马纹/悬停用不透明色；选中行用「不透明底色 + 同色系半透明渐变层」叠加，
+   与滚动区单元格（透明底上叠同样的半透明色）视觉完全一致且永不透明。 */
+
+/* 基础底色：表头 th + 表体 td，左右两侧（无 !important，让下方状态规则覆盖） */
+:deep(.el-table .el-table__header-wrapper tr th.el-table-fixed-column--left),
+:deep(.el-table .el-table__header-wrapper tr th.el-table-fixed-column--right),
+:deep(.el-table .el-table__body-wrapper tr td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr td.el-table-fixed-column--right) {
   background-color: var(--bg-card-solid);
 }
 
+/* 悬停（写在斑马纹之前，保持与滚动区一致的级联：斑马纹行悬停仍显示斑马色） */
+:deep(.el-table .el-table__body-wrapper tr:hover > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr:hover > td.el-table-fixed-column--right) {
+  background-color: #f0fdf4 !important;
+}
+
+/* 斑马纹 */
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped > td.el-table-fixed-column--right) {
+  background-color: #fafbfc !important;
+}
+
+/* 选中行（非 fixed 单元格保持原有半透明色） */
 :deep(.el-table .selected-row > td.el-table__cell) {
-  background-color: var(--bg-hover) !important;
-}
-
-:deep(.el-table .el-table__fixed .selected-row > td.el-table__cell) {
-  background-color: var(--bg-hover) !important;
-}
-
-:deep(.el-table .el-table__fixed-right .selected-row > td.el-table__cell) {
   background-color: var(--bg-hover) !important;
 }
 
@@ -432,11 +445,24 @@ onMounted(() => {
   background-color: var(--bg-active) !important;
 }
 
-:deep(.el-table .el-table__fixed .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: var(--bg-active) !important;
+/* 选中行的 fixed 单元格：半透明选中色叠在不透明底色上，避免下层滚动内容透出 */
+:deep(.el-table .el-table__body-wrapper tr.selected-row > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr.selected-row > td.el-table-fixed-column--right) {
+  background: linear-gradient(var(--bg-hover), var(--bg-hover)), var(--bg-card-solid) !important;
 }
 
-:deep(.el-table .el-table__fixed-right .el-table__body tr.selected-row:hover > td.el-table__cell) {
-  background-color: var(--bg-active) !important;
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped.selected-row > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped.selected-row > td.el-table-fixed-column--right) {
+  background: linear-gradient(var(--bg-hover), var(--bg-hover)), #fafbfc !important;
+}
+
+:deep(.el-table .el-table__body-wrapper tr.selected-row:hover > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr.selected-row:hover > td.el-table-fixed-column--right) {
+  background: linear-gradient(var(--bg-active), var(--bg-active)), var(--bg-card-solid) !important;
+}
+
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped.selected-row:hover > td.el-table-fixed-column--left),
+:deep(.el-table .el-table__body-wrapper tr.el-table__row--striped.selected-row:hover > td.el-table-fixed-column--right) {
+  background: linear-gradient(var(--bg-active), var(--bg-active)), #fafbfc !important;
 }
 </style>

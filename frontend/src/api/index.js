@@ -708,6 +708,11 @@ export const screeningApi = {
     let url = `/screening/strong-continuous?strategy_name=${encodeURIComponent(strategy_name)}&days=${days}&min_score=${min_score}`
     return api.get(url)
   },
+  getStrongContinuousEval: (params = {}) => {
+    const { strategy_name = 'RsiStrong', days = 2, min_score = 95 } = params
+    let url = `/screening/strong-continuous/eval?strategy_name=${encodeURIComponent(strategy_name)}&days=${days}&min_score=${min_score}`
+    return api.get(url)
+  },
 }
 
 export const trendApi = {
@@ -719,6 +724,7 @@ export const trendApi = {
       industry = null,
       ts_code = null,
       name = null,
+      signal_date = null,
       date_start = null,
       date_end = null,
       min_score = null,
@@ -737,6 +743,9 @@ export const trendApi = {
     }
     if (name) {
       url += `&name=${encodeURIComponent(name)}`
+    }
+    if (signal_date) {
+      url += `&signal_date=${encodeURIComponent(signal_date)}`
     }
     if (date_start) {
       url += `&date_start=${encodeURIComponent(date_start)}`
