@@ -1,6 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from app.config import get_settings
 from app.database import init_db
@@ -88,8 +91,13 @@ app.include_router(index_sync_config.router, prefix=api_prefix)
 app.include_router(ws_router)
 
 
+STATIC_DIR = Path(__file__).parent.parent / "static"
+
+
 @app.get("/")
 async def root():
+    if STATIC_DIR.exists():
+        return FileResponse(STATIC_DIR / "index.html")
     return {"message": "Stock Watchlist API", "version": "1.0.0", "docs": "/docs"}
 
 
@@ -101,3 +109,18 @@ async def health_check():
 @app.get("/tasks/status")
 async def get_task_status():
     return {"success": True, "data": task_manager.get_status()}
+
+
+# SPA fallback: only active when the built frontend was copied to /app/static
+# (Docker image), so local dev without a build keeps working. Registered last
+# so API and WebSocket routes take precedence; api/ws misses stay 404.
+STATIC_DIR = Path(__file__).parent.parent / "static"
+
+if STATIC_DIR.exists():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        if full_path.startswith(("api", "ws")):
+            raise HTTPException(status_code=404, detail="Not Found")
+        return FileResponse(STATIC_DIR / "index.html")

@@ -1,0 +1,31 @@
+# Build context for every ui/ image (backend and frontend) is the ui/ root.
+# Keep this file in sync when new heavy/generated paths appear.
+
+# CRITICAL: backend/uvicorn.log is ~33 GB. It must never enter the build
+# context, otherwise every `docker build` ships it to the daemon.
+backend/uvicorn.log
+**/uvicorn.log
+**/*.log
+
+# Python bytecode and tool caches
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+
+# Backend dev-only files
+backend/tests
+backend/.env
+
+# Frontend dependencies, build output, and local env files
+frontend/node_modules
+frontend/dist
+frontend/.env*
+
+# VCS, editor, and docs noise
+.git
+.gitignore
+**/.DS_Store
+docs

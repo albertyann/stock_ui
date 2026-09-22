@@ -34,14 +34,6 @@
             <el-option label="30天" :value="30" />
           </el-select>
         </el-form-item>
-        <el-form-item label="最少连续增长天数">
-          <el-select v-model="minGrowthDays" style="width: 120px" @change="fetchData">
-            <el-option label="3天" :value="3" />
-            <el-option label="5天" :value="5" />
-            <el-option label="7天" :value="7" />
-            <el-option label="10天" :value="10" />
-          </el-select>
-        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="fetchData" :loading="loading">查询</el-button>
         </el-form-item>
@@ -106,6 +98,41 @@
       </el-table>
     </el-card>
 
+    <!-- 净流出图表区域 -->
+    <el-card v-loading="loading" class="chart-card">
+      <el-empty v-if="!loading && outflowDisplayData.length === 0" description="暂无流出数据" />
+      <div v-show="outflowDisplayData.length > 0" ref="outflowChartRef" class="chart-container"></div>
+    </el-card>
+
+    <!-- 净流出数据表格 -->
+    <el-card v-if="outflowDisplayData.length > 0" class="data-card">
+      <el-table :data="outflowDisplayData" style="width: 100%" border stripe :default-sort="{ prop: 'total_net_inflow', order: 'ascending' }">
+        <el-table-column type="index" label="序号" width="60" align="center" />
+        <el-table-column prop="industry" label="行业名称" min-width="140" sortable>
+          <template #default="{ row }">
+            <router-link :to="{ path: '/sector/detail', query: { code: row.industry_code, sectorType: 'industry', sectorName: row.industry } }" class="sector-link">
+              {{ row.industry }}
+            </router-link>
+          </template>
+        </el-table-column>
+        <el-table-column prop="total_net_inflow" label="累计净流出(亿)" min-width="140" sortable align="right">
+          <template #default="{ row }">
+            <span :class="getAmountClass(row.total_net_inflow)">{{ formatSignedAmount(row.total_net_inflow) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="growth_days" label="连续流出天数" min-width="120" sortable align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.growth_days >= 7 ? 'danger' : row.growth_days >= 5 ? 'warning' : 'success'">{{ row.growth_days }}天</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="最新每日净流出(亿)" min-width="160" align="right">
+          <template #default="{ row }">
+            <span :class="getAmountClass(row.daily_values[row.daily_values.length - 1])">{{ formatSignedAmount(row.daily_values[row.daily_values.length - 1]) }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
+
     <!-- 命令弹窗 -->
     <el-dialog
       v-model="commandDialogVisible"
@@ -147,13 +174,16 @@ import { basicDataApi } from '@/api'
 import * as echarts from '@/utils/echarts'
 
 const loading = ref(false)
-const days = ref(20)
-const minGrowthDays = ref(3)
+const days = ref(10)
 const endDate = ref(null)
 const chartData = ref([])
 const dates = ref([])
 const chartRef = ref(null)
 let chartInstance = null
+const outflowChartData = ref([])
+const outflowDates = ref([])
+const outflowChartRef = ref(null)
+let outflowChartInstance = null
 
 // 命令弹窗相关
 const commandDialogVisible = ref(false)
@@ -239,6 +269,8 @@ const displayData = computed(() => {
   return chartData.value.slice(0, 10)
 })
 
+const outflowDisplayData = computed(() => outflowChartData.value.slice(0, 10))
+
 const topIndustry = computed(() => {
   if (displayData.value.length === 0) return '-'
   return displayData.value[0].industry
@@ -252,7 +284,12 @@ const maxGrowthDays = computed(() => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await basicDataApi.getIncrementalIndustry(days.value, minGrowthDays.value, endDate.value)
+    const [inflowRes, outflowRes] = await Promise.all([
+      basicDataApi.getIncrementalIndustry(days.value, endDate.value, 'inflow'),
+      basicDataApi.getIncrementalIndustry(days.value, endDate.value, 'outflow')
+    ])
+
+    const res = inflowRes
     if (res.success) {
       dates.value = res.data?.dates || []
       chartData.value = res.data?.industries || []
@@ -276,12 +313,31 @@ const fetchData = async () => {
       dates.value = []
       disposeChart()
     }
+
+    if (outflowRes.success) {
+      outflowDates.value = outflowRes.data?.dates || []
+      outflowChartData.value = outflowRes.data?.industries || []
+      if (outflowChartData.value.length > 0) {
+        await nextTick()
+        renderOutflowChart()
+      } else {
+        disposeOutflowChart()
+      }
+    } else {
+      ElMessage.error(outflowRes.error || '获取流出数据失败')
+      outflowChartData.value = []
+      outflowDates.value = []
+      disposeOutflowChart()
+    }
   } catch (err) {
     console.error('Failed to fetch incremental industry:', err)
     ElMessage.error('获取数据失败：' + (err.message || '网络错误'))
     chartData.value = []
     dates.value = []
+    outflowChartData.value = []
+    outflowDates.value = []
     disposeChart()
+    disposeOutflowChart()
   } finally {
     loading.value = false
   }
@@ -404,7 +460,9 @@ const buildChartOption = () => {
       {
         type: 'inside',
         start: 0,
-        end: 100
+        end: 100,
+        zoomOnMouseWheel: 'shift',
+        moveOnMouseWheel: false
       },
       {
         show: true,
@@ -426,9 +484,153 @@ const disposeChart = () => {
   }
 }
 
+const renderOutflowChart = () => {
+  if (!outflowChartRef.value) return
+
+  if (!outflowChartInstance) {
+    outflowChartInstance = echarts.init(outflowChartRef.value)
+  }
+
+  const option = buildOutflowChartOption()
+  outflowChartInstance.setOption(option, true)
+}
+
+const buildOutflowChartOption = () => {
+  const colors = [
+    '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de',
+    '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc', '#ff9f7f',
+    '#ffdb5c', '#67e0e3', '#37a2da', '#32c5e9', '#9fe6b8'
+  ]
+
+  const series = outflowDisplayData.value.map((item, index) => ({
+    name: item.industry,
+    type: 'line',
+    data: item.cumulative_values,
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 6,
+    lineStyle: {
+      width: 2
+    },
+    itemStyle: {
+      color: colors[index % colors.length]
+    },
+    emphasis: {
+      focus: 'series'
+    }
+  }))
+
+  return {
+    title: {
+      text: endDate.value ? `${endDate.value}之前近${days.value}个交易日持续净流出行业` : `近${days.value}个交易日持续净流出行业`,
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#1e293b'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      appendToBody: true,
+      extraCssText: 'z-index: 99999 !important;',
+      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      borderColor: '#e2e8f0',
+      textStyle: { color: '#1e293b' },
+      formatter: (params) => {
+        let html = `<div style="font-weight:bold;margin-bottom:8px;">${params[0].axisValue}</div>`
+        params.forEach(p => {
+          const color = p.color
+          // 累计值
+          const cumValue = p.value >= 0 ? `+${p.value.toFixed(2)}` : p.value.toFixed(2)
+          // 找到对应的 industry 数据来获取当日值
+          const industryData = outflowDisplayData.value.find(item => item.industry === p.seriesName)
+          const dataIndex = p.dataIndex
+          const dailyValue = industryData ? industryData.daily_values[dataIndex] : 0
+          const dailyStr = dailyValue >= 0 ? `+${dailyValue.toFixed(2)}` : dailyValue.toFixed(2)
+
+          html += `<div style="margin: 4px 0;">${p.marker} <span style="color:${color}">${p.seriesName}</span></div>`
+          html += `<div style="margin-left: 20px; font-size: 12px; color: #94a3b8;">累计: ${cumValue}亿 | 当日: ${dailyStr}亿</div>`
+        })
+        return html
+      }
+    },
+    legend: {
+      type: 'scroll',
+      top: 30,
+      left: 'center',
+      right: 40,
+      textStyle: { color: '#94a3b8' }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%',
+      top: '18%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: outflowDates.value,
+      axisLabel: {
+        formatter: (value) => value.substring(5),
+        rotate: 45,
+        color: '#94a3b8'
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '累计净流出（亿）',
+      nameTextStyle: { color: '#94a3b8' },
+      axisLabel: {
+        formatter: (value) => value.toFixed(0),
+        color: '#94a3b8'
+      },
+      splitLine: {
+        lineStyle: {
+          type: 'dashed',
+          color: '#f0f0f0'
+        }
+      }
+    },
+    dataZoom: [
+      {
+        type: 'inside',
+        start: 0,
+        end: 100,
+        zoomOnMouseWheel: 'shift',
+        moveOnMouseWheel: false
+      },
+      {
+        show: true,
+        type: 'slider',
+        bottom: '2%',
+        start: 0,
+        end: 100,
+        height: 20
+      }
+    ],
+    series
+  }
+}
+
+const disposeOutflowChart = () => {
+  if (outflowChartInstance) {
+    outflowChartInstance.dispose()
+    outflowChartInstance = null
+  }
+}
+
 const handleResize = () => {
   if (chartInstance) {
     chartInstance.resize()
+  }
+  if (outflowChartInstance) {
+    outflowChartInstance.resize()
   }
 }
 
@@ -451,6 +653,12 @@ watch(chartData, () => {
   }
 }, { deep: true })
 
+watch(outflowChartData, () => {
+  if (outflowChartData.value.length > 0) {
+    nextTick(() => renderOutflowChart())
+  }
+}, { deep: true })
+
 onMounted(() => {
   fetchData()
   window.addEventListener('resize', handleResize)
@@ -459,6 +667,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   disposeChart()
+  disposeOutflowChart()
 })
 </script>
 

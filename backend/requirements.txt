@@ -9,6 +9,7 @@ python-socketio==5.10.0
 
 # Database
 asyncpg==0.29.0
+psycopg2-binary>=2.9  # required by sync SQLAlchemy engines (database_url without +asyncpg)
 sqlalchemy[asyncio]==2.0.23
 alembic==1.12.1
 

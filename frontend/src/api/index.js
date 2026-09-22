@@ -457,8 +457,8 @@ export const basicDataApi = {
     url += `&limit=${limit}`
     return api.get(url)
   },
-  getIncrementalIndustry: (days = 20, min_growth_days = 3, end_date = null) => {
-    let url = `/basic-data/incremental-industry?days=${days}&min_growth_days=${min_growth_days}`
+  getIncrementalIndustry: (days = 20, end_date = null, direction = 'inflow') => {
+    let url = `/basic-data/incremental-industry?days=${days}&direction=${direction}`
     if (end_date) {
       url += `&end_date=${end_date}`
     }

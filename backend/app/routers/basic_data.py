@@ -299,13 +299,15 @@ async def get_industry_daily_flow(
 @router.get("/incremental-industry", response_model=dict)
 async def get_incremental_industry(
     days: int = Query(20, ge=5, le=60, description="查询天数，默认20"),
-    min_growth_days: int = Query(3, ge=1, le=20, description="最少连续增长天数"),
     end_date: Optional[str] = Query(
         None, description="截止日期，格式YYYY-MM-DD，默认为今天"
     ),
+    direction: str = Query(
+        "inflow", pattern="^(inflow|outflow)$", description="方向: inflow=持续净流入, outflow=持续净流出"
+    ),
 ):
     service = BasicDataService()
-    result = service.get_incremental_industry(days, min_growth_days, end_date)
+    result = service.get_incremental_industry(days, end_date, direction)
     if not result.get("success"):
         return {"success": False, "error": result.get("error"), "data": []}
     return result

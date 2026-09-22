@@ -6,9 +6,12 @@ class IndustryAnalysisServiceMixin:
     def get_incremental_industry(
         self,
         days: int = 20,
-        min_growth_days: int = 3,
         end_date: Optional[str] = None,
+        direction: str = "inflow",
     ) -> Dict:
+        if direction not in ("inflow", "outflow"):
+            return {"success": False, "error": "direction must be 'inflow' or 'outflow'", "data": {"dates": [], "industries": []}}
+        is_inflow = direction == "inflow"
         try:
             with self.engine.connect() as conn:
                 date_condition = "AND cal_date <= :end_date" if end_date else "AND cal_date <= CURRENT_DATE"
@@ -85,18 +88,20 @@ class IndustryAnalysisServiceMixin:
                     growth_days = 0
                     max_growth_days = 0
                     for i in range(1, len(cumulative_values)):
-                        if cumulative_values[i] > cumulative_values[i-1]:
+                        growing = cumulative_values[i] > cumulative_values[i-1] if is_inflow else cumulative_values[i] < cumulative_values[i-1]
+                        if growing:
                             growth_days += 1
                             max_growth_days = max(max_growth_days, growth_days)
                         else:
                             growth_days = 0
-                    
-                    if len(cumulative_values) > 0 and cumulative_values[0] > 0:
+
+                    if len(cumulative_values) > 0 and (cumulative_values[0] > 0 if is_inflow else cumulative_values[0] < 0):
                         max_growth_days = max(max_growth_days, 1)
-                    
+
                     total_net_inflow = cumulative_values[-1] if cumulative_values else 0
-                    
-                    if total_net_inflow > 0 and max_growth_days >= min_growth_days:
+
+                    direction_match = total_net_inflow > 0 if is_inflow else total_net_inflow < 0
+                    if direction_match:
                         industries.append({
                             "industry": industry,
                             "industry_code": data["industry_code"],
@@ -106,7 +111,7 @@ class IndustryAnalysisServiceMixin:
                             "growth_days": max_growth_days
                         })
                 
-                industries.sort(key=lambda x: x["total_net_inflow"], reverse=True)
+                industries.sort(key=lambda x: x["total_net_inflow"], reverse=is_inflow)
                 
                 return {
                     "success": True,

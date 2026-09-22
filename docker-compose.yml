@@ -1,0 +1,77 @@
+# Stock Watchlist — backend + redis, run in the colima Docker context.
+# The Vue SPA is built inside the backend image (backend/Dockerfile) and served
+# by FastAPI itself on port 9000, so there is no separate frontend service.
+#
+# The database is NOT part of this stack. The backend joins the external
+# `trade-net` network and reaches the existing Postgres container by its
+# container name (see DB_HOST). One-time setup:
+#   docker --context colima network create trade-net
+#   docker --context colima network connect trade-net postgres
+#
+# Usage (colima is the context that owns the database):
+#   cd ui
+#   docker --context colima compose up --build
+#   # or, to make it the default: docker context use colima && docker compose up --build
+#
+# Endpoints after startup:
+#   http://localhost:9000/            SPA (vue-router history fallback -> index.html)
+#   http://localhost:9000/api/*       FastAPI backend
+#   ws://localhost:9000/ws/*          FastAPI backend (uvicorn --ws wsproto)
+#   http://localhost:9000/health      backend health
+#
+# Optional variables — set in ui/.env or export before running (defaults shown):
+#   DB_HOST          postgres container name on trade-net (default: postgres)
+#   DB_PORT          database port                        (default: 5432)
+#   DB_NAME          database name                        (default: stock_data)
+#   DB_PASSWORD      postgres password                    (default: postgrespwd)
+#   BACKEND_PORT     host port for the app                (default: 9000)
+#   DEBUG            backend debug flag                   (default: false)
+#   JWT_SECRET_KEY   MUST be a strong random value in production
+#                    (default: change-me-in-production)
+#   AI_API_KEY       optional AI provider key             (default: empty)
+#   TUSHARE_TOKEN    optional Tushare token               (default: empty)
+
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # init_db() runs on startup and fails fast if the database is unreachable,
+      # so the Postgres container must be running and attached to trade-net.
+      DATABASE_URL: "postgresql+asyncpg://postgres:${DB_PASSWORD:-postgrespwd}@${DB_HOST:-postgres}:${DB_PORT:-5432}/${DB_NAME:-stock_data}"
+      REDIS_URL: "redis://redis:6379/0"
+      DEBUG: ${DEBUG:-false}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      AI_API_KEY: ${AI_API_KEY:-}
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN:-}
+    ports:
+      - "${BACKEND_PORT:-9000}:9000"
+    networks:
+      - default
+      - trade-net
+    healthcheck:
+      # python:slim has no curl/wget — use the interpreter for /health.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  trade-net:
+    external: true
+    name: trade-net
